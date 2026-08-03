@@ -46,7 +46,7 @@ const approveAdmin = async (params, Details, currentUser) => {
                 { where: { user_id } }
             );
 
-            await sendEmail({
+            sendEmail({
                 to: resultUser.email,
                 subject: 'Admin Account Approved - DAVV',
                 html: `
@@ -75,7 +75,7 @@ const approveAdmin = async (params, Details, currentUser) => {
                 is_active: false
             });
 
-            await sendEmail({
+            sendEmail({
                 to: user.email,
                 subject: 'Admin Account Rejected - DAVV',
                 html: `

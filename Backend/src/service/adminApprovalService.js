@@ -40,7 +40,7 @@ async function approveFaculty(params, Details, currentUser) {
             );
 
 
-            await sendEmail({
+            sendEmail({
                 to: resultUser.email,
                 subject: 'Faculty Account Approved - DAVV',
                 html: `
@@ -69,7 +69,7 @@ async function approveFaculty(params, Details, currentUser) {
                 is_active: false
             });
 
-            await sendEmail({
+            sendEmail({
                 to: user.email,
                 subject: 'Faculty Account Rejected - DAVV',
                 html: `
