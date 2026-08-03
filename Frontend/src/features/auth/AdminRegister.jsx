@@ -58,6 +58,7 @@ export default function AdminRegister({ onNavigate }) {
 
     try {
       await api.post('/auth/register/admin', {
+        email: formData.email.trim().toLowerCase(),
         password: formData.password,
         full_name: formData.fullName.trim(),
         phone_number: formData.mobile.trim()
