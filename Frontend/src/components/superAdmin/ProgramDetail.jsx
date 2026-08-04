@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from "react";
 import Topbar from "./Topbar";
 import { ChevronLeft, Plus, Trash2, User } from "lucide-react";
+import api from "../../api/axiosInstance";
 
 export default function ProgramDetail({ program, onBack, onUpdate }) {
   const [courseData, setCourseData] = useState(null);
@@ -10,28 +11,14 @@ export default function ProgramDetail({ program, onBack, onUpdate }) {
 
   const courseId = program.course_id;
 
-  const getAuthHeaders = () => {
-    const token = localStorage.getItem('token'); 
-    return {
-      "Content-Type": "application/json",
-      "Authorization": `Bearer ${token}`
-    };
-  };
-
   // 1. Fetch exact detail from Backend DB
   useEffect(() => {
     const fetchCourseDashboard = async () => {
       try {
-        const res = await fetch(`/api/super_admin/courseDashboard/${courseId}`, {
-          method: 'GET',
-          headers: getAuthHeaders() 
-        });
+        const res = await api.get(`/super_admin/courseDashboard/${courseId}`);
         
-        if (!res.ok) throw new Error(`HTTP error! status: ${res.status}`);
-        
-        const data = await res.json();
-        if (data.success && data.data.length > 0) {
-          setCourseData(data.data[0]);
+        if (res.data.success && res.data.data.length > 0) {
+          setCourseData(res.data.data[0]);
         } else {
           throw new Error("API returned no data");
         }
@@ -49,18 +36,10 @@ export default function ProgramDetail({ program, onBack, onUpdate }) {
   // 2. Fetch Subjects 
   const fetchSubjects = async (semesterId) => {
     try {
-      const res = await fetch(`/api/super_admin/subjects/${courseId}/${semesterId}`, {
-        method: 'GET',
-        headers: getAuthHeaders() 
-      });
-      
-      if (!res.ok) {
-        throw new Error(`Backend returned ${res.status}: Ensure the route exists.`);
-      }
+      const res = await api.get(`/super_admin/subjects/${courseId}/${semesterId}`);
 
-      const data = await res.json();
-      if (data.success) {
-        setSubjects((prev) => ({ ...prev, [semesterId]: data.data || [] }));
+      if (res.data.success) {
+        setSubjects((prev) => ({ ...prev, [semesterId]: res.data.data || [] }));
       }
     } catch (error) {
       console.error(`Failed to fetch subjects for semester ${semesterId}:`, error.message);
@@ -82,13 +61,11 @@ export default function ProgramDetail({ program, onBack, onUpdate }) {
     if (!newIncharge || newIncharge.trim() === "") return;
 
     try {
-      const res = await fetch(`/api/super_admin/updateIncharge/${courseId}`, {
-        method: "PUT",
-        headers: getAuthHeaders(),
-        body: JSON.stringify({ program_incharge: newIncharge })
+      const res = await api.put(`/super_admin/updateIncharge/${courseId}`, {
+        program_incharge: newIncharge
       });
       
-      const data = await res.json();
+      const data = res.data;
       
       if (data.success) {
         const updatedCourse = { ...courseData, program_incharge: newIncharge };
@@ -112,13 +89,11 @@ export default function ProgramDetail({ program, onBack, onUpdate }) {
     const formattedSectionName = sectionName.trim().toUpperCase();
 
     try {
-      const res = await fetch(`/api/super_admin/addSection/${courseId}`, {
-        method: "POST",
-        headers: getAuthHeaders(),
-        body: JSON.stringify({ section_name: formattedSectionName })
+      const res = await api.post(`/super_admin/addSection/${courseId}`, {
+        section_name: formattedSectionName
       });
       
-      const data = await res.json();
+      const data = res.data;
       
       if (data.success) {
         const newSection = { section_id: data.data.section_id, section_name: data.data.section_name };
@@ -139,12 +114,9 @@ export default function ProgramDetail({ program, onBack, onUpdate }) {
     if (!window.confirm("Are you sure you want to delete this section?")) return;
 
     try {
-      const res = await fetch(`/api/super_admin/deleteSection/${courseId}/${sectionId}`, {
-        method: "DELETE",
-        headers: getAuthHeaders()
-      });
+      const res = await api.delete(`/super_admin/deleteSection/${courseId}/${sectionId}`);
       
-      const data = await res.json();
+      const data = res.data;
 
       if (data.success) {
         const updatedCourse = { ...courseData, Sections: courseData.Sections.filter(s => s.section_id !== sectionId) };
@@ -163,13 +135,11 @@ export default function ProgramDetail({ program, onBack, onUpdate }) {
   const handleAddSemester = async () => {
     const nextSemId = (courseData.total_semesters || 0) + 1;
     try {
-      const res = await fetch(`/api/super_admin/addSemester/${courseId}`, {
-        method: "POST",
-        headers: getAuthHeaders(),
-        body: JSON.stringify({ semester_id: nextSemId })
+      const res = await api.post(`/super_admin/addSemester/${courseId}`, {
+        semester_id: nextSemId
       });
       
-      const data = await res.json();
+      const data = res.data;
 
       if (data.success) {
         const updatedCourse = { ...courseData, total_semesters: nextSemId };
@@ -195,12 +165,9 @@ export default function ProgramDetail({ program, onBack, onUpdate }) {
     const semesterToDelete = courseData.total_semesters;
 
     try {
-      const res = await fetch(`/api/super_admin/deleteSemester/${courseId}/${semesterToDelete}`, {
-        method: "DELETE",
-        headers: getAuthHeaders()
-      });
+      const res = await api.delete(`/super_admin/deleteSemester/${courseId}/${semesterToDelete}`);
       
-      const data = await res.json();
+      const data = res.data;
 
       if (data.success) {
         const updatedCourse = { ...courseData, total_semesters: courseData.total_semesters - 1 };
@@ -230,12 +197,10 @@ export default function ProgramDetail({ program, onBack, onUpdate }) {
     if (!subjectName) return;
 
     try {
-      const res = await fetch(`/api/super_admin/addSubject/${courseId}/${semesterId}`, {
-        method: "POST",
-        headers: getAuthHeaders(),
-        body: JSON.stringify({ subject_code: subjectCode, subject_name: subjectName })
+      const res = await api.post(`/super_admin/addSubject/${courseId}/${semesterId}`, {
+        subject_code: subjectCode, subject_name: subjectName
       });
-      const data = await res.json();
+      const data = res.data;
       if (data.success) {
         fetchSubjects(semesterId);
       } else {
@@ -251,11 +216,8 @@ export default function ProgramDetail({ program, onBack, onUpdate }) {
     if (!window.confirm("Are you sure you want to delete this subject?")) return;
 
     try {
-      const res = await fetch(`/api/super_admin/deleteSubject/${courseId}/${semesterId}/${subjectId}`, {
-        method: "DELETE",
-        headers: getAuthHeaders() 
-      });
-      const data = await res.json();
+      const res = await api.delete(`/super_admin/deleteSubject/${courseId}/${semesterId}/${subjectId}`);
+      const data = res.data;
       if (data.success) {
         fetchSubjects(semesterId);
       } else {

@@ -2,6 +2,7 @@ import React, { useState, useEffect } from "react";
 import Topbar from "./Topbar";
 import ProgramDetail from "./ProgramDetail";
 import { Eye, ChevronDown, Plus, Trash2 } from "lucide-react";
+import api from "../../api/axiosInstance";
 
 export default function ProgramsPage() {
   const [programs, setPrograms] = useState([]);
@@ -9,33 +10,15 @@ export default function ProgramsPage() {
   const [loading, setLoading] = useState(true);
   const [apiError, setApiError] = useState(false);
 
-  // Helper to get auth headers
-  const getAuthHeaders = () => {
-    const token = localStorage.getItem('token'); 
-    return {
-      "Content-Type": "application/json",
-      "Authorization": `Bearer ${token}` 
-    };
-  };
-
   // Fetch all programs from the backend DB
   const fetchPrograms = async () => {
     setLoading(true);
     setApiError(false);
     try {
-      const res = await fetch('/api/super_admin/courseDashboard', {
-        method: 'GET',
-        headers: getAuthHeaders() 
-      });
+      const res = await api.get('/super_admin/courseDashboard');
       
-      if (res.status === 401) {
-        throw new Error("Unauthorized: Please check if you are logged in and the token is valid.");
-      }
-
-      const data = await res.json();
-      
-      if (data.success) {
-        setPrograms(data.data);
+      if (res.data.success) {
+        setPrograms(res.data.data);
       } else {
         throw new Error("Backend returned false for success.");
       }
@@ -73,17 +56,13 @@ export default function ProgramsPage() {
     const totalSemesters = parseInt(totalSemestersStr, 10);
 
     try {
-      const res = await fetch('/api/super_admin/addCourse', {
-        method: 'POST',
-        headers: getAuthHeaders(),
-        body: JSON.stringify({ 
-          course_name: programName, 
-          program_incharge: "Not Assigned", // Default value
-          total_semesters: totalSemesters,
-          year: new Date().getFullYear()
-        })
+      const res = await api.post('/super_admin/addCourse', { 
+        course_name: programName, 
+        program_incharge: "Not Assigned",
+        total_semesters: totalSemesters,
+        year: new Date().getFullYear()
       });
-      const data = await res.json();
+      const data = res.data;
       
       if (data.success) {
         // Fetch fresh list from DB to ensure accurate IDs
@@ -102,11 +81,8 @@ export default function ProgramsPage() {
     if (!window.confirm("Are you sure you want to completely delete this program?")) return;
 
     try {
-      const res = await fetch(`/api/super_admin/deleteCourse/${id}`, {
-        method: 'DELETE',
-        headers: getAuthHeaders()
-      });
-      const data = await res.json();
+      const res = await api.delete(`/super_admin/deleteCourse/${id}`);
+      const data = res.data;
       
       if (data.success) {
         setPrograms(prev => prev.filter(p => p.course_id !== id));
