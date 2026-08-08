@@ -348,7 +348,7 @@ function AdminProfileModal({ isOpen, onClose, userId, token }) {
                             className="absolute inset-y-0 right-0 flex w-12 items-center justify-center text-[#9CA3AF] hover:text-[#004DD2] transition-colors focus:outline-none"
                           >
                             {showNewPassword ? (
-                              <svg className="h-5 w-5 flex-none" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M9.88 9.88a3 3 0 1 0 4.24 4.24" /><path d="M10.73 5.08A10.43 10.43 0 0 1 12 5c7 0 10 7 10 7a13.16 13.16 0 0 1-1.67 2.68" /><path d="M6.61 6.61A13.526 13.526 0 0 0 2 12s3 7 10 7a9.74 9.74 0 0 0 5.39-1.61" /><line x1="2" y1="2" x2="22" y2="22" /></svg>
+                              <svg className="h-5 w-5 flex-none" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M2 12s3-7 10-7 10 7 10 7-3 7-10 7-10-7-10-7Z" /><circle cx="12" cy="12" r="3" /></svg>
                             ) : (
                               <svg className="h-5 w-5 flex-none" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M9.88 9.88a3 3 0 1 0 4.24 4.24" /><path d="M10.73 5.08A10.43 10.43 0 0 1 12 5c7 0 10 7 10 7a13.16 13.16 0 0 1-1.67 2.68" /><path d="M6.61 6.61A13.526 13.526 0 0 0 2 12s3 7 10 7a9.74 9.74 0 0 0 5.39-1.61" /><line x1="2" y1="2" x2="22" y2="22" /></svg>
                             )}
@@ -385,8 +385,33 @@ function AdminProfileModal({ isOpen, onClose, userId, token }) {
                         </div>
                       </div>
                     </div>
+
+                    {/* NEW: LIVE PASSWORD REQUIREMENTS UI */}
+                    <div className="bg-[#F8F9FA] p-4 rounded-xl mt-4">
+                      <p className="text-[11px] font-bold uppercase tracking-wider text-slate-800 mb-3">Password Requirements</p>
+                      <ul className="space-y-2.5">
+                        {[
+                          { label: 'At least 8 characters', met: passwordData.newPassword.length >= 8 },
+                          { label: 'One special symbol (e.g., @, #, $)', met: /[!@#$%^&*(),.?":{}|<>]/.test(passwordData.newPassword) },
+                          { label: 'At least one number', met: /\d/.test(passwordData.newPassword) },
+                        ].map((req, index) => (
+                          <li key={index} className="flex items-center gap-2.5 text-sm">
+                            {req.met ? (
+                              <svg className="w-4 h-4 text-green-500 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                                <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/>
+                              </svg>
+                            ) : (
+                              <div className="w-4 h-4 rounded-full border-[2px] border-slate-300 shrink-0" />
+                            )}
+                            <span className={req.met ? "text-slate-800 font-medium transition-colors" : "text-slate-500 transition-colors"}>
+                              {req.label}
+                            </span>
+                          </li>
+                        ))}
+                      </ul>
+                    </div>
                     
-                    <div className="flex items-center justify-end gap-3 pt-2">
+                    <div className="flex items-center justify-end gap-3 pt-4">
                       <button 
                         type="button" 
                         onClick={() => { 
