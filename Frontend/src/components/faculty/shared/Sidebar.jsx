@@ -20,13 +20,14 @@ import {
   Fingerprint, 
   IdCard,      
   Wallet,      
-  Building,     
+  Building,    
   Hash,
   Shield,      
   KeyRound     
 } from "lucide-react";
 import { useState, useEffect } from "react";
 import api from "../../../api/axiosInstance";
+
 const navItems = [
   { view: "dashboard", label: "Dashboard", icon: LayoutGrid },
   { view: "mark-attendance", label: "Mark Attendance", icon: CalendarCheck },
@@ -78,7 +79,7 @@ function ProfileModal({ isOpen, onClose, userId, token }) {
   const [showNewPassword, setShowNewPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
 
-useEffect(() => {
+  useEffect(() => {
     if (isOpen && userId) {
       setIsLoading(true);
       setSaveSuccess(false);
@@ -127,6 +128,14 @@ useEffect(() => {
     e.preventDefault();
     if (passwordData.newPassword !== passwordData.confirmPassword) {
       setPasswordMessage({ type: "error", text: "New passwords do not match." });
+      return;
+    }
+    
+    // Check all requirements before submitting
+    if (passwordData.newPassword.length < 8 || 
+        !/[!@#$%^&*(),.?":{}|<>]/.test(passwordData.newPassword) || 
+        !/\d/.test(passwordData.newPassword)) {
+      setPasswordMessage({ type: "error", text: "Please meet all password requirements." });
       return;
     }
 
@@ -291,7 +300,8 @@ useEffect(() => {
                     <InfoField icon={Briefcase} label="Qualification" value={profileData.qualification} />
                     <InfoField icon={IdCard} label="UVFIN / Employee ID" value={profileData.uvfin} />
                     <InfoField icon={CreditCard} label="PAN Card No" value={profileData.pan_card_no} />
-                    <InfoField icon={Fingerprint} label="Aadhaar No" value={profileData.aadhaar_no} />
+                    {/* AADHAAR REDACTED */}
+                    <InfoField icon={Fingerprint} label="Aadhaar No" value="[Aadhaar Redacted]" />
                   </div>
                 </section>
 
@@ -340,13 +350,16 @@ useEffect(() => {
                     <div>
                       <label className="mb-1.5 block text-xs font-semibold uppercase text-slate-500">Current Password</label>
                       <div className="relative">
+                        <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none text-[#9CA3AF]">
+                          <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" /></svg>
+                        </div>
                         <input 
                           type={showOldPassword ? "text" : "password"}
                           required 
                           placeholder="••••••••"
                           value={passwordData.oldPassword} 
                           onChange={(e) => setPasswordData({...passwordData, oldPassword: e.target.value})} 
-                          className="w-full rounded-xl border border-slate-300 bg-white pl-4 pr-12 py-2.5 text-sm font-medium text-slate-900 transition-shadow focus:border-[#004DD2] focus:outline-none focus:ring-4 focus:ring-[#004DD2]/10" 
+                          className="w-full rounded-xl border border-slate-300 bg-white pl-10 pr-12 py-2.5 text-sm font-medium text-slate-900 transition-shadow focus:border-[#004DD2] focus:outline-none focus:ring-4 focus:ring-[#004DD2]/10" 
                         />
                         <button
                           type="button"
@@ -367,13 +380,16 @@ useEffect(() => {
                       <div>
                         <label className="mb-1.5 block text-xs font-semibold uppercase text-slate-500">New Password</label>
                         <div className="relative">
+                          <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none text-[#9CA3AF]">
+                            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" /></svg>
+                          </div>
                           <input 
                             type={showNewPassword ? "text" : "password"}
                             required 
                             placeholder="••••••••"
                             value={passwordData.newPassword} 
                             onChange={(e) => setPasswordData({...passwordData, newPassword: e.target.value})} 
-                            className="w-full rounded-xl border border-slate-300 bg-white pl-4 pr-12 py-2.5 text-sm font-medium text-slate-900 transition-shadow focus:border-[#004DD2] focus:outline-none focus:ring-4 focus:ring-[#004DD2]/10" 
+                            className="w-full rounded-xl border border-slate-300 bg-white pl-10 pr-12 py-2.5 text-sm font-medium text-slate-900 transition-shadow focus:border-[#004DD2] focus:outline-none focus:ring-4 focus:ring-[#004DD2]/10" 
                           />
                           <button
                             type="button"
@@ -393,13 +409,16 @@ useEffect(() => {
                       <div>
                         <label className="mb-1.5 block text-xs font-semibold uppercase text-slate-500">Confirm Password</label>
                         <div className="relative">
+                          <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none text-[#9CA3AF]">
+                            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z" /></svg>
+                          </div>
                           <input 
                             type={showConfirmPassword ? "text" : "password"}
                             required 
                             placeholder="••••••••"
                             value={passwordData.confirmPassword} 
                             onChange={(e) => setPasswordData({...passwordData, confirmPassword: e.target.value})} 
-                            className="w-full rounded-xl border border-slate-300 bg-white pl-4 pr-12 py-2.5 text-sm font-medium text-slate-900 transition-shadow focus:border-[#004DD2] focus:outline-none focus:ring-4 focus:ring-[#004DD2]/10" 
+                            className="w-full rounded-xl border border-slate-300 bg-white pl-10 pr-12 py-2.5 text-sm font-medium text-slate-900 transition-shadow focus:border-[#004DD2] focus:outline-none focus:ring-4 focus:ring-[#004DD2]/10" 
                           />
                           <button
                             type="button"
@@ -414,6 +433,31 @@ useEffect(() => {
                           </button>
                         </div>
                       </div>
+                    </div>
+
+                    {/* NEW: LIVE PASSWORD REQUIREMENTS UI */}
+                    <div className="bg-[#F8F9FA] p-4 rounded-xl mt-4">
+                      <p className="text-[11px] font-bold uppercase tracking-wider text-slate-800 mb-3">Password Requirements</p>
+                      <ul className="space-y-2.5">
+                        {[
+                          { label: 'At least 8 characters', met: passwordData.newPassword.length >= 8 },
+                          { label: 'One special symbol (e.g., @, #, $)', met: /[!@#$%^&*(),.?":{}|<>]/.test(passwordData.newPassword) },
+                          { label: 'At least one number', met: /\d/.test(passwordData.newPassword) },
+                        ].map((req, index) => (
+                          <li key={index} className="flex items-center gap-2.5 text-sm">
+                            {req.met ? (
+                              <svg className="w-4 h-4 text-green-500 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                                <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/>
+                              </svg>
+                            ) : (
+                              <div className="w-4 h-4 rounded-full border-[2px] border-slate-300 shrink-0" />
+                            )}
+                            <span className={req.met ? "text-slate-800 font-medium transition-colors" : "text-slate-500 transition-colors"}>
+                              {req.label}
+                            </span>
+                          </li>
+                        ))}
+                      </ul>
                     </div>
                     
                     <div className="flex items-center justify-end gap-3 pt-2">

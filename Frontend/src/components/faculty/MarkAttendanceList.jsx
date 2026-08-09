@@ -252,20 +252,22 @@ export default function MarkAttendanceList() {
           </div>
 
           {/* Allocation Selection */}
-          <div className="w-full max-w-full overflow-hidden">
+          <div className="w-full">
             <label className="mb-1.5 block text-sm font-medium text-slate-700">Subject & Class</label>
             <select 
               value={selectedAllocationId}
               onChange={(e) => setSelectedAllocationId(e.target.value)}
-              // Added `truncate` and `block` to keep the box locked to 100% width
-              className="w-full block truncate rounded-lg border border-slate-300 px-3.5 py-2.5 text-sm text-slate-700 focus:border-[#004DD2] focus:outline-none focus:ring-1 focus:ring-[#004DD2]"
+              className="w-full rounded-lg border border-slate-300 px-3.5 py-2.5 text-sm text-slate-700 focus:border-[#004DD2] focus:outline-none focus:ring-1 focus:ring-[#004DD2]"
             >
               <option value="">-- Select Allocated Subject --</option>
-              {allocations.map(alloc => (
-                <option key={alloc.allocation_id} value={alloc.allocation_id}>
-                  {alloc.subject_code} - {alloc.subject_name} ({alloc.course_name}, Sem {alloc.semester_number})
-                </option>
-              ))}
+              {allocations.map(alloc => {
+                const secName = alloc.section_name || alloc.Section?.section_name;
+                return (
+                  <option key={alloc.allocation_id} value={alloc.allocation_id}>
+                    {alloc.subject_code} - {alloc.subject_name} ({alloc.course_name}, Sem {alloc.semester_number}{secName ? `, Sec ${secName}` : ""})
+                  </option>
+                );
+              })}
             </select>
           </div>
 

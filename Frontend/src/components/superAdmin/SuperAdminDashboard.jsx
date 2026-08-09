@@ -14,7 +14,7 @@ export default function SuperAdminDashboard({ onSignOut }) {
     console.log("On refresh, found saved main tab:", savedTab); // For debugging
     return savedTab || "pending"; 
   });
- const [pendingCount, setPendingCount] = useState(0);
+  const [pendingCount, setPendingCount] = useState(0);
 
   // NEW: State to control mobile sidebar drawer
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
@@ -24,6 +24,7 @@ export default function SuperAdminDashboard({ onSignOut }) {
     localStorage.setItem("superAdminActiveTab", activeTab);
   }, [activeTab]);
 
+  // 3. UPDATED: Fetch pending count and listen for global refreshes
   useEffect(() => {
     const fetchPendingCount = async () => {
       try {
@@ -35,7 +36,13 @@ export default function SuperAdminDashboard({ onSignOut }) {
       }
     };
 
-    fetchPendingCount();
+    fetchPendingCount(); // Initial fetch on mount or tab change
+
+    // Listen for global refresh events triggered by other components
+    window.addEventListener('refresh-dashboard', fetchPendingCount);
+
+    // Cleanup the listener when the component unmounts or before it re-runs
+    return () => window.removeEventListener('refresh-dashboard', fetchPendingCount);
   }, [activeTab]);
 
   const handleSignOut = async () => {
@@ -59,7 +66,7 @@ export default function SuperAdminDashboard({ onSignOut }) {
     }
   };
 
-const renderMainContent = () => {
+  const renderMainContent = () => {
     switch (activeTab) {
       case "pending":
         return <PendingApprovalsPage onNavigate={setActiveTab} onMenuClick={() => setIsSidebarOpen(true)} />;

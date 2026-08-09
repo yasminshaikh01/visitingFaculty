@@ -12,14 +12,6 @@ import api from "../../api/axiosInstance"; // Adjust the ../ as needed based on 
 
 const tabs = ["General", "Security", "Audit Log"];
 
-const systemInfo = [
-  { label: "System Version", value: "VFM 1.0" },
-  { label: "Total Program Incharge Requests", value: "5" },
-  { label: "Approved Program Incharges", value: "1" },
-  { label: "Pending Reviews", value: "3" },
-  { label: "Last Activity", value: "24 Dec 2024, 10:45 AM" },
-];
-
 // UPDATED: Added onMenuClick prop
 export default function Settings({ onMenuClick }) {
   const [searchQuery, setSearchQuery] = useState("");
@@ -48,6 +40,15 @@ export default function Settings({ onMenuClick }) {
 
   const [auditFilter, setAuditFilter] = useState("Select...");
   const [logs, setLogs] = useState([]);
+
+  // NEW: Dynamic System Stats State
+  const [sysStats, setSysStats] = useState([
+    { label: "System Version", value: "VFM 1.0" },
+    { label: "Total Program Incharge Requests", value: "..." },
+    { label: "Approved Program Incharges", value: "..." },
+    { label: "Pending Reviews", value: "..." },
+    { label: "Last Activity", value: "..." },
+  ]);
 
   const [showCurrentPassword, setShowCurrentPassword] = useState(false);
   const [showNewPassword, setShowNewPassword] = useState(false);
@@ -102,6 +103,9 @@ export default function Settings({ onMenuClick }) {
         showToast("Profile updated successfully!", "success");
         session.name = profileData.full_name;
         localStorage.setItem("iipsCurrentSession", JSON.stringify(session));
+        
+        // Dispatch event so sidebar instantly updates your name
+        window.dispatchEvent(new Event('refresh-dashboard'));
       }
     } catch (err) {
       console.error("Error updating profile:", err);
@@ -190,8 +194,53 @@ export default function Settings({ onMenuClick }) {
     }
   };
 
+  // NEW: Fetch dynamic system stats from API
+  const fetchSystemStats = async () => {
+    try {
+      const session = JSON.parse(localStorage.getItem('iipsCurrentSession') || '{}');
+      if (!session.token) return;
+
+      const response = await api.get("/super_admin/dashboardStats");
+      if (response.data && response.data.success) {
+        const d = response.data.data;
+        
+        let lastLoginStr = "N/A";
+        if (d.superAdminActivity?.last_login) {
+          const dateObj = new Date(d.superAdminActivity.last_login);
+          if (!isNaN(dateObj.getTime())) {
+            lastLoginStr = dateObj.toLocaleString("en-GB", {
+              day: "2-digit", month: "short", year: "numeric",
+              hour: "2-digit", minute: "2-digit", hour12: true
+            }).toUpperCase();
+          }
+        }
+
+        setSysStats([
+          { label: "System Version", value: "VFM 1.0" },
+          { label: "Total Program Incharge Requests", value: String(d.totalAdmin || 0) },
+          { label: "Approved Program Incharges", value: String(d.approvedAdmin || 0) },
+          { label: "Pending Reviews", value: String(d.pendingAdmin || 0) },
+          { label: "Last Activity", value: lastLoginStr },
+        ]);
+      }
+    } catch (err) {
+      console.error("Error fetching system stats", err);
+    }
+  };
+
   useEffect(() => {
     if (activeTab === "Audit Log") fetchAuditLogs();
+    if (activeTab === "General") fetchSystemStats();
+  }, [activeTab]);
+
+  // Listen for global refresh events to auto-update the audit logs AND system stats
+  useEffect(() => {
+    const handleRefresh = () => {
+      if (activeTab === "Audit Log") fetchAuditLogs();
+      if (activeTab === "General") fetchSystemStats();
+    };
+    window.addEventListener('refresh-dashboard', handleRefresh);
+    return () => window.removeEventListener('refresh-dashboard', handleRefresh);
   }, [activeTab]);
 
   // Bulletproofed status logic
@@ -221,7 +270,6 @@ export default function Settings({ onMenuClick }) {
   });
 
   const exportToCSV = () => {
-    // UPDATED: Removed User ID Issued and Remarks from headers
     const headers = [
       "Sr.",
       "Action",
@@ -232,24 +280,17 @@ export default function Settings({ onMenuClick }) {
     const csvContent = [
       headers.join(","),
       ...filteredLogs.map((l, i) => {
-        // Formatted date string
+        // Used a shorter DD/MM/YYYY format so it fits in Excel without the "########" issue
         const dateStr = l.updated_at
-          ? new Date(l.updated_at).toLocaleDateString("en-GB", {
-              day: "2-digit",
-              month: "short",
-              year: "numeric",
-            })
+          ? new Date(l.updated_at).toLocaleDateString("en-GB")
           : "-";
-
-        // UPDATED: Added ="..." wrapper to force Excel to treat date as text to avoid ### squishing
-        const safeDateForExcel = `="${dateStr}"`;
 
         return [
           i + 1,
           getLogStatus(l),
           l.full_name || "Unknown",
           "Super Admin",
-          safeDateForExcel,
+          dateStr,
         ].join(",");
       }),
     ].join("\n");
@@ -266,7 +307,7 @@ export default function Settings({ onMenuClick }) {
 
   return (
     <div className="flex-1 bg-gray-50 min-h-screen relative overflow-hidden">
-      {/* UPDATED: Extensive print CSS to enforce consistent, full-width mobile view during printing */}
+      {/* Extensive print CSS to enforce consistent, full-width mobile view during printing */}
       <style>{`
         @media print {
           @page { margin: 0.5cm; }
@@ -334,7 +375,7 @@ export default function Settings({ onMenuClick }) {
       )}
 
       <div className="no-print">
-        {/* UPDATED: Passed onMenuClick to Topbar */}
+        {/* Passed onMenuClick to Topbar */}
         <Topbar
           title="Settings"
           subtitle="System-wide configuration, security and audit log"
@@ -451,13 +492,14 @@ export default function Settings({ onMenuClick }) {
                 System Information
               </h3>
               <div className="flex flex-col divide-y divide-gray-100">
-                {systemInfo.map((item) => (
+                {/* UPDATED: Dynamic System Stats mapping */}
+                {sysStats.map((item) => (
                   <div
                     key={item.label}
                     className="flex flex-col sm:flex-row sm:items-center justify-between py-3.5 first:pt-0 gap-1 sm:gap-0"
                   >
                     <span className="text-gray-400 text-sm">{item.label}</span>
-                    <span className="text-gray-900 font-semibold text-sm">
+                    <span className="text-gray-900 font-semibold text-sm text-right">
                       {item.value}
                     </span>
                   </div>
@@ -719,13 +761,10 @@ export default function Settings({ onMenuClick }) {
               </div>
             </div>
 
-            {/* UPDATED: Added print-table-wrapper to un-hide overflow during print */}
             <div className="overflow-x-auto hide-scrollbar print-table-wrapper">
-              {/* UPDATED: Min-width adjusted to match fewer columns */}
               <table className="w-full text-left min-w-[500px]">
                 <thead>
                   <tr className="text-xs font-semibold text-gray-400 border-b border-gray-100 uppercase">
-                    {/* UPDATED: Removed User ID Issued and Remarks Headers */}
                     <th className="py-3 whitespace-nowrap pr-4">Sr.</th>
                     <th className="py-3 whitespace-nowrap pr-4">Action</th>
                     <th className="py-3 whitespace-nowrap pr-4">
@@ -761,7 +800,6 @@ export default function Settings({ onMenuClick }) {
                           key={log.user_id || i}
                           className="border-b border-gray-50"
                         >
-                          {/* UPDATED: Removed User ID Issued and Remarks TD cells */}
                           <td className="py-4 text-gray-500 whitespace-nowrap pr-4">
                             {i + 1}
                           </td>

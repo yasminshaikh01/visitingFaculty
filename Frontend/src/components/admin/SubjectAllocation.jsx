@@ -69,7 +69,7 @@ export default function SubjectAllocation({ prefilledFaculty }) {
     return () => document.removeEventListener("mousedown", handleClickOutside);
   }, []);
 
-  // NEW: Listen for the global refresh event to instantly update allocations
+  // Listen for the global refresh event to instantly update allocations
   useEffect(() => {
     const handleRefresh = () => fetchAllocations();
     window.addEventListener('refresh-dashboard', handleRefresh);
@@ -207,6 +207,27 @@ export default function SubjectAllocation({ prefilledFaculty }) {
       return;
     }
 
+    // --- NEW: FRONTEND DUPLICATE ALLOCATION PREVENTION ---
+    const isDuplicate = allocations.find((a) => {
+      const matchCourse = String(a.course_id) === String(form.course_id);
+      const matchSemester = String(a.semester_id) === String(form.semester_id);
+      const matchSubject = String(a.subject_id) === String(form.subject_id);
+      // Section can be empty/null, so we fallback to empty strings for comparison
+      const matchSection = String(a.section_id || "") === String(form.section_id || "");
+      const matchType = String(a.session_type).toLowerCase() === String(form.session_type).toLowerCase();
+      
+      return matchCourse && matchSemester && matchSubject && matchSection && matchType;
+    });
+
+    if (isDuplicate) {
+      const assignedTo = isDuplicate.User?.full_name || "another faculty member";
+      setErrorModal(
+        `This ${form.session_type} subject is already allocated to ${assignedTo} for this specific section. Please remove the existing allocation first if you need to reassign it.`
+      );
+      return; // Stop execution here
+    }
+    // -----------------------------------------------------
+
     setSubmitting(true);
     try {
       const payload = { ...form, section_id: form.section_id || null };
@@ -217,7 +238,7 @@ export default function SubjectAllocation({ prefilledFaculty }) {
       setFacultySearch("");
       fetchAllocations();
       
-      // NEW: Tell the rest of the app to refresh globally
+      // Tell the rest of the app to refresh globally
       window.dispatchEvent(new Event('refresh-dashboard'));
     } catch (err) {
       setFormError(err?.response?.data?.message || "Failed to assign subject.");
@@ -238,7 +259,7 @@ export default function SubjectAllocation({ prefilledFaculty }) {
       setDeleteConfirmId(null);
       fetchAllocations();
       
-      // NEW: Tell the rest of the app to refresh globally
+      // Tell the rest of the app to refresh globally
       window.dispatchEvent(new Event('refresh-dashboard'));
     } catch (err) {
       setDeleteConfirmId(null);
@@ -286,7 +307,6 @@ export default function SubjectAllocation({ prefilledFaculty }) {
         </div>
       </div>
 
-      {/* UPDATED: Mobile responsive grid stacking */}
       <div className="grid grid-cols-1 xl:grid-cols-[400px_1fr] gap-6 items-start w-full">
         
         {/* ASSIGNMENT FORM */}
@@ -483,7 +503,6 @@ export default function SubjectAllocation({ prefilledFaculty }) {
 
         {/* ALLOCATIONS HISTORY TABLE */}
         <div className="bg-white rounded-xl border border-slate-200 shadow-sm flex flex-col h-full w-full overflow-hidden">
-          {/* UPDATED: flex-col for mobile, row for desktop */}
           <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between px-4 sm:px-6 py-4 border-b border-slate-100 gap-3">
             <div className="flex items-center gap-2">
               <ListChecks size={18} className="text-blue-600 shrink-0" />
@@ -500,7 +519,6 @@ export default function SubjectAllocation({ prefilledFaculty }) {
             />
           </div>
 
-          {/* UPDATED: overflow-x-auto & hide-scrollbar to scroll smoothly on mobile */}
           <div className="overflow-x-auto flex-1 hide-scrollbar w-full">
             <table className="w-full text-sm min-w-[700px]">
               <thead>
@@ -594,7 +612,6 @@ export default function SubjectAllocation({ prefilledFaculty }) {
             </table>
           </div>
 
-          {/* UPDATED: Flexible pagination for mobile */}
           <div className="flex flex-col sm:flex-row items-center justify-between gap-4 px-4 sm:px-6 py-4 border-t border-slate-100 bg-white">
             <span className="text-slate-500 text-sm text-center sm:text-left">
               Showing {paginated.length} of {filteredAllocations.length} records
@@ -698,25 +715,27 @@ export default function SubjectAllocation({ prefilledFaculty }) {
         </div>
       )}
 
-      {/* Error Modal */}
+{/* Error Modal */}
       {errorModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/50 backdrop-blur-sm p-4 animate-in fade-in duration-200">
-          <div className="bg-white rounded-xl shadow-xl w-full max-w-sm overflow-hidden scale-100 animate-in zoom-in-95 duration-200">
-            <div className="p-6 text-center">
-              <div className="h-14 w-14 rounded-full bg-red-50 text-red-500 flex items-center justify-center mx-auto mb-4">
-                <X size={28} strokeWidth={2.5} />
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/60 backdrop-blur-sm p-4 animate-in fade-in duration-200">
+          <div className="bg-white rounded-2xl shadow-2xl w-full max-w-md overflow-hidden scale-100 animate-in zoom-in-95 duration-200">
+            <div className="p-6 sm:p-8 text-center">
+              <div className="h-16 w-16 rounded-full bg-red-50 text-red-500 flex items-center justify-center mx-auto mb-5 ring-4 ring-red-50/50">
+                <AlertTriangle size={32} strokeWidth={2} />
               </div>
-              <h3 className="text-xl font-bold text-slate-800 mb-2">
+              <h3 className="text-xl font-bold text-slate-900 mb-3">
                 Action Failed
               </h3>
-              <p className="text-slate-500 text-sm">{errorModal}</p>
+              <p className="text-slate-500 text-sm leading-relaxed">
+                {errorModal}
+              </p>
             </div>
-            <div className="p-4 bg-slate-50 border-t border-slate-100 flex justify-center">
+            <div className="p-4 sm:p-6 bg-slate-50 border-t border-slate-100 flex justify-center">
               <button
                 onClick={() => setErrorModal("")}
-                className="w-full px-6 py-2.5 bg-slate-800 text-white text-sm font-medium rounded-lg hover:bg-slate-900 transition-colors"
+                className="w-full sm:w-auto min-w-[140px] px-6 py-3 bg-slate-900 text-white text-sm font-semibold rounded-xl hover:bg-slate-800 transition-all shadow-md hover:shadow-lg focus:ring-2 focus:ring-slate-400 focus:ring-offset-2"
               >
-                Close
+                Understood
               </button>
             </div>
           </div>
