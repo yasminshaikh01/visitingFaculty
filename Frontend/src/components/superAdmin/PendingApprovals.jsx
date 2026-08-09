@@ -73,49 +73,7 @@ export default function PendingApprovalsPage({ onNavigate, onMenuClick }) {
     return null;
   };
 
-  // const handleStatusUpdate = async (status) => {
-  //   if (status === 'rejected' && !rejectReason.trim()) {
-  //     setUpdateError("Please provide a reason for rejection.");
-  //     return;
-  //   }
-
-  //   if (!selectedAdmin) {
-  //     setUpdateError("No admin selected.");
-  //     return;
-  //   }
-
-  //   setIsUpdating(true);
-  //   setUpdateError("");
-
-  //   try {
-  //     const session = JSON.parse(localStorage.getItem('iipsCurrentSession') || '{}');
-  //     const targetUserId = selectedAdmin.user_id || selectedAdmin.id || selectedAdmin.userId;
-
-  //     if (!targetUserId) {
-  //       throw new Error("Could not identify the User ID.");
-  //     }
-
-  //     const payload = { status: status };
-  //     if (status === 'rejected') payload.rejection_reason = rejectReason;
-
-  //     await api.put(`/super_admin/admin/${targetUserId}/approve`, payload);
-
-  //     if (status === 'approved') {
-  //       showToast('success', 'Program Incharge Approved', `Credentials emailed to ${selectedAdmin.email}`);
-  //     } else {
-  //       showToast('error', 'Application Rejected', `Rejection notice sent to ${selectedAdmin.email}`);
-  //     }
-
-  //     closeModal();
-  //     fetchAdmins(activeTab); 
-
-  //   } catch (err) {
-  //     console.error(`Error updating status to ${status}:`, err);
-  //     setUpdateError(err.response?.data?.message || err.message || "An error occurred while updating.");
-  //   } finally {
-  //     setIsUpdating(false);
-  //   }
-  // };
+  // RESTORED: Uses your preferred server-sync method instead of local state mutation
   const handleStatusUpdate = async (status) => {
     if (status === 'rejected' && !rejectReason.trim()) {
       setUpdateError("Please provide a reason for rejection.");
@@ -131,6 +89,7 @@ export default function PendingApprovalsPage({ onNavigate, onMenuClick }) {
     setUpdateError("");
 
     try {
+      const session = JSON.parse(localStorage.getItem('iipsCurrentSession') || '{}');
       const targetUserId = selectedAdmin.user_id || selectedAdmin.id || selectedAdmin.userId;
 
       if (!targetUserId) {
@@ -148,27 +107,13 @@ export default function PendingApprovalsPage({ onNavigate, onMenuClick }) {
         showToast('error', 'Application Rejected', `Rejection notice sent to ${selectedAdmin.email}`);
       }
 
-      // Instantly update local state instead of refetching
-      setAdmins(prevAdmins =>
-        prevAdmins
-          .map(admin => {
-            const id = admin.user_id || admin.id || admin.userId;
-            if (id !== targetUserId) return admin;
-            return {
-              ...admin,
-              status: status,
-              AdminApproval: {
-                ...admin.AdminApproval,
-                status: status,
-                rejection_reason: status === 'rejected' ? rejectReason : admin.AdminApproval?.rejection_reason,
-              },
-            };
-          })
-          // If viewing the "pending" tab, the item should disappear immediately
-          .filter(admin => activeTab !== 'pendingAdmin' || getAdminStatus(admin) === 'pending')
-      );
-
       closeModal();
+      
+      // Fetch fresh data directly from the server to guarantee accuracy
+      fetchAdmins(activeTab); 
+      
+      // Fire the global refresh so the Sidebar and Topbar instantly sync their counts
+      window.dispatchEvent(new Event('refresh-dashboard'));
 
     } catch (err) {
       console.error(`Error updating status to ${status}:`, err);
@@ -329,7 +274,6 @@ export default function PendingApprovalsPage({ onNavigate, onMenuClick }) {
                 <thead>
                   <tr className="text-xs font-semibold text-gray-400 border-b border-gray-100">
                     {/* UPDATED: added whitespace-nowrap to prevent squishing */}
-                    <th className="py-3 pr-4 font-semibold uppercase whitespace-nowrap">Registration ID</th>
                     <th className="py-3 pr-4 font-semibold uppercase whitespace-nowrap">Program Incharge Name</th>
                     <th className="py-3 pr-4 font-semibold uppercase whitespace-nowrap">Designation</th>
                     <th className="py-3 pr-4 font-semibold uppercase whitespace-nowrap">Employee ID</th>
@@ -344,7 +288,6 @@ export default function PendingApprovalsPage({ onNavigate, onMenuClick }) {
                     
                     return (
                       <tr key={index} className="border-b border-gray-50 last:border-0 align-middle hover:bg-gray-50 transition-colors">
-                        <td className="py-4 pr-4 text-gray-700 text-sm font-medium">{r.user_id || `AR00${indexOfFirstRecord + index + 1}`}</td>
                         <td className="py-4 pr-4 min-w-[200px]">
                           <div className="flex items-center gap-3">
                             <div className="w-9 h-9 rounded-full bg-purple-100 text-purple-600 flex items-center justify-center font-semibold text-sm shrink-0 uppercase">
@@ -443,7 +386,7 @@ export default function PendingApprovalsPage({ onNavigate, onMenuClick }) {
                 <h2 className="text-lg sm:text-xl font-bold text-gray-900">
                   {modalType === 'details' ? 'Program Incharge Application Details' : modalType === 'approve' ? 'Review Program Incharge Application' : 'Reject Program Incharge Application'}
                 </h2>
-                <p className="text-xs sm:text-sm text-gray-500 mt-1">Ref: {selectedAdmin.user_id || 'AR00X'} - Submitted {formatDate(selectedAdmin.created_at || selectedAdmin.submitted_date)}</p>
+                <p className="text-xs sm:text-sm text-gray-500 mt-1">Submitted: {formatDate(selectedAdmin.created_at || selectedAdmin.submitted_date)}</p>
               </div>
               <button onClick={closeModal} disabled={isUpdating} className="p-2 text-gray-400 hover:bg-gray-100 rounded-full transition-colors disabled:opacity-50 shrink-0">
                 <X className="w-5 h-5" />

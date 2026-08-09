@@ -15,7 +15,14 @@ export default function Topbar({ title, subtitle, onSearch, onPendingClick, show
         console.error("Error fetching Topbar count", err);
       }
     };
-    fetchTopbarCount();
+    
+    fetchTopbarCount(); // Initial load
+
+    // NEW: Listen for global refresh events to auto-update the pending badge
+    window.addEventListener('refresh-dashboard', fetchTopbarCount);
+
+    // Cleanup the listener when the component unmounts
+    return () => window.removeEventListener('refresh-dashboard', fetchTopbarCount);
   }, []);
 
   return (

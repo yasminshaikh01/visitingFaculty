@@ -16,8 +16,8 @@ export default function Sidebar({
   onNavigate,
   onSignOut,
   pendingCount = 3,
-  isOpen,     // NEW: Prop for mobile drawer state
-  setIsOpen   // NEW: Prop to close the drawer
+  isOpen,     // Prop for mobile drawer state
+  setIsOpen   // Prop to close the drawer
 }) {
   const navItems = [
     {
@@ -34,20 +34,25 @@ export default function Sidebar({
 
   const [adminName, setAdminName] = useState("Super Admin");
 
+  // UPDATED: Listen for global auto-refresh to update the admin name instantly if changed in Settings
   useEffect(() => {
-    const session = JSON.parse(
-      localStorage.getItem("iipsCurrentSession") || "{}"
-    );
-    if (session.name) setAdminName(session.name);
-
-    const handleStorageChange = () => {
-      const updatedSession = JSON.parse(
-        localStorage.getItem("iipsCurrentSession") || "{}"
-      );
-      if (updatedSession.name) setAdminName(updatedSession.name);
+    const fetchAdminData = () => {
+      const session = JSON.parse(localStorage.getItem("iipsCurrentSession") || "{}");
+      if (session.name || session.full_name) {
+        setAdminName(session.name || session.full_name);
+      }
     };
-    window.addEventListener("storage", handleStorageChange);
-    return () => window.removeEventListener("storage", handleStorageChange);
+
+    fetchAdminData(); // Initial load
+
+    // Listen to storage changes (cross-tab) and our custom global refresh event
+    window.addEventListener("storage", fetchAdminData);
+    window.addEventListener("refresh-dashboard", fetchAdminData);
+
+    return () => {
+      window.removeEventListener("storage", fetchAdminData);
+      window.removeEventListener("refresh-dashboard", fetchAdminData);
+    };
   }, []);
 
   const handleLogout = async () => {
@@ -70,7 +75,7 @@ export default function Sidebar({
 
   return (
     <>
-      {/* NEW: Mobile Backdrop Layer */}
+      {/* Mobile Backdrop Layer */}
       {isOpen && (
         <div 
           className="fixed inset-0 z-40 bg-slate-900/50 backdrop-blur-sm lg:hidden" 
@@ -78,7 +83,7 @@ export default function Sidebar({
         />
       )}
 
-      {/* UPDATED: Dynamic classes for mobile sliding and desktop static */}
+      {/* Dynamic classes for mobile sliding and desktop static */}
       <aside 
         className={`fixed inset-y-0 left-0 z-50 w-[280px] shrink-0 bg-white border-r border-gray-200 flex flex-col justify-between h-screen transition-transform duration-300 ease-in-out lg:static lg:translate-x-0 ${
           isOpen ? "translate-x-0 shadow-2xl" : "-translate-x-full"
@@ -99,7 +104,7 @@ export default function Sidebar({
                 </div>
               </div>
             </div>
-            {/* NEW: Mobile Close Button */}
+            {/* Mobile Close Button */}
             <button 
               onClick={() => setIsOpen(false)}
               className="lg:hidden p-2 -mr-2 text-slate-400 hover:bg-slate-100 rounded-full transition-colors"
@@ -121,7 +126,8 @@ export default function Sidebar({
                     key={item.key}
                     onClick={() => {
                       onNavigate(item.key);
-                      setIsOpen(false); // NEW: Automatically close sidebar on mobile
+                      setIsOpen(false); // Automatically close sidebar on mobile
+                      window.dispatchEvent(new Event('refresh-dashboard')); // Trigger global sync instantly
                     }}
                     className={`flex items-center justify-between px-3 py-2.5 rounded-full border text-[15px] font-medium transition-colors ${
                       isActive

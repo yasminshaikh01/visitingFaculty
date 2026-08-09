@@ -21,6 +21,13 @@ export default function AllAdminsPage({ onNavigate, onMenuClick }) {
     fetchAllAdmins();
   }, []);
 
+  // NEW: Listen for global refresh events to auto-update data from other tabs
+  useEffect(() => {
+    const handleRefresh = () => fetchAllAdmins();
+    window.addEventListener('refresh-dashboard', handleRefresh);
+    return () => window.removeEventListener('refresh-dashboard', handleRefresh);
+  }, []);
+
   const fetchAllAdmins = async () => {
     try {
       const session = JSON.parse(localStorage.getItem('iipsCurrentSession') || '{}');
@@ -51,6 +58,9 @@ export default function AllAdminsPage({ onNavigate, onMenuClick }) {
       const updatedAdmin = { ...selectedAdmin, is_active: !currentlyActive };
       setSelectedAdmin(updatedAdmin);
       setAdmins(admins.map(a => a.user_id === targetId ? updatedAdmin : a));
+
+      // NEW: Dispatch event so sidebar/topbar and other tabs sync instantly
+      window.dispatchEvent(new Event('refresh-dashboard'));
 
     } catch (err) {
       console.error(`Error trying to ${selectedAdmin.is_active !== false ? 'deactivate' : 'activate'} admin:`, err);
@@ -94,13 +104,20 @@ export default function AllAdminsPage({ onNavigate, onMenuClick }) {
   const exportToCSV = () => {
     const headers = ["Name", "Email", "Department", "Approved On", "Role", "Status"];
     
+    // NEW: Compact date format just for CSV to prevent Excel ######## column width issue
+    const formatDateForCSV = (dateString) => {
+      if (!dateString) return "N/A";
+      const date = new Date(dateString);
+      return isNaN(date.getTime()) ? dateString : date.toLocaleDateString('en-GB'); // Outputs DD/MM/YYYY
+    };
+
     const csvContent = [
       headers.join(","),
       ...filteredAdmins.map(a => [
         a.full_name, 
         a.email, 
         a.department || "N/A", 
-        formatDate(a.updated_at || a.created_at), 
+        formatDateForCSV(a.updated_at || a.created_at), 
         "Program Incharge",
         a.is_active !== false ? "Active" : "Inactive"
       ].join(","))
@@ -169,12 +186,11 @@ export default function AllAdminsPage({ onNavigate, onMenuClick }) {
               <table className="w-full text-left">
                 <thead>
                   <tr className="text-xs font-semibold text-gray-400 border-b border-gray-100 uppercase tracking-wider">
-                    {/* UPDATED: Added whitespace-nowrap to prevent ugly wrapping */}
-                    <th className="py-3 pr-4 whitespace-nowrap">Program Incharge NAME</th>
-                    <th className="py-3 pr-4 whitespace-nowrap">APPROVED ON</th>
-                    <th className="py-3 pr-4 whitespace-nowrap">ROLE</th>
-                    <th className="py-3 pr-4 whitespace-nowrap">STATUS</th>
-                    <th className="py-3 pr-4 whitespace-nowrap">ACTIONS</th>
+                    <th className="py-3 pr-4">Program Incharge NAME</th>
+                    <th className="py-3 pr-4">APPROVED ON</th>
+                    <th className="py-3 pr-4">ROLE</th>
+                    <th className="py-3 pr-4">STATUS</th>
+                    <th className="py-3 pr-4">ACTIONS</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -196,22 +212,22 @@ export default function AllAdminsPage({ onNavigate, onMenuClick }) {
                               </div>
                             </div>
                           </td>
-                          <td className="py-4 pr-4 text-gray-700 text-sm font-medium whitespace-nowrap">
+                          <td className="py-4 pr-4 text-gray-700 text-sm font-medium">
                             {formatDate(a.updated_at || a.created_at)}
                           </td>
-                          <td className="py-4 pr-4 whitespace-nowrap">
+                          <td className="py-4 pr-4">
                             <span className="text-xs font-semibold px-3 py-1.5 rounded-full bg-blue-50 text-blue-600 border border-blue-200 inline-block">
                               Program Incharge
                             </span>
                           </td>
-                          <td className="py-4 pr-4 whitespace-nowrap">
+                          <td className="py-4 pr-4">
                             <span className={`text-xs font-semibold px-3 py-1.5 rounded-full border inline-block ${
                               isActive ? 'bg-green-50 text-green-600 border-green-200' : 'bg-slate-100 text-slate-500 border-slate-200'
                             }`}>
                               {isActive ? 'Active' : 'Inactive'}
                             </span>
                           </td>
-                          <td className="py-4 pr-4 whitespace-nowrap">
+                          <td className="py-4 pr-4">
                             <button 
                               onClick={() => openModal(a)}
                               className="flex items-center gap-1.5 text-gray-500 text-sm font-medium hover:text-gray-900 transition-colors bg-white border border-gray-200 px-3 py-1.5 rounded-lg hover:bg-gray-50 shadow-sm"
@@ -269,7 +285,7 @@ export default function AllAdminsPage({ onNavigate, onMenuClick }) {
             <div className="flex items-start justify-between p-4 sm:p-6 border-b border-gray-100">
               <div>
                 <h2 className="text-lg sm:text-xl font-bold text-gray-900">Program Incharge Application Details</h2>
-                <p className="text-xs sm:text-sm text-gray-500 mt-1">Ref: {selectedAdmin.user_id || 'AR00X'} - Submitted {formatDate(selectedAdmin.created_at || selectedAdmin.submitted_date)}</p>
+                <p className="text-xs sm:text-sm text-gray-500 mt-1">Submitted: {formatDate(selectedAdmin.created_at || selectedAdmin.submitted_date)}</p>
               </div>
               <button onClick={closeModal} className="p-2 text-gray-400 hover:bg-gray-100 rounded-full transition-colors shrink-0">
                 <X className="w-5 h-5" />
@@ -369,13 +385,13 @@ export default function AllAdminsPage({ onNavigate, onMenuClick }) {
 // Helper Component for Stats
 function StatCard({ label, value, icon: Icon, bg, color }) {
   return (
-    <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-4 sm:p-6 flex items-center gap-4">
+    <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-4 sm:p-6 flex items-center gap-4 w-full">
       <div className={`w-12 h-12 rounded-xl ${bg} flex items-center justify-center shrink-0`}>
         <Icon className={`w-6 h-6 ${color}`} />
       </div>
-      <div>
-        <p className="text-gray-400 text-xs sm:text-sm">{label}</p>
-        <p className="text-xl sm:text-2xl font-bold text-gray-900">{value}</p>
+      <div className="min-w-0">
+        <p className="text-gray-400 text-xs sm:text-sm truncate">{label}</p>
+        <p className="text-xl sm:text-2xl font-bold text-gray-900 truncate">{value}</p>
       </div>
     </div>
   );

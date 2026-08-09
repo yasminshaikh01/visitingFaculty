@@ -27,7 +27,7 @@ export default function Register({ onNavigate, onRegistrationSuccess }) {
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
 
-  // States for handling "Other" qualification (from Yasmin's code)
+  
   const [otherQualification, setOtherQualification] = useState('');
   const [showOtherQualification, setShowOtherQualification] = useState(false);
 
@@ -363,7 +363,7 @@ const handleSubmit = async (event) => {
                 <input
                   type="text"
                   name="full_name"
-                  placeholder="Dr. Jane Smith"
+                  placeholder="Dr. Amit Kumar"
                   value={formData.full_name}
                   onChange={handleChange}
                   className={getInputClass('full_name')}
@@ -391,7 +391,7 @@ const handleSubmit = async (event) => {
                   <input
                     type="email"
                     name="email"
-                    placeholder="jane.smith@university.edu"
+                    placeholder="amitkumar@university.edu"
                     value={formData.email}
                     onChange={handleChange}
                     className={getInputClass('email')}
@@ -404,7 +404,7 @@ const handleSubmit = async (event) => {
                 <label className="mb-1.5 block text-sm font-medium text-[#424656]">Address</label>
                 <textarea
                   name="address"
-                  placeholder="123 Academic Way, Science District, Knowledge City"
+                  placeholder="452001 Indrapuri Colony ,Indore ,MP ,India"
                   value={formData.address}
                   onChange={handleChange}
                   rows={3}
@@ -516,7 +516,7 @@ const handleSubmit = async (event) => {
                     <input
                       type="text"
                       name="pan_card_no"
-                      placeholder="10-digit alphanumeric"
+                      placeholder="10-digit alphanumeric(ABCDE1234F)"
                       value={formData.pan_card_no}
                       onChange={handleChange}
                       maxLength={10}
@@ -565,7 +565,7 @@ const handleSubmit = async (event) => {
                     <input
                       type="text"
                       name="ifsc_code"
-                      placeholder="11-digit IFSC code"
+                      placeholder="11-digit IFSC code( SBIN0001234)"
                       value={formData.ifsc_code}
                       onChange={handleChange}
                       maxLength={11}

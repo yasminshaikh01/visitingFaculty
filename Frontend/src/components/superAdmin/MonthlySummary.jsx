@@ -156,6 +156,19 @@ export default function MonthlySummary({ onMenuClick }) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
+  // ── NEW: Global Auto-Refresh ─────────────────────────────
+  useEffect(() => {
+    const handleRefresh = () => {
+      if (hasApplied) {
+        fetchAllCourses(selectedMonth, selectedYear);
+        fetchSummary(selectedMonth, selectedYear, selectedCourseId);
+      }
+    };
+    
+    window.addEventListener('refresh-dashboard', handleRefresh);
+    return () => window.removeEventListener('refresh-dashboard', handleRefresh);
+  }, [selectedMonth, selectedYear, selectedCourseId, hasApplied]);
+
   // ── When course selection changes, refetch ───────────────
   const handleCourseSelect = (courseId) => {
     setSelectedCourseId(courseId);
@@ -228,6 +241,7 @@ export default function MonthlySummary({ onMenuClick }) {
         // Refresh data after a short delay to allow the backend to process
         setTimeout(() => {
           handleApplyFilters();
+          window.dispatchEvent(new Event('refresh-dashboard')); // Tell others to refresh too
         }, 2000);
       }
     } catch (err) {
