@@ -1,4 +1,4 @@
-const { approveAdmin, getPendingAdmins, getApprovedAdmin, getRejectedAdmin, getAllAdmins, getAdminById } = require("../service/superAdminService");
+const { approveAdmin, getPendingAdmins, getApprovedAdmin, getRejectedAdmin, getAllAdmins, getAdminById, getDashboardStats } = require("../service/superAdminService");
 
 async function AdminApprovalController(req, res) {
     try {
@@ -106,11 +106,29 @@ async function getAdminController(req, res) {
     }
 };
 
+async function getDashboardStatsController(req, res) {
+    try {
+        const stats = await getDashboardStats(req.user);
+        return res.json({
+            success: true,
+            data: stats
+        });
+    } catch (error) {
+        console.log('Dashboard stats failed', error);
+        return res.status(500).json({
+            success: false,
+            message: 'Failed to fetch dashboard stats',
+            error: error.message
+        });
+    }
+};
+
 module.exports = {
     AdminApprovalController,
     getAllAdminsController,
     getApprovedAdminsController,
     getPendingAdminsController,
     getRejectedAdminsController,
-    getAdminController
+    getAdminController,
+    getDashboardStatsController
 };

@@ -1,6 +1,6 @@
 const express = require('express');
 const authMiddleware = require('../middleware/auth');
-const { AdminApprovalController, getPendingAdminsController, getApprovedAdminsController, getRejectedAdminsController, getAllAdminsController, getAdminController } = require('../controller/superAdminApprovalController');
+const { AdminApprovalController, getPendingAdminsController, getApprovedAdminsController, getRejectedAdminsController, getAllAdminsController, getAdminController, getDashboardStatsController } = require('../controller/superAdminApprovalController');
 const { showDashboardController, showDashboardOfCourseController, addSectionsController, updateInchargeController, showSubjectController, deleteSubjectController, addSubjectController, deleteSectionController, deleteCourseController, deleteSemesterController, addSemesterController, addCourseController } = require('../controller/courseController');
 const SuperAdminApprovalRouter = express.Router();
 
@@ -22,5 +22,6 @@ SuperAdminApprovalRouter.delete('/deleteCourse/:course_id', authMiddleware(['sup
 SuperAdminApprovalRouter.delete('/deleteSemester/:course_id/:semester_id', authMiddleware(['super_admin']), deleteSemesterController);
 SuperAdminApprovalRouter.post('/addSemester/:course_id', authMiddleware(['super_admin']), addSemesterController);
 SuperAdminApprovalRouter.post('/addCourse', authMiddleware(['super_admin']), addCourseController);
+SuperAdminApprovalRouter.get('/dashboardStats', authMiddleware(['super_admin']), getDashboardStatsController);
 
 module.exports = SuperAdminApprovalRouter;

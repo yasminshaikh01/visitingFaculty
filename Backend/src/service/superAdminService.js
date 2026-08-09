@@ -198,6 +198,31 @@ async function getAdminById(user_id) {
     }
 }
 
+async function getDashboardStats(currentUser) {
+    try {
+        const [totalAdmin, approvedAdmin, pendingAdmin, superAdmin] = await Promise.all([
+            User.count({where: {role: 'admin'}}),
+            User.count({where: {role: 'admin', is_approved: true}}),
+            User.count({where: {role: 'admin', is_approved: false}}),
+            User.findByPk(currentUser.user_id, {attributes: ['user_id', 'full_name', 'last_login', 'updated_at']})
+
+        ]);
+        return {
+            totalAdmin, 
+            approvedAdmin,
+            pendingAdmin,
+            superAdminActivity:{
+                user_id: superAdmin?.user_id,
+                full_name: superAdmin?.full_name,
+                last_login: superAdmin?.last_login,
+                last_updated: superAdmin?.updated_at
+            }
+        };
+    } catch (error) {
+        console.error('Get Dashboard Stats Error:', error);
+        throw new Error('Failed to fetch dashboard stats');
+    }
+}
 
 
 module.exports = {
@@ -206,5 +231,6 @@ module.exports = {
     getRejectedAdmin,
     getApprovedAdmin,
     getAllAdmins,
-    getAdminById
+    getAdminById,
+    getDashboardStats
 };
