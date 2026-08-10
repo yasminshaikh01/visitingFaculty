@@ -1,6 +1,5 @@
 import React, { useState, useEffect } from "react";
 import { Download, Printer } from "lucide-react";
-import axios from "axios";
 
 // Notice we added { searchQuery } here as a prop!
 export default function AuditLog({ searchQuery = "" }) {

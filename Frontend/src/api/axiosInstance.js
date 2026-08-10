@@ -1,15 +1,22 @@
 import axios from "axios";
 
-const backendUrl = import.meta.env.VITE_BACKEND_URL || "http://localhost:5000";
 const api = axios.create({
-  baseURL: `${backendUrl.replace(/\/+$/, "")}/api`,
+  // Production me same domain se serve hoga (no cross-origin)
+  // Local dev me vite.config.js ka proxy handle karega
+  baseURL: "/api", 
 });
 
 api.interceptors.request.use((config) => {
-  const token = localStorage.getItem("token");
-  if (token) {
-    config.headers.Authorization = `Bearer ${token}`;
+  // Check standard token first, then fallback to the iipsCurrentSession object we used in newer components
+  const standardToken = localStorage.getItem("token");
+  const sessionToken = JSON.parse(localStorage.getItem('iipsCurrentSession') || '{}').token;
+  
+  const finalToken = standardToken || sessionToken;
+
+  if (finalToken) {
+    config.headers.Authorization = `Bearer ${finalToken}`; 
   }
+  
   return config;
 });
 

@@ -159,9 +159,8 @@ export default function AttendanceHistory() {
         url += `?month=${monthName}&year=${today.getFullYear()}`;
       }
 
-      const response = await axios.delete(url, {
-        headers: { 'Authorization': `Bearer ${session.token}` }
-      });
+      // ✅ ADD THIS NEW CODE:
+    const response = await api.delete(url);
 
       if (response.data.success) {
         setIsBulkDeleteModalOpen(false);
