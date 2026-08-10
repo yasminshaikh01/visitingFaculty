@@ -3,7 +3,6 @@ require("dotenv").config();
 
 const express = require('express');
 const cors = require('cors');
-const path = require('path');
 const helmet = require('helmet');
 const morgan = require('morgan');
 const compression = require('compression');
@@ -30,10 +29,7 @@ app.use((req, res, next) => {
 app.use(express.json({ limit: '10mb' }));
 app.use(express.urlencoded({ extended: true, limit: '10mb' }));
 
-// Enable CORS only in development (Vite proxy handles /api in dev)
-if (process.env.NODE_ENV !== 'production') {
-  app.use(cors({ origin: true, credentials: true }));
-}
+app.use(cors({ origin: true, credentials: true }));
 app.use(helmet());
 app.use(morgan('dev'));
 app.use(compression());
@@ -135,18 +131,6 @@ const PORT = process.env.PORT || 5000;
         await seedSubjects();
       }
       console.log("Subject database initialized successfully");
-    }
-
-    // Serve frontend build in production so frontend and backend share origin
-    if (process.env.NODE_ENV === 'production') {
-      const clientBuildPath = path.join(__dirname, '..', '..', 'Frontend', 'dist');
-      app.use(express.static(clientBuildPath));
-
-      // SPA fallback for non-API routes
-      app.get('*', (req, res) => {
-        if (req.path.startsWith('/api')) return res.status(404).json({ error: 'Not found' });
-        res.sendFile(path.join(clientBuildPath, 'index.html'));
-      });
     }
 
     app.listen(PORT, () => {
