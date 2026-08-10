@@ -4,6 +4,7 @@
   "main": "index.js",
   "type": "commonjs",
   "scripts": {
+    "postinstall": "cd ../Frontend && npm ci && npm run build",
     "start": "node src/index.js",
     "dev": "nodemon src/index.js",
     "test": "jest --runInBand --detectOpenHandles"
