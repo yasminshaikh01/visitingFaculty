@@ -10,11 +10,10 @@ require('dotenv').config();
 // faculty registration logic
 async function registerFaculty(facultyData) {
     // Run all uniqueness checks in parallel for speed (~5x faster)
-    const [existingUserEmail, existingUserAadhar, existingUserPan, existingUserAccount, existingUserMobile] = await Promise.all([
+    const [existingUserEmail, existingUserAadhar, existingUserPan, existingUserMobile] = await Promise.all([
         User.findOne({ where: { email: facultyData.email } }),
         User.findOne({ where: { aadhaar_no: facultyData.aadhaar_no } }),
         User.findOne({ where: { pan_card_no: facultyData.pan_card_no } }),
-        User.findOne({ where: { account_no: facultyData.account_no } }),
         User.findOne({ where: { phone_number: facultyData.phone_number } })
     ]);
 
@@ -26,9 +25,6 @@ async function registerFaculty(facultyData) {
     }
     if (existingUserPan) {
         throw new Error('Pan Card Number already exist');
-    }
-    if (existingUserAccount) {
-        throw new Error('Account Number already exist');
     }
     if (existingUserMobile) {
         throw new Error('Mobile Number already exist');
