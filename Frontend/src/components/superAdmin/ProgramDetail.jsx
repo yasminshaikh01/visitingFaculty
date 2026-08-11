@@ -18,19 +18,35 @@ export default function ProgramDetail({ program, onBack, onUpdate, onMenuClick }
       try {
         const res = await api.get(`/super_admin/courseDashboard/${courseId}`);
         
+        let totalSems = program.total_semesters || 0;
+
         if (res.data.success && res.data.data.length > 0) {
-          setCourseData(res.data.data[0]);
+          const fetchedData = res.data.data[0];
+          setCourseData(fetchedData);
+          totalSems = fetchedData.total_semesters || 0;
         } else {
           throw new Error("API returned no data");
         }
+
+        // FIX: Fetch subjects for ALL semesters on initial load
+        for (let i = 1; i <= totalSems; i++) {
+          fetchSubjects(i);
+        }
+
       } catch (error) {
         console.error("Failed to fetch course dashboard:", error);
         setCourseData(program); 
+        
+        // Fallback: Fetch subjects using the passed program prop
+        const totalSems = program.total_semesters || 0;
+        for (let i = 1; i <= totalSems; i++) {
+          fetchSubjects(i);
+        }
       } finally {
         setLoading(false);
-        fetchSubjects(1); 
       }
     };
+    
     fetchCourseDashboard();
   }, [courseId, program]);
 
