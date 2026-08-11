@@ -467,13 +467,40 @@ export default function Sidebar({ activeTab, setActiveTab, onSignOut, isOpen, on
       try {
         const session = JSON.parse(sessionStr);
         setSessionData(session);
-        setAdminName(session.full_name || session.name || session.user?.full_name || "Program Incharge User");
+        
+        // 1. Set temporary fallback from local storage
+        setAdminName(session.full_name || session.name || session.user?.full_name || "Loading...");
+        
         if (session.role) {
           setAdminRole(session.role === "admin" ? "Program Incharge" : session.role.replace("_", " ").replace(/\b\w/g, l => l.toUpperCase()));
         }
+
+        // 2. Fetch the actual up-to-date name from the API
+        const currentUserId = session.userId || session.id || session.user_id;
+        if (currentUserId) {
+          api.get(`/super_admin/admin/${currentUserId}`)
+            .then((res) => {
+              if (res.data.success && res.data.data?.full_name) {
+                setAdminName(res.data.data.full_name);
+                
+                // Optional: Update local storage so it's there instantly next time
+                const updatedSession = { ...session, full_name: res.data.data.full_name };
+                localStorage.setItem("iipsCurrentSession", JSON.stringify(updatedSession));
+              } else {
+                setAdminName("Program Incharge User"); // Ultimate fallback
+              }
+            })
+            .catch((err) => {
+              console.error("Error fetching admin name for sidebar:", err);
+              setAdminName("Program Incharge User");
+            });
+        }
       } catch (e) {
         console.error("Error parsing session data", e);
+        setAdminName("Program Incharge User");
       }
+    } else {
+      setAdminName("Program Incharge User");
     }
   }, []);
 
