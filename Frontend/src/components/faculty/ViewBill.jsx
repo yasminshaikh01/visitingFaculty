@@ -225,6 +225,9 @@ export default function ViewBill({ facultyUserId }) {
               border: none !important;
               box-shadow: none !important;
             }
+            /* NEW: Force body to collapse so hidden elements don't create blank pages */
+            html, body { height: auto !important; min-height: auto !important; overflow: visible !important; }
+            
             body { background: white !important; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
             .print-hide { display: none !important; }
             .print-force-break { page-break-before: always; }
@@ -391,8 +394,8 @@ export default function ViewBill({ facultyUserId }) {
             ) : (
               <div className="p-4 sm:p-8 print:p-0">
                 
-                {/* --- PAGE 1: ANNEXURE IV --- */}
-                <div className={`mx-auto w-full min-h-[297mm] bg-white text-black print:block ${billPage === 1 ? 'block' : 'hidden'}`}>
+               {/* --- PAGE 1: ANNEXURE IV --- */}
+                <div className={`mx-auto w-full min-h-[297mm] print:min-h-0 bg-white text-black print:block ${billPage === 1 ? 'block' : 'hidden'}`}>
                   <div className="text-[13px] leading-relaxed p-6">
                     <div className="relative mb-6 flex items-center justify-center min-h-[5rem]">
                       <div className="absolute left-0 top-1/2 -translate-y-1/2 h-20 w-20">
@@ -566,7 +569,7 @@ export default function ViewBill({ facultyUserId }) {
                 </div>
 
                 {/* --- PAGE 2: ATTENDANCE REGISTER --- */}
-                <div className={`mx-auto w-full min-h-[297mm] bg-white text-black print:block print-force-break ${billPage === 2 ? 'block' : 'hidden'}`}>
+                <div className={`mx-auto w-full min-h-[297mm] print:min-h-0 bg-white text-black print:block print-force-break ${billPage === 2 ? 'block' : 'hidden'}`}>
                   <div className="text-[13px] leading-relaxed p-6 pt-12">
                     <div className="mb-8 flex items-center justify-end gap-2">
                       <span className="font-bold text-sm">UVFIN</span>

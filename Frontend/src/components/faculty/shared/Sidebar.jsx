@@ -575,19 +575,54 @@ export default function Sidebar({ onNavigate, currentView = "dashboard", onSignO
   const [facultyRole, setFacultyRole] = useState("Faculty");
   const [sessionData, setSessionData] = useState(null);
 
-  useEffect(() => {
+ useEffect(() => {
     const sessionStr = localStorage.getItem('iipsCurrentSession');
     if (sessionStr) {
       try {
         const session = JSON.parse(sessionStr);
         setSessionData(session);
-        setFacultyName(session.fullName || "Visiting Faculty");
+        
+        // 1. Set temporary fallback from local storage
+        let fallbackName = session.fullName || session.name || "Loading...";
+        setFacultyName(fallbackName);
+        
         if (session.role) {
           setFacultyRole(session.role.charAt(0).toUpperCase() + session.role.slice(1));
         }
+
+        // 2. Fetch the actual up-to-date name from the API
+        const currentUserId = session.userId || session.id || session.user_id;
+        if (currentUserId) {
+          api.get(`/admin/faculty/${currentUserId}`)
+            .then((res) => {
+              if (res.data.success && res.data.data?.full_name) {
+                let finalName = res.data.data.full_name;
+                
+                // Format with "Prof." to match the dashboard style
+                if (!finalName.toLowerCase().startsWith("dr.") && !finalName.toLowerCase().startsWith("prof.")) {
+                  finalName = "Prof. " + finalName;
+                }
+                
+                setFacultyName(finalName);
+                
+                // Optional: Update local storage so it's there instantly next time
+                const updatedSession = { ...session, fullName: finalName };
+                localStorage.setItem("iipsCurrentSession", JSON.stringify(updatedSession));
+              } else {
+                setFacultyName("Visiting Faculty"); // Ultimate fallback
+              }
+            })
+            .catch((err) => {
+              console.error("Error fetching faculty name for sidebar:", err);
+              setFacultyName(fallbackName !== "Loading..." ? fallbackName : "Visiting Faculty");
+            });
+        }
       } catch (e) {
         console.error("Error parsing session data", e);
+        setFacultyName("Visiting Faculty");
       }
+    } else {
+      setFacultyName("Visiting Faculty");
     }
   }, []);
 
