@@ -225,6 +225,9 @@ export default function ViewBill({ facultyUserId }) {
               border: none !important;
               box-shadow: none !important;
             }
+            /* NEW: Force body to collapse so hidden elements don't create blank pages */
+            html, body { height: auto !important; min-height: auto !important; overflow: visible !important; }
+            
             body { background: white !important; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
             .print-hide { display: none !important; }
             .print-force-break { page-break-before: always; }
@@ -391,8 +394,8 @@ export default function ViewBill({ facultyUserId }) {
             ) : (
               <div className="p-4 sm:p-8 print:p-0">
                 
-                {/* --- PAGE 1: ANNEXURE IV --- */}
-                <div className={`mx-auto w-full min-h-[297mm] bg-white text-black print:block ${billPage === 1 ? 'block' : 'hidden'}`}>
+               {/* --- PAGE 1: ANNEXURE IV --- */}
+                <div className={`mx-auto w-full min-h-[297mm] print:min-h-0 bg-white text-black print:block ${billPage === 1 ? 'block' : 'hidden'}`}>
                   <div className="text-[13px] leading-relaxed p-6">
                     <div className="relative mb-6 flex items-center justify-center min-h-[5rem]">
                       <div className="absolute left-0 top-1/2 -translate-y-1/2 h-20 w-20">
@@ -461,71 +464,74 @@ export default function ViewBill({ facultyUserId }) {
                       </div>
                     </div>
 
-                    <table className="mb-4 w-full border-collapse border border-black text-center text-sm">
-                      <thead>
-                        <tr>
-                          <th className="border border-black p-2 w-[12%]">Program</th>
-                          <th className="border border-black p-2 w-[15%]">Semester</th>
-                          <th className="border border-black p-2 w-[25%]">Subject</th>
-                          <th className="border border-black p-2 w-[20%]">Dates with<br/>Duration (Hrs.)</th>
-                          <th className="border border-black p-2 w-[8%]">Total<br/>Hrs.</th>
-                          <th className="border border-black p-2 w-[10%]">Rate</th>
-                          <th className="border border-black p-2 w-[10%]">Amount</th>
-                        </tr>
-                      </thead>
-                      <tbody>
-                        {aggregatedRecords.map((r, index) => (
-                          <tr key={index}>
-                            <td className="border border-black p-3 font-medium">{r.program}</td>
-                            <td className="border border-black p-3 font-medium">{r.semester}</td>
-                            <td className="border border-black p-3 font-medium">{r.subject}</td>
-                            <td className="border border-black p-2 text-xs leading-relaxed text-slate-700">
-                              {r.dates.map((dateStr, i) => (
-                                <React.Fragment key={i}>
-                                  {dateStr}
-                                  {i < r.dates.length - 1 && <br />}
-                                </React.Fragment>
-                              ))}
-                            </td>
-                            <td className="border border-black p-3 font-medium">{r.totalHrs}</td>
-                            <td className="border border-black p-3 font-medium">{r.rate}</td>
-                            <td className="border border-black p-3 font-medium">{r.amount.toLocaleString('en-IN', { maximumFractionDigits: 2 })}</td>
-                          </tr>
+              <table className="mb-2 w-full border-collapse border border-black text-center text-[11px]">
+                <thead>
+                  <tr>
+                    <th className="border border-black py-[0.5mm] px-1 w-[12%] leading-tight">Program</th>
+                    <th className="border border-black py-[0.5mm] px-1 w-[15%] leading-tight">Semester</th>
+                    <th className="border border-black py-[0.5mm] px-1 w-[25%] leading-tight">Subject</th>
+                    <th className="border border-black py-[0.5mm] px-1 w-[20%] leading-tight">Dates with<br/>Duration (Hrs.)</th>
+                    <th className="border border-black py-[0.5mm] px-1 w-[8%] leading-tight">Total<br/>Hrs.</th>
+                    <th className="border border-black py-[0.5mm] px-1 w-[10%] leading-tight">Rate</th>
+                    <th className="border border-black py-[0.5mm] px-1 w-[10%] leading-tight">Amount</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {aggregatedRecords.map((r, index) => (
+                    <tr key={index}>
+                      {/* UPDATED: py-[0.1mm] applies exactly 0.1 millimeter padding vertically */}
+                      <td className="border border-black py-[0.1mm] px-1 text-[11px] font-medium leading-tight">{r.program}</td>
+                      <td className="border border-black py-[0.1mm] px-1 text-[11px] font-medium leading-tight">{r.semester}</td>
+                      <td className="border border-black py-[0.1mm] px-1 text-[11px] font-medium leading-tight">{r.subject}</td>
+                      <td className="border border-black py-[0.1mm] px-1 text-[10px] leading-tight text-slate-700">
+                        {r.dates.map((dateStr, i) => (
+                          <React.Fragment key={i}>
+                            {dateStr}
+                            {i < r.dates.length - 1 && <br />}
+                          </React.Fragment>
                         ))}
-                      </tbody>
-                    </table>
+                      </td>
+                      <td className="border border-black py-[0.1mm] px-1 text-[11px] font-medium leading-tight">{r.totalHrs}</td>
+                      <td className="border border-black py-[0.1mm] px-1 text-[11px] font-medium leading-tight">{r.rate}</td>
+                      <td className="border border-black py-[0.1mm] px-1 text-[11px] font-medium leading-tight">{r.amount.toLocaleString('en-IN', { maximumFractionDigits: 2 })}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
 
-                    <p className="mb-4 text-[11px] font-medium">*Total amount should not exceed the maximum limit of remuneration for a month.</p>
-                    
-                    <div className="mb-8 flex items-end font-bold text-[14px]">
-                      <span>Total Hours</span>
-                      <span className="mx-2 w-16 border-b border-black text-center">{totalHours}</span>
-                      <span className="ml-4">Total Amount</span>
-                      <span className="mx-2 w-24 border-b border-black text-center">{totalAmount.toLocaleString('en-IN', { maximumFractionDigits: 2 })}</span>
-                      <span className="ml-4 font-normal">(Amount in Words</span>
-                      <span className="mx-2 flex-1 border-b border-black text-center">{amountInWords}</span>
-                      <span className="font-normal">)</span>
-                    </div>
+              <p className="mb-3 text-[11px] font-medium">*Total amount should not exceed the maximum limit of remuneration for a month.</p>
+              
+              <div className="mb-4 flex items-end font-bold text-[14px]">
+                <span>Total Hours</span>
+                <span className="mx-2 w-16 border-b border-black text-center">{totalHours}</span>
+                <span className="ml-4">Total Amount</span>
+                <span className="mx-2 w-24 border-b border-black text-center">{totalAmount.toLocaleString('en-IN', { maximumFractionDigits: 2 })}</span>
+                <span className="ml-4 font-normal">(Amount in Words</span>
+                <span className="mx-2 flex-1 border-b border-black text-center">{amountInWords}</span>
+                <span className="font-normal">)</span>
+              </div>
 
-                    <div className="mb-8 text-[12px] font-medium leading-relaxed">
-                      <p className="font-bold underline text-[14px] mb-1">Note:</p>
-                      <ol className="list-[upper-alpha] pl-6 space-y-0.5">
-                        <li>Rate of Remuneration will be as per university rules.</li>
-                        <li>Faculty members are requested to complete all the above entries.</li>
-                        <li>Rates to be verified as per visiting faculty attendance register and signed by authorized person.</li>
-                        <li>Fill this form for theory/practical classes for every month.</li>
-                        <li>Faculty should not be paid excess amount of Rs 30,000/- PM from D.A.V.V.</li>
-                        <li>Verified visiting faculty Teaching attendance details should be attached with this bill.</li>
-                      </ol>
-                    </div>
+              <div className="mb-4 text-[12px] font-medium leading-relaxed">
+                <p className="font-bold underline text-[14px] mb-1">Note:</p>
+                <ol className="list-[upper-alpha] pl-6 space-y-0.5">
+                  <li>Rate of Remuneration will be as per university rules.</li>
+                  <li>Faculty members are requested to complete all the above entries.</li>
+                  <li>Rates to be verified as per visiting faculty attendance register and signed by authorized person.</li>
+                  <li>Fill this form for theory/practical classes for every month.</li>
+                  <li>Faculty should not be paid excess amount of Rs 30,000/- PM from D.A.V.V.</li>
+                  <li>Verified visiting faculty Teaching attendance details should be attached with this bill.</li>
+                </ol>
+              </div>
 
-                    <div className="mb-12 text-center text-[12px]" style={{ pageBreakInside: 'avoid', breakInside: 'avoid' }}>
-                      <p className="mb-2 font-bold underline text-[15px]">UNDERTAKING</p>
-                      <p className="text-justify mb-6 font-medium leading-relaxed">
-                        I was directed and permitted by the Head to engage the above Classes. For this I have submitted this bill. I therefore, request you to deduct _______% against Income Tax Returns from my payment. Further, I certify that total amount received per month doesn't exceed the maximum permissible limit of remuneration of any amount paid by D.A.V.V. which is Rs. 30,000/- at present.
-                      </p>
-                      
-                      <div className="flex justify-between mt-8" style={{ pageBreakInside: 'avoid', breakInside: 'avoid' }}>
+              {/* REMOVED aggressive pageBreakInside from this outer div so it doesn't jump to Page 2 */}
+              <div className="mb-4 text-center text-[12px]">
+                <p className="mb-1 font-bold underline text-[15px]">UNDERTAKING</p>
+                <p className="text-justify mb-4 font-medium leading-relaxed">
+                  I was directed and permitted by the Head to engage the above Classes. For this I have submitted this bill. I therefore, request you to deduct _______% against Income Tax Returns from my payment. Further, I certify that total amount received per month doesn't exceed the maximum permissible limit of remuneration of any amount paid by D.A.V.V. which is Rs. 30,000/- at present.
+                </p>
+                
+                {/* Kept pageBreakInside here so the signatures/bank details never split in half */}
+                <div className="flex justify-between mt-4" style={{ pageBreakInside: 'avoid', breakInside: 'avoid' }}>
                         <div className="flex flex-col justify-between">
                           <div className="w-72 border-2 border-black p-3 text-left space-y-1.5 font-semibold text-[13px]">
                             <p>Pan Card No. <span className="border-b border-black inline-block w-40">{facultyInfo.pan}</span></p>
@@ -566,7 +572,7 @@ export default function ViewBill({ facultyUserId }) {
                 </div>
 
                 {/* --- PAGE 2: ATTENDANCE REGISTER --- */}
-                <div className={`mx-auto w-full min-h-[297mm] bg-white text-black print:block print-force-break ${billPage === 2 ? 'block' : 'hidden'}`}>
+                <div className={`mx-auto w-full min-h-[297mm] print:min-h-0 bg-white text-black print:block print-force-break ${billPage === 2 ? 'block' : 'hidden'}`}>
                   <div className="text-[13px] leading-relaxed p-6 pt-12">
                     <div className="mb-8 flex items-center justify-end gap-2">
                       <span className="font-bold text-sm">UVFIN</span>
@@ -603,39 +609,43 @@ export default function ViewBill({ facultyUserId }) {
                         </tr>
                       </tbody>
                     </table>
-
-                    <table className="mb-24 w-full border-collapse border-2 border-t-0 border-black text-center text-sm">
+                    <table className="mb-4 w-full border-collapse border-2 border-t-0 border-black text-center text-[11px]">
                       <thead>
                         <tr>
-                          <th className="border border-black p-2.5 w-[15%]">Date</th>
-                          <th className="border border-black p-2.5 w-[20%]">Subject Code</th>
-                          <th className="border border-black p-2.5 text-left pl-4 w-[35%]">Subject Name</th>
-                          <th className="border border-black p-2.5 w-[15%]">Theory / Practice</th>
-                          <th className="border border-black p-2.5 w-[15%]">Hours</th>
+                          <th className="border border-black py-[1mm] px-1 w-[15%] leading-tight">Date</th>
+                          <th className="border border-black py-[1mm] px-1 w-[20%] leading-tight">Subject Code</th>
+                          <th className="border border-black py-[1mm] px-1 text-left pl-2 w-[35%] leading-tight">Subject Name</th>
+                          <th className="border border-black py-[1mm] px-1 w-[15%] leading-tight">Theory / Practice</th>
+                          <th className="border border-black py-[1mm] px-1 w-[15%] leading-tight">Hours</th>
                         </tr>
                       </thead>
                       <tbody>
                         {billableRecords.map((r, i) => (
                           <tr key={i}>
-                            {/* UPDATED: Changed padding to 'py-1 px-2.5' to significantly reduce row height */}
-                            <td className="border border-black py-1 px-2.5">{formatDate(r.attendance_date)}</td>
-                            <td className="border border-black py-1 px-2.5 font-semibold">{r.subject_code}</td>
-                            <td className="border border-black py-1 px-2.5 text-left pl-4 font-semibold">{r.subject_name}</td>
-                            <td className="border border-black py-1 px-2.5">{r.session_type || 'Theory'}</td>
-                            <td className="border border-black py-1 px-2.5 font-bold">{parseFloat(r.hours)}</td>
+                            {/* UPDATED: Ultra-minimal 0.1mm padding top/bottom to maximize rows per page */}
+                            <td className="border border-black py-[0.1mm] px-1 text-[11px] leading-tight">{formatDate(r.attendance_date)}</td>
+                            <td className="border border-black py-[0.1mm] px-1 text-[11px] font-semibold leading-tight">{r.subject_code}</td>
+                            
+                            <td className="border border-black py-[0.1mm] px-1 text-left pl-2 font-semibold text-[10px] leading-tight">
+                              {r.subject_name}
+                            </td>
+                            
+                            <td className="border border-black py-[0.1mm] px-1 text-[11px] leading-tight">{r.session_type || 'Theory'}</td>
+                            <td className="border border-black py-[0.1mm] px-1 text-[11px] font-bold leading-tight">{parseFloat(r.hours)}</td>
                           </tr>
                         ))}
                       </tbody>
                     </table>
 
-                    <div className="grid grid-cols-3 gap-4 font-bold text-[12px] whitespace-nowrap mt-20 px-4" style={{ pageBreakInside: 'avoid', breakInside: 'avoid' }}>
+                    {/* UPDATED: Shrunk margins and gap-10 to firmly anchor the signature to Page 2 */}
+                    <div className="grid grid-cols-3 gap-4 font-bold text-[11px] whitespace-nowrap mt-4 px-2" style={{ pageBreakInside: 'avoid', breakInside: 'avoid' }}>
                       <div className="text-left">
                         <p>Name & Sign. of Visiting Faculty</p>
                       </div>
                       <div className="text-center">
                         <p>Name & Sign. of Program Incharge</p>
                       </div>
-                      <div className="text-right flex flex-col gap-24">
+                      <div className="text-right flex flex-col gap-10">
                         <p>Name & Sign. of Batch Mentor</p>
                         <p>Name & Sign. of Director</p>
                       </div>

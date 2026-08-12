@@ -59,6 +59,33 @@ function NavItems({ onNavigate, currentView, onClose }) {
   );
 }
 
+// Reusable component for displaying read-only info
+const InfoField = ({ icon: Icon, label, value }) => (
+  <div className="flex items-start gap-3 rounded-xl bg-slate-50/50 p-3 border border-slate-100 transition-colors hover:bg-slate-50">
+    <div className="mt-0.5 text-slate-400">
+      <Icon className="h-[18px] w-[18px]" />
+    </div>
+    <div>
+      <p className="text-[11px] font-semibold uppercase tracking-wider text-slate-500 mb-0.5">{label}</p>
+      <p className="text-sm font-medium text-slate-900">{value || "N/A"}</p>
+    </div>
+  </div>
+);
+
+// Reusable component for Input Fields during edit mode
+const EditField = ({ label, value, onChange, type = "text", maxLength, colSpan = false }) => (
+  <div className={colSpan ? "sm:col-span-2" : ""}>
+    <label className="mb-1.5 block text-xs font-semibold uppercase text-slate-500">{label}</label>
+    <input
+      type={type}
+      maxLength={maxLength}
+      value={value || ""}
+      onChange={onChange}
+      className="w-full rounded-xl border border-slate-300 bg-white px-4 py-2.5 text-sm font-medium text-slate-900 transition-shadow focus:border-[#004DD2] focus:outline-none focus:ring-4 focus:ring-[#004DD2]/10"
+    />
+  </div>
+);
+
 // --- ELEGANT PROFILE MODAL ---
 function ProfileModal({ isOpen, onClose, userId, token }) {
   const [profileData, setProfileData] = useState(null);
@@ -66,7 +93,22 @@ function ProfileModal({ isOpen, onClose, userId, token }) {
   const [isEditing, setIsEditing] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
   const [saveSuccess, setSaveSuccess] = useState(false);
-  const [formData, setFormData] = useState({ full_name: "", phone_number: "" });
+  
+  // EXPANDED: Form Data State for all editable fields
+  const [formData, setFormData] = useState({ 
+    full_name: "", 
+    phone_number: "",
+    address: "",
+    qualification: "",
+    aadhaar_no: "",
+    account_no: "",
+    bank_name: "",
+    ifsc_code: "",
+    pan_card_no: ""
+  });
+
+  // --- ERROR STATE FOR PROFILE VALIDATION ---
+  const [profileMessage, setProfileMessage] = useState({ type: "", text: "" });
 
   // --- PASSWORD STATES ---
   const [isChangingPassword, setIsChangingPassword] = useState(false);
@@ -88,9 +130,17 @@ function ProfileModal({ isOpen, onClose, userId, token }) {
         .then((res) => {
           if (res.data.success) {
             setProfileData(res.data.data);
+            // Populate all fields when data is fetched
             setFormData({
-              full_name: res.data.data.full_name,
-              phone_number: res.data.data.phone_number,
+              full_name: res.data.data.full_name || "",
+              phone_number: res.data.data.phone_number || "",
+              address: res.data.data.address || "",
+              qualification: res.data.data.qualification || "",
+              aadhaar_no: res.data.data.aadhaar_no || "",
+              account_no: res.data.data.account_no || "",
+              bank_name: res.data.data.bank_name || "",
+              ifsc_code: res.data.data.ifsc_code || "",
+              pan_card_no: res.data.data.pan_card_no || ""
             });
           }
         })
@@ -102,11 +152,40 @@ function ProfileModal({ isOpen, onClose, userId, token }) {
   if (!isOpen) return null;
 
   const handleSave = async () => {
+    setProfileMessage({ type: "", text: "" });
+
+    // 1. Strict Frontend Formatting Validation
+    if (!formData.full_name.trim()) {
+      return setProfileMessage({ type: "error", text: "Full Name is required." });
+    }
+    if (formData.phone_number && !/^\d{10}$/.test(formData.phone_number)) {
+      return setProfileMessage({ type: "error", text: "Phone Number must be exactly 10 digits." });
+    }
+    if (formData.aadhaar_no && !/^\d{12}$/.test(formData.aadhaar_no)) {
+      return setProfileMessage({ type: "error", text: "Aadhaar Number must be exactly 12 numeric digits." });
+    }
+    if (formData.pan_card_no && !/^[A-Z]{5}[0-9]{4}[A-Z]{1}$/i.test(formData.pan_card_no)) {
+      return setProfileMessage({ type: "error", text: "Invalid PAN Card format (e.g., ABCDE1234F)." });
+    }
+    if (formData.account_no && !/^\d{8,18}$/.test(formData.account_no)) {
+      return setProfileMessage({ type: "error", text: "Account Number must be between 8 and 18 digits." });
+    }
+    if (formData.ifsc_code && !/^[A-Z]{4}0[A-Z0-9]{6}$/i.test(formData.ifsc_code)) {
+      return setProfileMessage({ type: "error", text: "Invalid IFSC Code format (e.g., SBIN0001234)." });
+    }
+
     setIsSaving(true);
     try {
       const payload = {
         full_name: formData.full_name.trim(),
-        phone_number: formData.phone_number.trim()
+        phone_number: formData.phone_number.trim(),
+        address: formData.address.trim(),
+        qualification: formData.qualification.trim(),
+        aadhaar_no: formData.aadhaar_no.trim(),
+        account_no: formData.account_no.trim(),
+        bank_name: formData.bank_name.trim(),
+        ifsc_code: formData.ifsc_code.trim().toUpperCase(),
+        pan_card_no: formData.pan_card_no.trim().toUpperCase()
       };
 
      const response = await api.put(`/auth/update/${userId}`, payload);
@@ -118,7 +197,20 @@ function ProfileModal({ isOpen, onClose, userId, token }) {
         setTimeout(() => setSaveSuccess(false), 3000); 
       }
     } catch (error) {
-      alert(error.response?.data?.message || "Failed to update profile.");
+      // 2. Catch Backend Uniqueness / Duplication Errors
+      const errorMsg = error.response?.data?.message?.toLowerCase() || error.response?.data?.error?.toLowerCase() || "";
+      const errorDetails = typeof error.response?.data?.data === 'string' ? error.response.data.data.toLowerCase() : '';
+      const fullError = errorMsg + " " + errorDetails;
+
+      if (fullError.includes("aadhaar")) {
+        setProfileMessage({ type: "error", text: "This Aadhaar Number is already registered to another user." });
+      } else if (fullError.includes("pan")) {
+        setProfileMessage({ type: "error", text: "This PAN Card Number is already registered to another user." });
+      } else if (fullError.includes("mobile") || fullError.includes("phone")) {
+        setProfileMessage({ type: "error", text: "This Phone Number is already in use." });
+      } else {
+        setProfileMessage({ type: "error", text: error.response?.data?.message || "Failed to update profile." });
+      }
     } finally {
       setIsSaving(false);
     }
@@ -152,7 +244,6 @@ function ProfileModal({ isOpen, onClose, userId, token }) {
       setPasswordMessage({ type: "success", text: "Password changed successfully!" });
       setPasswordData({ oldPassword: "", newPassword: "", confirmPassword: "" });
       
-      // Reset visibility states
       setShowOldPassword(false);
       setShowNewPassword(false);
       setShowConfirmPassword(false);
@@ -165,17 +256,22 @@ function ProfileModal({ isOpen, onClose, userId, token }) {
     }
   };
 
-  const InfoField = ({ icon: Icon, label, value }) => (
-    <div className="flex items-start gap-3 rounded-xl bg-slate-50/50 p-3 border border-slate-100 transition-colors hover:bg-slate-50">
-      <div className="mt-0.5 text-slate-400">
-        <Icon className="h-[18px] w-[18px]" />
-      </div>
-      <div>
-        <p className="text-[11px] font-semibold uppercase tracking-wider text-slate-500 mb-0.5">{label}</p>
-        <p className="text-sm font-medium text-slate-900">{value || "N/A"}</p>
-      </div>
-    </div>
-  );
+  const handleCancelEdit = () => {
+    setIsEditing(false);
+    setProfileMessage({ type: "", text: "" }); // Clear any pending errors
+    // Reset all fields back to their original state
+    setFormData({ 
+      full_name: profileData.full_name || "", 
+      phone_number: profileData.phone_number || "",
+      address: profileData.address || "",
+      qualification: profileData.qualification || "",
+      aadhaar_no: profileData.aadhaar_no || "",
+      account_no: profileData.account_no || "",
+      bank_name: profileData.bank_name || "",
+      ifsc_code: profileData.ifsc_code || "",
+      pan_card_no: profileData.pan_card_no || ""
+    });
+  };
 
   return (
     <div className="fixed inset-0 z-[100] flex items-center justify-center bg-slate-900/40 p-4 backdrop-blur-md transition-all">
@@ -218,7 +314,7 @@ function ProfileModal({ isOpen, onClose, userId, token }) {
 
               {/* Personal Information Section */}
               <section>
-                <div className="mb-5 flex items-center justify-between">
+                <div className="mb-5 flex flex-wrap gap-4 items-center justify-between">
                   <h3 className="text-sm font-bold text-[#004DD2] uppercase tracking-wider flex items-center gap-2">
                     <User className="h-4 w-4" /> Personal Details
                   </h3>
@@ -227,15 +323,12 @@ function ProfileModal({ isOpen, onClose, userId, token }) {
                       onClick={() => setIsEditing(true)}
                       className="flex items-center gap-1.5 rounded-full border border-slate-200 bg-white px-4 py-1.5 text-sm font-medium text-slate-700 shadow-sm transition-all hover:bg-slate-50 hover:text-[#004DD2] hover:border-blue-200"
                     >
-                      <Edit2 className="h-[14px] w-[14px]" /> Edit Details
+                      <Edit2 className="h-[14px] w-[14px]" /> Edit Profile
                     </button>
                   ) : (
                     <div className="flex items-center gap-2">
                       <button 
-                        onClick={() => {
-                          setIsEditing(false);
-                          setFormData({ full_name: profileData.full_name, phone_number: profileData.phone_number });
-                        }}
+                        onClick={handleCancelEdit}
                         className="text-sm font-medium text-slate-500 hover:text-slate-700 px-3 py-1.5"
                       >
                         Cancel
@@ -251,68 +344,86 @@ function ProfileModal({ isOpen, onClose, userId, token }) {
                     </div>
                   )}
                 </div>
+
+                {isEditing && profileMessage.text && (
+                  <div className={`mb-4 p-3 rounded-lg text-sm font-medium ${profileMessage.type === 'error' ? 'bg-red-50 text-red-600 border border-red-100' : 'bg-green-50 text-green-700 border border-green-200'}`}>
+                    {profileMessage.text}
+                  </div>
+                )}
                 
                 <div className="grid gap-4 sm:grid-cols-2 bg-white rounded-2xl border border-slate-100 p-5 shadow-sm">
                   {isEditing ? (
                     <>
-                      <div>
-                        <label className="mb-1.5 block text-xs font-semibold uppercase text-slate-500">Full Name</label>
-                        <input 
-                          type="text" 
-                          value={formData.full_name}
-                          onChange={(e) => setFormData({...formData, full_name: e.target.value})}
-                          className="w-full rounded-xl border border-slate-300 bg-white px-4 py-2.5 text-sm font-medium text-slate-900 transition-shadow focus:border-[#004DD2] focus:outline-none focus:ring-4 focus:ring-[#004DD2]/10"
-                        />
+                      <EditField label="Full Name" value={formData.full_name} onChange={(e) => setFormData({...formData, full_name: e.target.value})} />
+                      <EditField label="Phone Number" type="tel" maxLength={10} value={formData.phone_number} onChange={(e) => setFormData({...formData, phone_number: e.target.value.replace(/\D/g,'')})} />
+                      
+                      {/* Email is kept read-only as it's typically tied directly to Auth */}
+                      <div className="sm:col-span-2">
+                        <InfoField icon={Mail} label="Email Address" value={profileData.email} />
                       </div>
-                      <div>
-                        <label className="mb-1.5 block text-xs font-semibold uppercase text-slate-500">Phone Number</label>
-                        <input 
-                          type="tel" 
-                          maxLength={10}
-                          value={formData.phone_number}
-                          onChange={(e) => setFormData({...formData, phone_number: e.target.value.replace(/\D/g,'')})}
-                          className="w-full rounded-xl border border-slate-300 bg-white px-4 py-2.5 text-sm font-medium text-slate-900 transition-shadow focus:border-[#004DD2] focus:outline-none focus:ring-4 focus:ring-[#004DD2]/10"
-                        />
-                      </div>
+                      
+                      <EditField label="Residential Address" value={formData.address} onChange={(e) => setFormData({...formData, address: e.target.value})} colSpan={true} />
                     </>
                   ) : (
                     <>
                       <InfoField icon={User} label="Full Name" value={profileData.full_name} />
                       <InfoField icon={Phone} label="Phone Number" value={profileData.phone_number} />
+                      <div className="sm:col-span-2">
+                        <InfoField icon={Mail} label="Email Address" value={profileData.email} />
+                      </div>
+                      <div className="sm:col-span-2">
+                        <InfoField icon={MapPin} label="Residential Address" value={profileData.address} />
+                      </div>
                     </>
                   )}
-                  
-                  <div className="sm:col-span-2">
-                    <InfoField icon={Mail} label="Email Address" value={profileData.email} />
-                  </div>
-                  <div className="sm:col-span-2">
-                    <InfoField icon={MapPin} label="Residential Address" value={profileData.address} />
-                  </div>
                 </div>
               </section>
 
               <div className="grid gap-8 sm:grid-cols-2">
+                {/* Academic & ID Section */}
                 <section>
                   <h3 className="mb-5 text-sm font-bold text-[#004DD2] uppercase tracking-wider flex items-center gap-2">
                     <GraduationCap className="h-4 w-4" /> Academic & ID
                   </h3>
                   <div className="flex flex-col gap-3">
-                    <InfoField icon={Briefcase} label="Qualification" value={profileData.qualification} />
-                    <InfoField icon={IdCard} label="UVFIN / Employee ID" value={profileData.uvfin} />
-                    <InfoField icon={CreditCard} label="PAN Card No" value={profileData.pan_card_no} />
-                    {/* AADHAAR REDACTED */}
-                    <InfoField icon={Fingerprint} label="Aadhaar No" value="[Aadhaar Redacted]" />
+                    {isEditing ? (
+                      <>
+                        <EditField label="Qualification" value={formData.qualification} onChange={(e) => setFormData({...formData, qualification: e.target.value})} />
+                        {/* UVFIN is an internal ID, kept read-only */}
+                        <InfoField icon={IdCard} label="UVFIN / Employee ID" value={profileData.uvfin} />
+                        <EditField label="PAN Card No" maxLength={10} value={formData.pan_card_no} onChange={(e) => setFormData({...formData, pan_card_no: e.target.value.toUpperCase()})} />
+                        <EditField label="Aadhaar No" type="tel" maxLength={12} value={formData.aadhaar_no} onChange={(e) => setFormData({...formData, aadhaar_no: e.target.value.replace(/\D/g,'')})} />
+                      </>
+                    ) : (
+                      <>
+                        <InfoField icon={Briefcase} label="Qualification" value={profileData.qualification} />
+                        <InfoField icon={IdCard} label="UVFIN / Employee ID" value={profileData.uvfin} />
+                        <InfoField icon={CreditCard} label="PAN Card No" value={profileData.pan_card_no} />
+                        <InfoField icon={Fingerprint} label="Aadhaar No" value={profileData.aadhaar_no} />
+                      </>
+                    )}
                   </div>
                 </section>
 
+                {/* Banking Section */}
                 <section>
                   <h3 className="mb-5 text-sm font-bold text-[#004DD2] uppercase tracking-wider flex items-center gap-2">
                     <Landmark className="h-4 w-4" /> Banking Information
                   </h3>
                   <div className="flex flex-col gap-3">
-                    <InfoField icon={Landmark} label="Bank Name" value={profileData.bank_name} />
-                    <InfoField icon={Wallet} label="Account Number" value={profileData.account_no} />
-                    <InfoField icon={Building} label="IFSC Code" value={profileData.ifsc_code} />
+                    {isEditing ? (
+                      <>
+                        <EditField label="Bank Name" value={formData.bank_name} onChange={(e) => setFormData({...formData, bank_name: e.target.value})} />
+                        <EditField label="Account Number" type="tel" value={formData.account_no} onChange={(e) => setFormData({...formData, account_no: e.target.value.replace(/\D/g,'')})} />
+                        <EditField label="IFSC Code" maxLength={11} value={formData.ifsc_code} onChange={(e) => setFormData({...formData, ifsc_code: e.target.value.toUpperCase()})} />
+                      </>
+                    ) : (
+                      <>
+                        <InfoField icon={Landmark} label="Bank Name" value={profileData.bank_name} />
+                        <InfoField icon={Wallet} label="Account Number" value={profileData.account_no} />
+                        <InfoField icon={Building} label="IFSC Code" value={profileData.ifsc_code} />
+                      </>
+                    )}
                   </div>
                 </section>
               </div>
@@ -435,7 +546,7 @@ function ProfileModal({ isOpen, onClose, userId, token }) {
                       </div>
                     </div>
 
-                    {/* NEW: LIVE PASSWORD REQUIREMENTS UI */}
+                    {/* LIVE PASSWORD REQUIREMENTS UI */}
                     <div className="bg-[#F8F9FA] p-4 rounded-xl mt-4">
                       <p className="text-[11px] font-bold uppercase tracking-wider text-slate-800 mb-3">Password Requirements</p>
                       <ul className="space-y-2.5">
@@ -509,19 +620,54 @@ export default function Sidebar({ onNavigate, currentView = "dashboard", onSignO
   const [facultyRole, setFacultyRole] = useState("Faculty");
   const [sessionData, setSessionData] = useState(null);
 
-  useEffect(() => {
+ useEffect(() => {
     const sessionStr = localStorage.getItem('iipsCurrentSession');
     if (sessionStr) {
       try {
         const session = JSON.parse(sessionStr);
         setSessionData(session);
-        setFacultyName(session.fullName || "Visiting Faculty");
+        
+        // 1. Set temporary fallback from local storage
+        let fallbackName = session.fullName || session.name || "Loading...";
+        setFacultyName(fallbackName);
+        
         if (session.role) {
           setFacultyRole(session.role.charAt(0).toUpperCase() + session.role.slice(1));
         }
+
+        // 2. Fetch the actual up-to-date name from the API
+        const currentUserId = session.userId || session.id || session.user_id;
+        if (currentUserId) {
+          api.get(`/admin/faculty/${currentUserId}`)
+            .then((res) => {
+              if (res.data.success && res.data.data?.full_name) {
+                let finalName = res.data.data.full_name;
+                
+                // Format with "Prof." to match the dashboard style
+                if (!finalName.toLowerCase().startsWith("dr.") && !finalName.toLowerCase().startsWith("prof.")) {
+                  finalName = "Prof. " + finalName;
+                }
+                
+                setFacultyName(finalName);
+                
+                // Optional: Update local storage so it's there instantly next time
+                const updatedSession = { ...session, fullName: finalName };
+                localStorage.setItem("iipsCurrentSession", JSON.stringify(updatedSession));
+              } else {
+                setFacultyName("Visiting Faculty"); // Ultimate fallback
+              }
+            })
+            .catch((err) => {
+              console.error("Error fetching faculty name for sidebar:", err);
+              setFacultyName(fallbackName !== "Loading..." ? fallbackName : "Visiting Faculty");
+            });
+        }
       } catch (e) {
         console.error("Error parsing session data", e);
+        setFacultyName("Visiting Faculty");
       }
+    } else {
+      setFacultyName("Visiting Faculty");
     }
   }, []);
 

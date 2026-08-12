@@ -259,10 +259,6 @@ const handleSubmit = async (event) => {
         setErrorField('pan_card_no');
         setSubmitError('This PAN Card Number is already registered. Please verify your details.');
       } 
-      else if (fullError.includes('account number already exist')) {
-        setErrorField('account_no');
-        setSubmitError('This Bank Account Number is already registered.');
-      } 
       else if (fullError.includes('mobile number already exist')) {
         setErrorField('phone_number');
         setSubmitError('This Mobile Number is already registered. Please use a different number or sign in.');
