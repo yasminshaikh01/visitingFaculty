@@ -62,12 +62,22 @@ export default function AdminDashboard({ onSignOut }) {
   }, [fetchPending, activeTab]);
 
   // Unified handler to refresh table and show banner
+  // const handleFacultyAction = useCallback((toastData) => {
+  //   fetchPending(); // Instantly refresh pending table so the user disappears from the queue
+  //   if (toastData) {
+  //     setToastConfig(toastData); // Show the toast with the data from the modal
+  //   }
+  // }, [fetchPending]);
+  // Unified handler: instantly remove/update the pending list, no refetch needed
   const handleFacultyAction = useCallback((toastData) => {
-    fetchPending(); // Instantly refresh pending table so the user disappears from the queue
-    if (toastData) {
-      setToastConfig(toastData); // Show the toast with the data from the modal
+    if (toastData?.userId && (toastData.action === 'approved' || toastData.action === 'rejected')) {
+      // Remove from pending list immediately — approved/rejected faculty leave this queue
+      setPendingFaculty(prev => prev.filter(f => (f.user_id || f.id) !== toastData.userId));
     }
-  }, [fetchPending]);
+    if (toastData) {
+      setToastConfig(toastData);
+    }
+  }, []);
 
   const filteredFaculty = useMemo(() => {
     if (!search.trim()) return pendingFaculty;
