@@ -162,6 +162,7 @@ async function addSubjects(course_id, semester_number, Details) {
             subject_code: Details.subject_code,
             subject_name: Details.subject_name
         });
+        
         return result;
     } catch (error) {
         console.log(error);
