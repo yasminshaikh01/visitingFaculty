@@ -464,25 +464,26 @@ export default function ViewBill({ facultyUserId }) {
                       </div>
                     </div>
 
-              <table className="mb-2 w-full border-collapse border border-black text-center text-sm">
+              <table className="mb-2 w-full border-collapse border border-black text-center text-[11px]">
                 <thead>
                   <tr>
-                    <th className="border border-black p-2 w-[12%]">Program</th>
-                    <th className="border border-black p-2 w-[15%]">Semester</th>
-                    <th className="border border-black p-2 w-[25%]">Subject</th>
-                    <th className="border border-black p-2 w-[20%]">Dates with<br/>Duration (Hrs.)</th>
-                    <th className="border border-black p-2 w-[8%]">Total<br/>Hrs.</th>
-                    <th className="border border-black p-2 w-[10%]">Rate</th>
-                    <th className="border border-black p-2 w-[10%]">Amount</th>
+                    <th className="border border-black py-[0.5mm] px-1 w-[12%] leading-tight">Program</th>
+                    <th className="border border-black py-[0.5mm] px-1 w-[15%] leading-tight">Semester</th>
+                    <th className="border border-black py-[0.5mm] px-1 w-[25%] leading-tight">Subject</th>
+                    <th className="border border-black py-[0.5mm] px-1 w-[20%] leading-tight">Dates with<br/>Duration (Hrs.)</th>
+                    <th className="border border-black py-[0.5mm] px-1 w-[8%] leading-tight">Total<br/>Hrs.</th>
+                    <th className="border border-black py-[0.5mm] px-1 w-[10%] leading-tight">Rate</th>
+                    <th className="border border-black py-[0.5mm] px-1 w-[10%] leading-tight">Amount</th>
                   </tr>
                 </thead>
                 <tbody>
                   {aggregatedRecords.map((r, index) => (
                     <tr key={index}>
-                      <td className="border border-black py-[1mm] px-2 text-xs font-medium">{r.program}</td>
-                      <td className="border border-black py-[1mm] px-2 text-xs font-medium">{r.semester}</td>
-                      <td className="border border-black py-[1mm] px-2 text-xs font-medium">{r.subject}</td>
-                      <td className="border border-black py-[1mm] px-2 text-[11px] leading-relaxed text-slate-700">
+                      {/* UPDATED: py-[0.1mm] applies exactly 0.1 millimeter padding vertically */}
+                      <td className="border border-black py-[0.1mm] px-1 text-[11px] font-medium leading-tight">{r.program}</td>
+                      <td className="border border-black py-[0.1mm] px-1 text-[11px] font-medium leading-tight">{r.semester}</td>
+                      <td className="border border-black py-[0.1mm] px-1 text-[11px] font-medium leading-tight">{r.subject}</td>
+                      <td className="border border-black py-[0.1mm] px-1 text-[10px] leading-tight text-slate-700">
                         {r.dates.map((dateStr, i) => (
                           <React.Fragment key={i}>
                             {dateStr}
@@ -490,9 +491,9 @@ export default function ViewBill({ facultyUserId }) {
                           </React.Fragment>
                         ))}
                       </td>
-                      <td className="border border-black py-[1mm] px-2 text-xs font-medium">{r.totalHrs}</td>
-                      <td className="border border-black py-[1mm] px-2 text-xs font-medium">{r.rate}</td>
-                      <td className="border border-black py-[1mm] px-2 text-xs font-medium">{r.amount.toLocaleString('en-IN', { maximumFractionDigits: 2 })}</td>
+                      <td className="border border-black py-[0.1mm] px-1 text-[11px] font-medium leading-tight">{r.totalHrs}</td>
+                      <td className="border border-black py-[0.1mm] px-1 text-[11px] font-medium leading-tight">{r.rate}</td>
+                      <td className="border border-black py-[0.1mm] px-1 text-[11px] font-medium leading-tight">{r.amount.toLocaleString('en-IN', { maximumFractionDigits: 2 })}</td>
                     </tr>
                   ))}
                 </tbody>
@@ -608,48 +609,47 @@ export default function ViewBill({ facultyUserId }) {
                         </tr>
                       </tbody>
                     </table>
-              <table className="mb-6 w-full border-collapse border-2 border-t-0 border-black text-center text-sm">
-                <thead>
-                  <tr>
-                    <th className="border border-black py-1.5 px-2 w-[15%]">Date</th>
-                    <th className="border border-black py-1.5 px-2 w-[20%]">Subject Code</th>
-                    <th className="border border-black py-1.5 px-2 text-left pl-4 w-[35%]">Subject Name</th>
-                    <th className="border border-black py-1.5 px-2 w-[15%]">Theory / Practice</th>
-                    <th className="border border-black py-1.5 px-2 w-[15%]">Hours</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {billableRecords.map((r, i) => (
-                    <tr key={i}>
-                      {/* Minimal 1mm padding top/bottom to maximize rows per page */}
-                      <td className="border border-black py-[1mm] px-2 text-[12px]">{formatDate(r.attendance_date)}</td>
-                      <td className="border border-black py-[1mm] px-2 text-[12px] font-semibold">{r.subject_code}</td>
-                      
-                      {/* Subject Name is 2 sizes smaller (10px) with tight line-spacing for wrapping */}
-                      <td className="border border-black py-[1mm] px-2 text-left pl-4 font-semibold text-[10px] leading-tight">
-                        {r.subject_name}
-                      </td>
-                      
-                      <td className="border border-black py-[1mm] px-2 text-[12px]">{r.session_type || 'Theory'}</td>
-                      <td className="border border-black py-[1mm] px-2 text-[12px] font-bold">{parseFloat(r.hours)}</td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
+                    <table className="mb-4 w-full border-collapse border-2 border-t-0 border-black text-center text-[11px]">
+                      <thead>
+                        <tr>
+                          <th className="border border-black py-[1mm] px-1 w-[15%] leading-tight">Date</th>
+                          <th className="border border-black py-[1mm] px-1 w-[20%] leading-tight">Subject Code</th>
+                          <th className="border border-black py-[1mm] px-1 text-left pl-2 w-[35%] leading-tight">Subject Name</th>
+                          <th className="border border-black py-[1mm] px-1 w-[15%] leading-tight">Theory / Practice</th>
+                          <th className="border border-black py-[1mm] px-1 w-[15%] leading-tight">Hours</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {billableRecords.map((r, i) => (
+                          <tr key={i}>
+                            {/* UPDATED: Ultra-minimal 0.1mm padding top/bottom to maximize rows per page */}
+                            <td className="border border-black py-[0.1mm] px-1 text-[11px] leading-tight">{formatDate(r.attendance_date)}</td>
+                            <td className="border border-black py-[0.1mm] px-1 text-[11px] font-semibold leading-tight">{r.subject_code}</td>
+                            
+                            <td className="border border-black py-[0.1mm] px-1 text-left pl-2 font-semibold text-[10px] leading-tight">
+                              {r.subject_name}
+                            </td>
+                            
+                            <td className="border border-black py-[0.1mm] px-1 text-[11px] leading-tight">{r.session_type || 'Theory'}</td>
+                            <td className="border border-black py-[0.1mm] px-1 text-[11px] font-bold leading-tight">{parseFloat(r.hours)}</td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
 
-              {/* UPDATED: Reduced top margin and completely rebuilt the vertical gap to fit perfectly on Page 2 */}
-              <div className="grid grid-cols-3 gap-4 font-bold text-[12px] whitespace-nowrap mt-4 px-4" style={{ pageBreakInside: 'avoid', breakInside: 'avoid' }}>
-                <div className="text-left">
-                  <p>Name & Sign. of Visiting Faculty</p>
-                </div>
-                <div className="text-center">
-                  <p>Name & Sign. of Program Incharge</p>
-                </div>
-                <div className="text-right flex flex-col gap-10">
-                  <p>Name & Sign. of Batch Mentor</p>
-                  <p>Name & Sign. of Director</p>
-                </div>
-              </div>
+                    {/* UPDATED: Shrunk margins and gap-10 to firmly anchor the signature to Page 2 */}
+                    <div className="grid grid-cols-3 gap-4 font-bold text-[11px] whitespace-nowrap mt-4 px-2" style={{ pageBreakInside: 'avoid', breakInside: 'avoid' }}>
+                      <div className="text-left">
+                        <p>Name & Sign. of Visiting Faculty</p>
+                      </div>
+                      <div className="text-center">
+                        <p>Name & Sign. of Program Incharge</p>
+                      </div>
+                      <div className="text-right flex flex-col gap-10">
+                        <p>Name & Sign. of Batch Mentor</p>
+                        <p>Name & Sign. of Director</p>
+                      </div>
+                    </div>
                   </div>
                 </div>
 
