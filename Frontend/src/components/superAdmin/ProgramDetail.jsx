@@ -136,7 +136,7 @@ export default function ProgramDetail({ program, onBack, onUpdate }) {
     const nextSemId = (courseData.total_semesters || 0) + 1;
     try {
       const res = await api.post(`/super_admin/addSemester/${courseId}`, {
-        semester_id: nextSemId
+        semester_number: nextSemId
       });
       
       const data = res.data;

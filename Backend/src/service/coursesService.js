@@ -150,11 +150,16 @@ async function deleteSubjects(course_id, semester_number, subject_id) {
 
 async function addSubjects(course_id, semester_number, Details) {
     try {
-        // Resolve semester_number to actual semester_id
         const semester = await Semester.findOne({
-            where: { course_id: course_id, semester_number: semester_number }
+            where: {
+                course_id: course_id,
+                semester_number: semester_number
+            }
         });
-        if (!semester) throw new Error('Semester not found for this course');
+
+        if (!semester) {
+            throw new Error(`Semester ${semester_number} not found for this course. Please create the semester first.`);
+        }
 
         const result = await Subject.create({
             course_id: course_id,
@@ -162,11 +167,11 @@ async function addSubjects(course_id, semester_number, Details) {
             subject_code: Details.subject_code,
             subject_name: Details.subject_name
         });
-        
+
         return result;
     } catch (error) {
         console.log(error);
-        throw new Error('not able to add subject');
+        throw new Error(error.message || 'not able to add subject');
     }
 }
 
@@ -174,10 +179,28 @@ async function addCourse(Details) {
     try {
         const result = await Course.create({
             course_name: Details.course_name,
-                program_incharge: Details.program_incharge,
-                total_semesters: Details.total_semesters,
-                year:Details.year
+            program_incharge: Details.program_incharge,
+            total_semesters: Details.total_semesters,
+            year: Details.year
         });
+
+        // ✅ Auto-create semesters for this course
+        const totalSemesters = Number(Details.total_semesters || 1);
+
+        for (let i = 1; i <= totalSemesters; i++) {
+            await Semester.findOrCreate({
+                where: {
+                    course_id: result.course_id,
+                    semester_number: i
+                },
+                defaults: {
+                    course_id: result.course_id,
+                    semester_number: i,
+                    is_active: true
+                }
+            });
+        }
+
         return result;
     } catch (error) {
         console.log(error);
