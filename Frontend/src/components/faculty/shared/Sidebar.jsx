@@ -59,6 +59,33 @@ function NavItems({ onNavigate, currentView, onClose }) {
   );
 }
 
+// Reusable component for displaying read-only info
+const InfoField = ({ icon: Icon, label, value }) => (
+  <div className="flex items-start gap-3 rounded-xl bg-slate-50/50 p-3 border border-slate-100 transition-colors hover:bg-slate-50">
+    <div className="mt-0.5 text-slate-400">
+      <Icon className="h-[18px] w-[18px]" />
+    </div>
+    <div>
+      <p className="text-[11px] font-semibold uppercase tracking-wider text-slate-500 mb-0.5">{label}</p>
+      <p className="text-sm font-medium text-slate-900">{value || "N/A"}</p>
+    </div>
+  </div>
+);
+
+// Reusable component for Input Fields during edit mode
+const EditField = ({ label, value, onChange, type = "text", maxLength, colSpan = false }) => (
+  <div className={colSpan ? "sm:col-span-2" : ""}>
+    <label className="mb-1.5 block text-xs font-semibold uppercase text-slate-500">{label}</label>
+    <input
+      type={type}
+      maxLength={maxLength}
+      value={value || ""}
+      onChange={onChange}
+      className="w-full rounded-xl border border-slate-300 bg-white px-4 py-2.5 text-sm font-medium text-slate-900 transition-shadow focus:border-[#004DD2] focus:outline-none focus:ring-4 focus:ring-[#004DD2]/10"
+    />
+  </div>
+);
+
 // --- ELEGANT PROFILE MODAL ---
 function ProfileModal({ isOpen, onClose, userId, token }) {
   const [profileData, setProfileData] = useState(null);
@@ -79,6 +106,9 @@ function ProfileModal({ isOpen, onClose, userId, token }) {
     ifsc_code: "",
     pan_card_no: ""
   });
+
+  // --- ERROR STATE FOR PROFILE VALIDATION ---
+  const [profileMessage, setProfileMessage] = useState({ type: "", text: "" });
 
   // --- PASSWORD STATES ---
   const [isChangingPassword, setIsChangingPassword] = useState(false);
@@ -122,6 +152,28 @@ function ProfileModal({ isOpen, onClose, userId, token }) {
   if (!isOpen) return null;
 
   const handleSave = async () => {
+    setProfileMessage({ type: "", text: "" });
+
+    // 1. Strict Frontend Formatting Validation
+    if (!formData.full_name.trim()) {
+      return setProfileMessage({ type: "error", text: "Full Name is required." });
+    }
+    if (formData.phone_number && !/^\d{10}$/.test(formData.phone_number)) {
+      return setProfileMessage({ type: "error", text: "Phone Number must be exactly 10 digits." });
+    }
+    if (formData.aadhaar_no && !/^\d{12}$/.test(formData.aadhaar_no)) {
+      return setProfileMessage({ type: "error", text: "Aadhaar Number must be exactly 12 numeric digits." });
+    }
+    if (formData.pan_card_no && !/^[A-Z]{5}[0-9]{4}[A-Z]{1}$/i.test(formData.pan_card_no)) {
+      return setProfileMessage({ type: "error", text: "Invalid PAN Card format (e.g., ABCDE1234F)." });
+    }
+    if (formData.account_no && !/^\d{8,18}$/.test(formData.account_no)) {
+      return setProfileMessage({ type: "error", text: "Account Number must be between 8 and 18 digits." });
+    }
+    if (formData.ifsc_code && !/^[A-Z]{4}0[A-Z0-9]{6}$/i.test(formData.ifsc_code)) {
+      return setProfileMessage({ type: "error", text: "Invalid IFSC Code format (e.g., SBIN0001234)." });
+    }
+
     setIsSaving(true);
     try {
       const payload = {
@@ -132,8 +184,8 @@ function ProfileModal({ isOpen, onClose, userId, token }) {
         aadhaar_no: formData.aadhaar_no.trim(),
         account_no: formData.account_no.trim(),
         bank_name: formData.bank_name.trim(),
-        ifsc_code: formData.ifsc_code.trim(),
-        pan_card_no: formData.pan_card_no.trim()
+        ifsc_code: formData.ifsc_code.trim().toUpperCase(),
+        pan_card_no: formData.pan_card_no.trim().toUpperCase()
       };
 
      const response = await api.put(`/auth/update/${userId}`, payload);
@@ -145,7 +197,20 @@ function ProfileModal({ isOpen, onClose, userId, token }) {
         setTimeout(() => setSaveSuccess(false), 3000); 
       }
     } catch (error) {
-      alert(error.response?.data?.message || "Failed to update profile.");
+      // 2. Catch Backend Uniqueness / Duplication Errors
+      const errorMsg = error.response?.data?.message?.toLowerCase() || error.response?.data?.error?.toLowerCase() || "";
+      const errorDetails = typeof error.response?.data?.data === 'string' ? error.response.data.data.toLowerCase() : '';
+      const fullError = errorMsg + " " + errorDetails;
+
+      if (fullError.includes("aadhaar")) {
+        setProfileMessage({ type: "error", text: "This Aadhaar Number is already registered to another user." });
+      } else if (fullError.includes("pan")) {
+        setProfileMessage({ type: "error", text: "This PAN Card Number is already registered to another user." });
+      } else if (fullError.includes("mobile") || fullError.includes("phone")) {
+        setProfileMessage({ type: "error", text: "This Phone Number is already in use." });
+      } else {
+        setProfileMessage({ type: "error", text: error.response?.data?.message || "Failed to update profile." });
+      }
     } finally {
       setIsSaving(false);
     }
@@ -193,6 +258,7 @@ function ProfileModal({ isOpen, onClose, userId, token }) {
 
   const handleCancelEdit = () => {
     setIsEditing(false);
+    setProfileMessage({ type: "", text: "" }); // Clear any pending errors
     // Reset all fields back to their original state
     setFormData({ 
       full_name: profileData.full_name || "", 
@@ -206,33 +272,6 @@ function ProfileModal({ isOpen, onClose, userId, token }) {
       pan_card_no: profileData.pan_card_no || ""
     });
   };
-
-  // Reusable component for displaying read-only info
-  const InfoField = ({ icon: Icon, label, value }) => (
-    <div className="flex items-start gap-3 rounded-xl bg-slate-50/50 p-3 border border-slate-100 transition-colors hover:bg-slate-50">
-      <div className="mt-0.5 text-slate-400">
-        <Icon className="h-[18px] w-[18px]" />
-      </div>
-      <div>
-        <p className="text-[11px] font-semibold uppercase tracking-wider text-slate-500 mb-0.5">{label}</p>
-        <p className="text-sm font-medium text-slate-900">{value || "N/A"}</p>
-      </div>
-    </div>
-  );
-
-  // NEW: Reusable component for Input Fields during edit mode
-  const EditField = ({ label, value, onChange, type = "text", maxLength, colSpan = false }) => (
-    <div className={colSpan ? "sm:col-span-2" : ""}>
-      <label className="mb-1.5 block text-xs font-semibold uppercase text-slate-500">{label}</label>
-      <input
-        type={type}
-        maxLength={maxLength}
-        value={value || ""}
-        onChange={onChange}
-        className="w-full rounded-xl border border-slate-300 bg-white px-4 py-2.5 text-sm font-medium text-slate-900 transition-shadow focus:border-[#004DD2] focus:outline-none focus:ring-4 focus:ring-[#004DD2]/10"
-      />
-    </div>
-  );
 
   return (
     <div className="fixed inset-0 z-[100] flex items-center justify-center bg-slate-900/40 p-4 backdrop-blur-md transition-all">
@@ -275,7 +314,7 @@ function ProfileModal({ isOpen, onClose, userId, token }) {
 
               {/* Personal Information Section */}
               <section>
-                <div className="mb-5 flex items-center justify-between">
+                <div className="mb-5 flex flex-wrap gap-4 items-center justify-between">
                   <h3 className="text-sm font-bold text-[#004DD2] uppercase tracking-wider flex items-center gap-2">
                     <User className="h-4 w-4" /> Personal Details
                   </h3>
@@ -305,6 +344,12 @@ function ProfileModal({ isOpen, onClose, userId, token }) {
                     </div>
                   )}
                 </div>
+
+                {isEditing && profileMessage.text && (
+                  <div className={`mb-4 p-3 rounded-lg text-sm font-medium ${profileMessage.type === 'error' ? 'bg-red-50 text-red-600 border border-red-100' : 'bg-green-50 text-green-700 border border-green-200'}`}>
+                    {profileMessage.text}
+                  </div>
+                )}
                 
                 <div className="grid gap-4 sm:grid-cols-2 bg-white rounded-2xl border border-slate-100 p-5 shadow-sm">
                   {isEditing ? (
@@ -346,7 +391,7 @@ function ProfileModal({ isOpen, onClose, userId, token }) {
                         <EditField label="Qualification" value={formData.qualification} onChange={(e) => setFormData({...formData, qualification: e.target.value})} />
                         {/* UVFIN is an internal ID, kept read-only */}
                         <InfoField icon={IdCard} label="UVFIN / Employee ID" value={profileData.uvfin} />
-                        <EditField label="PAN Card No" value={formData.pan_card_no} onChange={(e) => setFormData({...formData, pan_card_no: e.target.value})} />
+                        <EditField label="PAN Card No" maxLength={10} value={formData.pan_card_no} onChange={(e) => setFormData({...formData, pan_card_no: e.target.value.toUpperCase()})} />
                         <EditField label="Aadhaar No" type="tel" maxLength={12} value={formData.aadhaar_no} onChange={(e) => setFormData({...formData, aadhaar_no: e.target.value.replace(/\D/g,'')})} />
                       </>
                     ) : (
@@ -370,7 +415,7 @@ function ProfileModal({ isOpen, onClose, userId, token }) {
                       <>
                         <EditField label="Bank Name" value={formData.bank_name} onChange={(e) => setFormData({...formData, bank_name: e.target.value})} />
                         <EditField label="Account Number" type="tel" value={formData.account_no} onChange={(e) => setFormData({...formData, account_no: e.target.value.replace(/\D/g,'')})} />
-                        <EditField label="IFSC Code" value={formData.ifsc_code} onChange={(e) => setFormData({...formData, ifsc_code: e.target.value})} />
+                        <EditField label="IFSC Code" maxLength={11} value={formData.ifsc_code} onChange={(e) => setFormData({...formData, ifsc_code: e.target.value.toUpperCase()})} />
                       </>
                     ) : (
                       <>
