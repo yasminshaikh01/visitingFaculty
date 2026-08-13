@@ -57,7 +57,7 @@ export default function MarkAttendanceList() {
   useEffect(() => {
     const fetchInitialData = async () => {
       try {
-        const session = JSON.parse(localStorage.getItem('iipsCurrentSession') || '{}');
+        const session = JSON.parse(sessionStorage.getItem('iipsCurrentSession') || '{}');
         const targetId = session.userId;
         
         if (!targetId) return;
@@ -83,7 +83,7 @@ export default function MarkAttendanceList() {
       if (!userId || !date) return;
       
       try {
-        const session = JSON.parse(localStorage.getItem('iipsCurrentSession') || '{}');
+        const session = JSON.parse(sessionStorage.getItem('iipsCurrentSession') || '{}');
         const headers = { 'Authorization': `Bearer ${session.token}` };
         
         const d = new Date(date);
@@ -139,7 +139,7 @@ export default function MarkAttendanceList() {
     setIsSubmitting(true);
     setCapWarning({ isOpen: false, payload: null, details: null });
     try {
-      const session = JSON.parse(localStorage.getItem('iipsCurrentSession') || '{}');
+      const session = JSON.parse(sessionStorage.getItem('iipsCurrentSession') || '{}');
       const response = await api.post("/attendance/", payload);
 
       if (response.data.success) {

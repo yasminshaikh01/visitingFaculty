@@ -19,7 +19,7 @@ export default function Topbar({
   useEffect(() => {
     const fetchPendingCount = async () => {
       try {
-        const session = JSON.parse(localStorage.getItem('iipsCurrentSession') || '{}');
+        const session = JSON.parse(sessionStorage.getItem('iipsCurrentSession') || '{}');
         // Note: Axios automatically applies headers if configured in axiosInstance, 
         // but we'll leave your manual config if you prefer it.
         const res = await api.get("/admin/pendingFaculty");

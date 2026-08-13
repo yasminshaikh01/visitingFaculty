@@ -78,7 +78,7 @@ export default function ViewBill({ facultyUserId }) {
   // 1. Fetch static profile data using the new API
   const fetchFacultyProfile = async () => {
     try {
-      const sessionStr = localStorage.getItem('iipsCurrentSession');
+      const sessionStr = sessionStorage.getItem('iipsCurrentSession');
       if (!sessionStr) return;
       
       const session = JSON.parse(sessionStr);
@@ -113,7 +113,7 @@ export default function ViewBill({ facultyUserId }) {
     setIsLoading(true);
     setShowFilter(false);
     try {
-      const sessionStr = localStorage.getItem('iipsCurrentSession');
+      const sessionStr = sessionStorage.getItem('iipsCurrentSession');
       if (!sessionStr) return;
       
       const session = JSON.parse(sessionStr);

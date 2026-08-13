@@ -9,7 +9,7 @@ export const SUPERADMIN_ACCOUNT = {
 
 export const loadStoredAccounts = () => {
   try {
-    const rawAccounts = localStorage.getItem('iipsPortalAccounts');
+    const rawAccounts = sessionStorage.getItem('iipsPortalAccounts');
     return rawAccounts ? JSON.parse(rawAccounts) : [];
   } catch {
     return [];
@@ -19,7 +19,7 @@ export const loadStoredAccounts = () => {
 export const storeAccount = (account) => {
   const existingAccounts = loadStoredAccounts();
   const nextAccounts = [...existingAccounts.filter((item) => item.userId !== account.userId), account];
-  localStorage.setItem('iipsPortalAccounts', JSON.stringify(nextAccounts));
+  sessionStorage.setItem('iipsPortalAccounts', JSON.stringify(nextAccounts));
 };
 
 export const buildInstituteUserId = (prefix) => {
@@ -43,11 +43,11 @@ export const findUserByCredentials = (identifier, password) => {
 };
 
 export const saveAuthData = (data) => {
-  localStorage.setItem("token", data.token);
-  localStorage.setItem("role", data.role);
-  localStorage.setItem("user_id", data.user_id);
+  sessionStorage.setItem("token", data.token);
+  sessionStorage.setItem("role", data.role);
+  sessionStorage.setItem("user_id", data.user_id);
 }
 
 export const logout = () => {
-  localStorage.clear();
+  sessionStorage.clear();
 }

@@ -70,7 +70,7 @@ export default function AttendanceHistory() {
   const fetchData = async () => {
     setIsLoading(true);
     try {
-      const session = JSON.parse(localStorage.getItem('iipsCurrentSession') || '{}');
+      const session = JSON.parse(sessionStorage.getItem('iipsCurrentSession') || '{}');
       setFacultyName(session.name || "Faculty Member");
       const targetId = session.userId;
       const headers = { 'Authorization': `Bearer ${session.token}` };
@@ -110,7 +110,7 @@ export default function AttendanceHistory() {
     setDeleteError("");
 
     try {
-      const session = JSON.parse(localStorage.getItem('iipsCurrentSession') || '{}');
+      const session = JSON.parse(sessionStorage.getItem('iipsCurrentSession') || '{}');
       
       const response = await api.delete(`/attendance/record/${recordToDelete.attendance_id}`);
 
@@ -142,7 +142,7 @@ export default function AttendanceHistory() {
     setBulkDeleteError("");
 
     try {
-      const session = JSON.parse(localStorage.getItem('iipsCurrentSession') || '{}');
+      const session = JSON.parse(sessionStorage.getItem('iipsCurrentSession') || '{}');
       const targetId = session.userId;
       
      let url = `/attendance/faculty/${targetId}`;

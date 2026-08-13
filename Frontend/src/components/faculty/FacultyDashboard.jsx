@@ -125,7 +125,7 @@ export default function FacultyDashboard({ onSignOut }) {
     const fetchDashboardData = async () => {
       setIsLoading(true);
       try {
-        const sessionStr = localStorage.getItem('iipsCurrentSession');
+        const sessionStr = sessionStorage.getItem('iipsCurrentSession');
         if (!sessionStr) {
           setIsLoading(false);
           return;

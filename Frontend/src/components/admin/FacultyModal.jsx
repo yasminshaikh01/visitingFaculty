@@ -39,7 +39,7 @@ export default function FacultyModal({ userId, onClose, onActionSuccess, initial
 
   // Helper to fetch Auth Token
   const getAuthHeaders = () => {
-    const session = JSON.parse(localStorage.getItem('iipsCurrentSession') || '{}');
+    const session = JSON.parse(sessionStorage.getItem('iipsCurrentSession') || '{}');
     return { Authorization: `Bearer ${session.token}` };
   };
 

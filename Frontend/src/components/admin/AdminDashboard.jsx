@@ -103,14 +103,14 @@ function DateFilterDropdown({ sortOrder, setSortOrder }) {
 
 export default function AdminDashboard({ onSignOut }) {
   const [activeTab, setActiveTab] = useState(() => {
-    return localStorage.getItem('adminActiveTab') || 'dashboard';
+    return sessionStorage.getItem('adminActiveTab') || 'dashboard';
   });
 
   // State to control mobile sidebar drawer
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
 
   useEffect(() => {
-    localStorage.setItem('adminActiveTab', activeTab);
+    sessionStorage.setItem('adminActiveTab', activeTab);
   }, [activeTab]);
 
   const [pendingFaculty, setPendingFaculty] = useState([]);
@@ -127,7 +127,7 @@ export default function AdminDashboard({ onSignOut }) {
   // Notification Toast State
   const [toastConfig, setToastConfig] = useState(null);
 
-  const admin = JSON.parse(localStorage.getItem("iipsCurrentSession") || "{}") || { name: "Program Incharge" };
+  const admin = JSON.parse(sessionStorage.getItem("iipsCurrentSession") || "{}") || { name: "Program Incharge" };
 
   const fetchPending = useCallback(async () => {
       setLoading(true);

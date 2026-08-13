@@ -69,7 +69,7 @@ export default function MarkAttendanceGrid() {
   };
 
   useEffect(() => {
-    const session = JSON.parse(localStorage.getItem('iipsCurrentSession') || '{}');
+    const session = JSON.parse(sessionStorage.getItem('iipsCurrentSession') || '{}');
     if (session.userId) setUserId(session.userId);
     
     if (session.userId) {

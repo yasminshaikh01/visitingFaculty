@@ -17,12 +17,12 @@ export default function Settings({ onMenuClick }) {
   const [searchQuery, setSearchQuery] = useState("");
 
   const [activeTab, setActiveTab] = useState(() => {
-    const savedSettingsTab = localStorage.getItem("iipsSettingsTab");
+    const savedSettingsTab = sessionStorage.getItem("iipsSettingsTab");
     return savedSettingsTab || "General";
   });
 
   useEffect(() => {
-    localStorage.setItem("iipsSettingsTab", activeTab);
+    sessionStorage.setItem("iipsSettingsTab", activeTab);
   }, [activeTab]);
 
   const [toast, setToast] = useState({
@@ -70,7 +70,7 @@ export default function Settings({ onMenuClick }) {
 
   useEffect(() => {
     const session = JSON.parse(
-      localStorage.getItem("iipsCurrentSession") || "{}",
+      sessionStorage.getItem("iipsCurrentSession") || "{}",
     );
     if (session && Object.keys(session).length > 0) {
       setProfileData({
@@ -85,7 +85,7 @@ export default function Settings({ onMenuClick }) {
     setIsUpdatingProfile(true);
     try {
       const session = JSON.parse(
-        localStorage.getItem("iipsCurrentSession") || "{}",
+        sessionStorage.getItem("iipsCurrentSession") || "{}",
       );
 
       const currentUserId = session.userId || session.user_id || session.id;
@@ -102,7 +102,7 @@ export default function Settings({ onMenuClick }) {
       if (response.data.success) {
         showToast("Profile updated successfully!", "success");
         session.name = profileData.full_name;
-        localStorage.setItem("iipsCurrentSession", JSON.stringify(session));
+        sessionStorage.setItem("iipsCurrentSession", JSON.stringify(session));
         
         // Dispatch event so sidebar instantly updates your name
         window.dispatchEvent(new Event('refresh-dashboard'));
@@ -138,7 +138,7 @@ export default function Settings({ onMenuClick }) {
     setIsUpdatingPassword(true);
     try {
       const session = JSON.parse(
-        localStorage.getItem("iipsCurrentSession") || "{}",
+        sessionStorage.getItem("iipsCurrentSession") || "{}",
       );
 
       const currentUserId = session.userId || session.user_id || session.id;
@@ -177,7 +177,7 @@ export default function Settings({ onMenuClick }) {
   const fetchAuditLogs = async () => {
     try {
       const session = JSON.parse(
-        localStorage.getItem("iipsCurrentSession") || "{}",
+        sessionStorage.getItem("iipsCurrentSession") || "{}",
       );
       if (!session.token) return;
 
@@ -197,7 +197,7 @@ export default function Settings({ onMenuClick }) {
   // NEW: Fetch dynamic system stats from API
   const fetchSystemStats = async () => {
     try {
-      const session = JSON.parse(localStorage.getItem('iipsCurrentSession') || '{}');
+      const session = JSON.parse(sessionStorage.getItem('iipsCurrentSession') || '{}');
       if (!session.token) return;
 
       const response = await api.get("/super_admin/dashboardStats");

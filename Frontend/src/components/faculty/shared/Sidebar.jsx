@@ -21,9 +21,8 @@ import {
   IdCard,      
   Wallet,      
   Building,    
-  Hash,
   Shield,      
-  KeyRound     
+  KeyRound 
 } from "lucide-react";
 import { useState, useEffect } from "react";
 import api from "../../../api/axiosInstance";
@@ -92,7 +91,6 @@ function ProfileModal({ isOpen, onClose, userId, token }) {
   const [isLoading, setIsLoading] = useState(true);
   const [isEditing, setIsEditing] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
-  const [saveSuccess, setSaveSuccess] = useState(false);
   
   // EXPANDED: Form Data State for all editable fields
   const [formData, setFormData] = useState({ 
@@ -107,7 +105,7 @@ function ProfileModal({ isOpen, onClose, userId, token }) {
     pan_card_no: ""
   });
 
-  // --- ERROR STATE FOR PROFILE VALIDATION ---
+  // --- ERROR/SUCCESS STATE FOR PROFILE VALIDATION ---
   const [profileMessage, setProfileMessage] = useState({ type: "", text: "" });
 
   // --- PASSWORD STATES ---
@@ -124,13 +122,12 @@ function ProfileModal({ isOpen, onClose, userId, token }) {
   useEffect(() => {
     if (isOpen && userId) {
       setIsLoading(true);
-      setSaveSuccess(false);
+      setProfileMessage({ type: "", text: "" });
       api
         .get(`/admin/faculty/${userId}`)
         .then((res) => {
           if (res.data.success) {
             setProfileData(res.data.data);
-            // Populate all fields when data is fetched
             setFormData({
               full_name: res.data.data.full_name || "",
               phone_number: res.data.data.phone_number || "",
@@ -154,7 +151,6 @@ function ProfileModal({ isOpen, onClose, userId, token }) {
   const handleSave = async () => {
     setProfileMessage({ type: "", text: "" });
 
-    // 1. Strict Frontend Formatting Validation
     if (!formData.full_name.trim()) {
       return setProfileMessage({ type: "error", text: "Full Name is required." });
     }
@@ -193,11 +189,10 @@ function ProfileModal({ isOpen, onClose, userId, token }) {
       if (response.data.success) {
         setProfileData(prev => ({ ...prev, ...formData }));
         setIsEditing(false);
-        setSaveSuccess(true);
-        setTimeout(() => setSaveSuccess(false), 3000); 
+        setProfileMessage({ type: "success", text: "Profile updated successfully." });
+        setTimeout(() => setProfileMessage({ type: "", text: "" }), 3000); 
       }
     } catch (error) {
-      // 2. Catch Backend Uniqueness / Duplication Errors
       const errorMsg = error.response?.data?.message?.toLowerCase() || error.response?.data?.error?.toLowerCase() || "";
       const errorDetails = typeof error.response?.data?.data === 'string' ? error.response.data.data.toLowerCase() : '';
       const fullError = errorMsg + " " + errorDetails;
@@ -223,7 +218,6 @@ function ProfileModal({ isOpen, onClose, userId, token }) {
       return;
     }
     
-    // Check all requirements before submitting
     if (passwordData.newPassword.length < 8 || 
         !/[!@#$%^&*(),.?":{}|<>]/.test(passwordData.newPassword) || 
         !/\d/.test(passwordData.newPassword)) {
@@ -258,8 +252,7 @@ function ProfileModal({ isOpen, onClose, userId, token }) {
 
   const handleCancelEdit = () => {
     setIsEditing(false);
-    setProfileMessage({ type: "", text: "" }); // Clear any pending errors
-    // Reset all fields back to their original state
+    setProfileMessage({ type: "", text: "" });
     setFormData({ 
       full_name: profileData.full_name || "", 
       phone_number: profileData.phone_number || "",
@@ -306,9 +299,9 @@ function ProfileModal({ isOpen, onClose, userId, token }) {
           ) : profileData ? (
             <div className="space-y-8 pb-4">
               
-              {saveSuccess && (
-                <div className="rounded-xl bg-green-50 border border-green-200 p-4 flex items-center text-green-700 text-sm font-medium">
-                  Profile updated successfully.
+              {profileMessage.text && (
+                <div className={`p-3 rounded-xl text-sm font-medium ${profileMessage.type === 'error' ? 'bg-red-50 text-red-600 border border-red-100' : 'bg-green-50 text-green-700 border border-green-200'}`}>
+                  {profileMessage.text}
                 </div>
               )}
 
@@ -344,12 +337,6 @@ function ProfileModal({ isOpen, onClose, userId, token }) {
                     </div>
                   )}
                 </div>
-
-                {isEditing && profileMessage.text && (
-                  <div className={`mb-4 p-3 rounded-lg text-sm font-medium ${profileMessage.type === 'error' ? 'bg-red-50 text-red-600 border border-red-100' : 'bg-green-50 text-green-700 border border-green-200'}`}>
-                    {profileMessage.text}
-                  </div>
-                )}
                 
                 <div className="grid gap-4 sm:grid-cols-2 bg-white rounded-2xl border border-slate-100 p-5 shadow-sm">
                   {isEditing ? (
@@ -357,7 +344,6 @@ function ProfileModal({ isOpen, onClose, userId, token }) {
                       <EditField label="Full Name" value={formData.full_name} onChange={(e) => setFormData({...formData, full_name: e.target.value})} />
                       <EditField label="Phone Number" type="tel" maxLength={10} value={formData.phone_number} onChange={(e) => setFormData({...formData, phone_number: e.target.value.replace(/\D/g,'')})} />
                       
-                      {/* Email is kept read-only as it's typically tied directly to Auth */}
                       <div className="sm:col-span-2">
                         <InfoField icon={Mail} label="Email Address" value={profileData.email} />
                       </div>
@@ -389,7 +375,6 @@ function ProfileModal({ isOpen, onClose, userId, token }) {
                     {isEditing ? (
                       <>
                         <EditField label="Qualification" value={formData.qualification} onChange={(e) => setFormData({...formData, qualification: e.target.value})} />
-                        {/* UVFIN is an internal ID, kept read-only */}
                         <InfoField icon={IdCard} label="UVFIN / Employee ID" value={profileData.uvfin} />
                         <EditField label="PAN Card No" maxLength={10} value={formData.pan_card_no} onChange={(e) => setFormData({...formData, pan_card_no: e.target.value.toUpperCase()})} />
                         <EditField label="Aadhaar No" type="tel" maxLength={12} value={formData.aadhaar_no} onChange={(e) => setFormData({...formData, aadhaar_no: e.target.value.replace(/\D/g,'')})} />
@@ -621,13 +606,12 @@ export default function Sidebar({ onNavigate, currentView = "dashboard", onSignO
   const [sessionData, setSessionData] = useState(null);
 
  useEffect(() => {
-    const sessionStr = localStorage.getItem('iipsCurrentSession');
+    const sessionStr = sessionStorage.getItem('iipsCurrentSession');
     if (sessionStr) {
       try {
         const session = JSON.parse(sessionStr);
         setSessionData(session);
         
-        // 1. Set temporary fallback from local storage
         let fallbackName = session.fullName || session.name || "Loading...";
         setFacultyName(fallbackName);
         
@@ -635,7 +619,6 @@ export default function Sidebar({ onNavigate, currentView = "dashboard", onSignO
           setFacultyRole(session.role.charAt(0).toUpperCase() + session.role.slice(1));
         }
 
-        // 2. Fetch the actual up-to-date name from the API
         const currentUserId = session.userId || session.id || session.user_id;
         if (currentUserId) {
           api.get(`/admin/faculty/${currentUserId}`)
@@ -643,18 +626,16 @@ export default function Sidebar({ onNavigate, currentView = "dashboard", onSignO
               if (res.data.success && res.data.data?.full_name) {
                 let finalName = res.data.data.full_name;
                 
-                // Format with "Prof." to match the dashboard style
                 if (!finalName.toLowerCase().startsWith("dr.") && !finalName.toLowerCase().startsWith("prof.")) {
                   finalName = "Prof. " + finalName;
                 }
                 
                 setFacultyName(finalName);
                 
-                // Optional: Update local storage so it's there instantly next time
                 const updatedSession = { ...session, fullName: finalName };
-                localStorage.setItem("iipsCurrentSession", JSON.stringify(updatedSession));
+                sessionStorage.setItem("iipsCurrentSession", JSON.stringify(updatedSession));
               } else {
-                setFacultyName("Visiting Faculty"); // Ultimate fallback
+                setFacultyName("Visiting Faculty");
               }
             })
             .catch((err) => {

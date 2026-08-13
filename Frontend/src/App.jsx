@@ -12,29 +12,28 @@ import PasswordUpdated from './features/auth/PasswordUpdated';
 import SuperAdminDashboard from './components/superAdmin/SuperAdminDashboard'; 
 import AdminDashboard from './components/admin/AdminDashboard';
 import FacultyDashboard from './components/faculty/FacultyDashboard';
+
 function App() {
   // 1. BULLETPROOF ROUTER MEMORY
   const [view, setView] = useState(() => {
-    // First, check if a user is actively logged in. If they are, FORCE them to the dashboard.
     const urlParams = new URLSearchParams(window.location.search);
     const pathname = window.location.pathname;
     if (pathname.includes('reset-password') || urlParams.has('token')) {
       return 'reset-password';
     }
 
-    const session = localStorage.getItem('iipsCurrentSession');
+    const session = sessionStorage.getItem('iipsCurrentSession');
     if (session) return 'dashboard';
 
-    // If not logged in, check if they were on another specific page (like 'admin-register')
-    const savedView = localStorage.getItem('iipsCurrentView');
+    const savedView = sessionStorage.getItem('iipsCurrentView');
     return savedView || 'landing';
   });
 
   const [authOptions, setAuthOptions] = useState({ userId: '', role: null });
 
-  // 2. WATCHER: Save the current page to memory every time it changes
+  // 2. WATCHER
   useEffect(() => {
-    localStorage.setItem('iipsCurrentView', view);
+    sessionStorage.setItem('iipsCurrentView', view);
   }, [view]);
 
   const navigate = (nextView, options = {}) => {
@@ -51,6 +50,15 @@ function App() {
     navigate('dashboard');
   };
 
+  // 3. MASTER LOGOUT HANDLER (Clean & DRY)
+  const handleGlobalSignOut = () => {
+    // sessionStorage.clear() is the safest way to guarantee the token, session, and tabs are wiped!
+    sessionStorage.clear();
+    
+    // Reset React's memory to force the login screen
+    navigate('login');
+  };
+
   const renderContent = () => {
     switch (view) {
       case 'landing': return <FirstPage1 onProceed={() => navigate('login')} />;
@@ -64,34 +72,20 @@ function App() {
       case 'password-updated': return <PasswordUpdated onNavigate={navigate} />;
       
       case 'dashboard': {
-        const session = JSON.parse(localStorage.getItem('iipsCurrentSession') || '{}');
+        const session = JSON.parse(sessionStorage.getItem('iipsCurrentSession') || '{}');
         
         if (session.role === 'super_admin' || session.role === 'superadmin') {
-          return <SuperAdminDashboard onSignOut={() => {
-            // 3. CLEANUP: Wipe all memory when logging out so they start fresh
-            localStorage.removeItem('iipsCurrentSession');
-            localStorage.removeItem('iipsCurrentView'); 
-            localStorage.removeItem('superAdminActiveTab');
-            localStorage.removeItem('iipsSettingsTab');
-            navigate('login');
-          }} />;
+          return <SuperAdminDashboard onSignOut={handleGlobalSignOut} />;
         }
         
         if (session.role === 'admin') {
-          return <AdminDashboard onSignOut={() => {
-            localStorage.removeItem('iipsCurrentSession');
-            navigate('login');
-          }} />;
+          return <AdminDashboard onSignOut={handleGlobalSignOut} />;
         }
         
         if (session.role === 'faculty') {
-          return <FacultyDashboard onSignOut={() => {
-            localStorage.removeItem('iipsCurrentSession');
-            navigate('login');
-          }} />;
+          return <FacultyDashboard onSignOut={handleGlobalSignOut} />;
         }
         
-        // If no valid session is found, send them back to login
         return <LoginCard onNavigate={navigate} />;
       }
         
