@@ -186,15 +186,15 @@ async function addCourse(Details) {
 
         // ✅ Auto-create semesters for this course
         const totalSemesters = Number(Details.total_semesters || 1);
-
+        const newCourseId = result.course_id || result.getDataValue('course_id')
         for (let i = 1; i <= totalSemesters; i++) {
             await Semester.findOrCreate({
                 where: {
-                    course_id: result.course_id,
+                    course_id: newCourseId,
                     semester_number: i
                 },
                 defaults: {
-                    course_id: result.course_id,
+                    course_id: newCourseId,
                     semester_number: i,
                     is_active: true
                 }
