@@ -754,91 +754,79 @@ function BillPreview({ bill, onDownload, billPage, setBillPage }) {
 
   return (
     <div className="flex flex-col gap-6 lg:flex-row print:block w-full">
-      {/* UPDATED: Changed overflow-hidden to overflow-x-auto hide-scrollbar to allow horizontal swiping */}
       <div id="printable-bill" className="flex-1 overflow-x-auto hide-scrollbar rounded-2xl border border-slate-200 bg-white shadow-sm print:overflow-visible mx-auto max-w-[210mm] w-full">
-        {/* UPDATED: Added min-w-[750px] to preserve the A4 layout shape on phones and trigger the horizontal swipe */}
         <div className="p-4 sm:p-8 print:p-0 min-w-[750px] lg:min-w-0">
           
           {/* --- PAGE 1: ANNEXURE IV --- */}
           <div className={`mx-auto w-full min-h-[297mm] print:min-h-0 bg-white text-black print:block ${billPage === 1 ? 'block' : 'hidden'}`}>
-            <div className="text-[13px] leading-relaxed p-6">
-              
-              <div className="relative mb-6 flex items-center justify-center min-h-[5rem]">
-                <div className="absolute left-0 top-1/2 -translate-y-1/2 h-20 w-20">
+            <div className="text-[13px] leading-tight p-4 sm:p-6">
+              <div className="relative mb-3 flex items-center justify-center min-h-[4rem]">
+                <div className="absolute left-0 top-1/2 -translate-y-1/2 h-16 w-16">
                   <img src={davvLogo} alt="DAVV Logo" className="h-full w-full object-contain grayscale" />
                 </div>
-                
-                <div className="text-center w-full px-24">
-                  <p className="font-bold underline underline-offset-4 text-sm tracking-wide">ANNEXURE -IV</p>
-                  <h1 className="mt-2 text-xl font-bold uppercase tracking-tight">DEVI AHILYA VISHWAVIDYALAYA, INDORE</h1>
-                  <p className="mt-1 font-semibold text-[15px] leading-relaxed">
+                <div className="text-center w-full px-20">
+                  <p className="font-bold underline underline-offset-2 text-sm tracking-wide">ANNEXURE -IV</p>
+                  <h1 className="mt-0.5 text-lg font-bold uppercase tracking-tight">DEVI AHILYA VISHWAVIDYALAYA, INDORE</h1>
+                  <p className="mt-0.5 font-semibold text-[14px] leading-tight">
                     Department/School/Centre <span className="border-b border-black font-bold px-4 inline-block">International Institute of Professional Studies (IIPS)</span>
                   </p>
                 </div>
               </div>
 
-              <div className="mb-4 flex justify-between font-semibold">
+              <div className="mb-2 flex justify-between font-semibold">
                 <p>Page No. of Attendance Register ___________________</p>
                 <p>S.No. ___________________</p>
               </div>
 
-              <h2 className="mb-4 text-center text-[15px] font-bold underline underline-offset-4">
+              <h2 className="mb-2 text-center text-[14px] font-bold underline underline-offset-2">
                 Bill For Claiming Remuneration/Honorarium for Visiting Faculty
               </h2>
 
-              <div className="mb-6 flex items-center justify-end gap-2">
+              <div className="mb-2 flex items-center justify-end gap-2">
                 <span className="font-semibold">UVFIN (Unified Visiting Faculty ID No.)</span>
                 <UVFINBlocks uvfin={bill.uvfin} />
               </div>
 
-              <div className="mb-6 space-y-4 text-[14px]">
+              <div className="mb-3 space-y-1.5 text-[13px]">
                 <div className="flex items-end gap-2">
                   <span className="w-16 shrink-0 font-medium">Name</span>
-                  <span className="flex-1 border-b border-black pb-0.5 text-left pl-2 font-semibold">
-                    {bill.facultyName}
-                  </span>
+                  <span className="flex-1 border-b border-black pb-0 text-left pl-2 font-semibold">{bill.facultyName}</span>
                 </div>
                 <div className="flex items-end gap-2">
                   <span className="w-16 shrink-0 font-medium">Address</span>
-                  <span className="flex-1 border-b border-black pb-0.5 text-left pl-2 font-semibold">
-                    {bill.address || "\u00A0"}
-                  </span>
+                  <span className="flex-1 border-b border-black pb-0 text-left pl-2 font-semibold">{bill.address || "\u00A0"}</span>
                 </div>
                 <div className="flex items-end gap-4">
                   <div className="flex flex-1 items-end gap-2">
                     <span className="shrink-0 font-medium">Mob No.</span>
-                    <span className="flex-1 border-b border-black pb-0.5 text-left pl-2 font-semibold">
-                      {bill.mobile || "\u00A0"}
-                    </span>
+                    <span className="flex-1 border-b border-black pb-0 text-left pl-2 font-semibold">{bill.mobile || "\u00A0"}</span>
                   </div>
                   <div className="flex flex-1 items-end gap-2">
                     <span className="shrink-0 font-medium">Qualification</span>
-                    <span className="flex-1 border-b border-black pb-0.5 text-left pl-2 font-semibold">
-                      {bill.qualification || "\u00A0"}
-                    </span>
+                    <span className="flex-1 border-b border-black pb-0 text-left pl-2 font-semibold">{bill.qualification || "\u00A0"}</span>
                   </div>
                 </div>
                 <div className="flex items-end justify-between gap-2 text-[13px]">
                   <div className="flex items-end gap-2">
                     <span className="font-medium">Month</span>
-                    <span className="w-20 border-b border-black pb-0.5 text-center font-bold">{bill.month}</span>
+                    <span className="w-20 border-b border-black pb-0 text-center font-bold">{bill.month}</span>
                   </div>
                   <div className="flex items-end gap-2">
                     <span className="font-medium">Year</span>
-                    <span className="w-16 border-b border-black pb-0.5 text-center font-bold">{bill.year}</span>
+                    <span className="w-16 border-b border-black pb-0 text-center font-bold">{bill.year}</span>
                   </div>
                   <div className="flex items-end gap-2">
                     <span className="font-medium">Date of Submission</span>
-                    <span className="w-24 border-b border-black pb-0.5 text-center font-bold">{submissionDate}</span>
+                    <span className="w-24 border-b border-black pb-0 text-center font-bold">{submissionDate}</span>
                   </div>
                   <div className="flex items-end gap-2">
                     <span className="font-medium">Theory/Practical</span>
-                    <span className="w-20 border-b border-black pb-0.5 text-center font-bold">{totalHours}</span>
+                    <span className="w-16 border-b border-black pb-0 text-center font-bold">{totalHours}</span>
                     <span className="font-medium">per week</span>
                   </div>
                 </div>
               </div>
-
+              
               <table className="mb-2 w-full border-collapse border border-black text-center text-[11px]">
                 <thead>
                   <tr>
@@ -854,11 +842,10 @@ function BillPreview({ bill, onDownload, billPage, setBillPage }) {
                 <tbody>
                   {aggregatedRecords.map((r, index) => (
                     <tr key={index}>
-                      {/* UPDATED: py-[0.1mm] applies exactly 0.1 millimeter padding vertically */}
-                      <td className="border border-black py-[0.1mm] px-1 text-[11px] font-medium leading-tight">{r.program}</td>
-                      <td className="border border-black py-[0.1mm] px-1 text-[11px] font-medium leading-tight">{r.semester}</td>
-                      <td className="border border-black py-[0.1mm] px-1 text-[11px] font-medium leading-tight">{r.subject}</td>
-                      <td className="border border-black py-[0.1mm] px-1 text-[10px] leading-tight text-slate-700">
+                      <td className="border border-black py-[0.2mm] px-1 text-[11px] font-medium leading-tight">{r.program}</td>
+                      <td className="border border-black py-[0.2mm] px-1 text-[11px] font-medium leading-tight">{r.semester}</td>
+                      <td className="border border-black py-[0.2mm] px-1 text-[11px] font-medium leading-tight">{r.subject}</td>
+                      <td className="border border-black py-[0.2mm] px-1 text-[10px] leading-tight text-slate-700">
                         {r.dates.map((dateStr, i) => (
                           <React.Fragment key={i}>
                             {dateStr}
@@ -866,9 +853,9 @@ function BillPreview({ bill, onDownload, billPage, setBillPage }) {
                           </React.Fragment>
                         ))}
                       </td>
-                      <td className="border border-black py-[0.1mm] px-1 text-[11px] font-medium leading-tight">{r.totalHrs}</td>
-                      <td className="border border-black py-[0.1mm] px-1 text-[11px] font-medium leading-tight">{r.rate}</td>
-                      <td className="border border-black py-[0.1mm] px-1 text-[11px] font-medium leading-tight">{r.amount.toLocaleString('en-IN', { maximumFractionDigits: 2 })}</td>
+                      <td className="border border-black py-[0.2mm] px-1 text-[11px] font-medium leading-tight">{r.totalHrs}</td>
+                      <td className="border border-black py-[0.2mm] px-1 text-[11px] font-medium leading-tight">{r.rate}</td>
+                      <td className="border border-black py-[0.2mm] px-1 text-[11px] font-medium leading-tight">{r.amount.toLocaleString('en-IN', { maximumFractionDigits: 2 })}</td>
                     </tr>
                   ))}
                 </tbody>
@@ -898,12 +885,15 @@ function BillPreview({ bill, onDownload, billPage, setBillPage }) {
                 </ol>
               </div>
 
-              {/* REMOVED aggressive pageBreakInside from this outer div so it doesn't jump to Page 2 */}
               <div className="mb-4 text-center text-[12px]">
-                <p className="mb-1 font-bold underline text-[15px]">UNDERTAKING</p>
-                <p className="text-justify mb-4 font-medium leading-relaxed">
-                  I was directed and permitted by the Head to engage the above Classes. For this I have submitted this bill. I therefore, request you to deduct _______% against Income Tax Returns from my payment. Further, I certify that total amount received per month doesn't exceed the maximum permissible limit of remuneration of any amount paid by D.A.V.V. which is Rs. 30,000/- at present.
-                </p>
+                
+                {/* NEW: Wrap the Heading and Paragraph together so they NEVER split! */}
+                <div style={{ pageBreakInside: 'avoid', breakInside: 'avoid' }}>
+                  <p className="mb-1 font-bold underline text-[15px]">UNDERTAKING</p>
+                  <p className="text-justify mb-4 font-medium leading-relaxed">
+                    I was directed and permitted by the Head to engage the above Classes. For this I have submitted this bill. I therefore, request you to deduct _______% against Income Tax Returns from my payment. Further, I certify that total amount received per month doesn't exceed the maximum permissible limit of remuneration of any amount paid by D.A.V.V. which is Rs. 30,000/- at present.
+                  </p>
+                </div>
                 
                 {/* Kept pageBreakInside here so the signatures/bank details never split in half */}
                 <div className="flex justify-between mt-4" style={{ pageBreakInside: 'avoid', breakInside: 'avoid' }}>
@@ -952,79 +942,75 @@ function BillPreview({ bill, onDownload, billPage, setBillPage }) {
 
           {/* --- PAGE 2: ATTENDANCE REGISTER --- */}
           <div className={`mx-auto w-full min-h-[297mm] print:min-h-0 bg-white text-black print:block print-force-break ${billPage === 2 ? 'block' : 'hidden'}`}>
-            <div className="text-[13px] leading-relaxed p-6 pt-12">
-              <div className="mb-8 flex items-center justify-end gap-2">
-                <span className="font-bold text-sm">UVFIN</span>
+            <div className="text-[14px] leading-tight p-4 sm:p-6 sm:pt-6">
+              
+              <div className="mb-3 flex items-center justify-end gap-2">
+                <span className="font-bold text-[15px]">UVFIN</span>
                 <UVFINBlocks uvfin={bill.uvfin} />
               </div>
 
-              <div className="relative mb-8 flex items-center justify-center min-h-[5rem]">
-                <div className="absolute left-0 top-1/2 -translate-y-1/2 h-20 w-20">
+              <div className="relative mb-3 flex items-center justify-center min-h-[4rem]">
+                <div className="absolute left-0 top-1/2 -translate-y-1/2 h-16 w-16">
                   <img src={davvLogo} alt="DAVV Logo" className="h-full w-full object-contain grayscale" />
                 </div>
-                <div className="text-center w-full px-24">
-                  <h1 className="text-xl font-bold uppercase tracking-tight">DEVI AHILYA VISHWAVIDYALAYA,</h1>
-                  <h1 className="text-xl font-bold uppercase tracking-tight">INDORE</h1>
-                  <p className="mt-3 text-[15px] font-semibold leading-relaxed">
+                <div className="text-center w-full px-20">
+                  <h1 className="text-[19px] font-bold uppercase tracking-tight leading-none">DEVI AHILYA VISHWAVIDYALAYA, INDORE</h1>
+                  <p className="mt-1.5 text-[15px] font-semibold leading-tight">
                     Department/School/Centre <span className="border-b border-black font-bold px-12 inline-block">International Institute of Professional Studies (IIPS)</span>
                   </p>
                 </div>
               </div>
 
-              <h2 className="mb-6 text-center text-[15px] font-bold underline underline-offset-4">
+              <h2 className="mb-3 text-center text-[15px] font-bold underline underline-offset-2">
                 VISITING FACULTY TEACHING ATTENDANCE
               </h2>
 
-              <table className="w-full border-collapse border-2 border-black font-semibold text-sm mb-0">
+              <table className="w-full border-collapse border-2 border-black font-semibold text-[13px] mb-0">
                 <tbody>
                   <tr>
-                    <td className="border border-black p-2.5 w-1/2">Name: {bill.facultyName}</td>
-                    <td className="border border-black p-2.5 w-1/2">Designation : Visiting Faculty</td>
+                    <td className="border border-black p-1.5 w-1/2">Name: {bill.facultyName}</td>
+                    <td className="border border-black p-1.5 w-1/2">Designation : Visiting Faculty</td>
                   </tr>
                   <tr>
-                    <td className="border border-black p-2.5">Month and Year : {bill.month} {bill.year}</td>
-                    <td className="border border-black p-2.5">Session : {bill.session}</td>
+                    <td className="border border-black p-1.5">Month and Year : {bill.month} {bill.year}</td>
+                    <td className="border border-black p-1.5">Session : {bill.session}</td>
                   </tr>
                 </tbody>
               </table>
 
-              <table className="mb-4 w-full border-collapse border-2 border-t-0 border-black text-center text-[11px]">
+              <table className="mb-4 w-full border-collapse border-2 border-t-0 border-black text-center text-[12px]">
                 <thead>
                   <tr>
                     <th className="border border-black py-[1mm] px-1 w-[15%] leading-tight">Date</th>
-                    <th className="border border-black py-[1mm] px-1 w-[20%] leading-tight">Subject Code</th>
-                    <th className="border border-black py-[1mm] px-1 text-left pl-2 w-[35%] leading-tight">Subject Name</th>
+                    <th className="border border-black py-[1mm] px-1 w-[15%] leading-tight">Subject Code</th>
+                    <th className="border border-black py-[1mm] px-1 text-left pl-2 w-[45%] leading-tight">Subject Name</th>
                     <th className="border border-black py-[1mm] px-1 w-[15%] leading-tight">Theory / Practice</th>
-                    <th className="border border-black py-[1mm] px-1 w-[15%] leading-tight">Hours</th>
+                    <th className="border border-black py-[1mm] px-1 w-[10%] leading-tight">Hours</th>
                   </tr>
                 </thead>
                 <tbody>
                   {billableRecords.map((r, i) => (
                     <tr key={i}>
-                      {/* UPDATED: Ultra-minimal 0.1mm padding top/bottom to maximize rows per page */}
-                      <td className="border border-black py-[0.1mm] px-1 text-[11px] leading-tight">{formatDate(r.attendance_date)}</td>
-                      <td className="border border-black py-[0.1mm] px-1 text-[11px] font-semibold leading-tight">{r.subject_code}</td>
-                      
-                      <td className="border border-black py-[0.1mm] px-1 text-left pl-2 font-semibold text-[10px] leading-tight">
+                      <td className="border border-black py-[0.1mm] px-1 text-[12px] leading-tight">{formatDate(r.attendance_date)}</td>
+                      <td className="border border-black py-[0.1mm] px-1 text-[12px] font-semibold leading-tight">{r.subject_code}</td>
+                      <td className="border border-black py-[0.1mm] px-1 text-left pl-2 font-semibold text-[11px] leading-tight">
                         {r.subject_name}
                       </td>
-                      
-                      <td className="border border-black py-[0.1mm] px-1 text-[11px] leading-tight">{r.session_type || 'Theory'}</td>
-                      <td className="border border-black py-[0.1mm] px-1 text-[11px] font-bold leading-tight">{parseFloat(r.hours)}</td>
+                      <td className="border border-black py-[0.1mm] px-1 text-[12px] leading-tight">{r.session_type || 'Theory'}</td>
+                      <td className="border border-black py-[0.1mm] px-1 text-[12px] font-bold leading-tight">{parseFloat(r.hours)}</td>
                     </tr>
                   ))}
                 </tbody>
               </table>
 
-              {/* UPDATED: Shrunk mt-10 down to mt-4 and massive gap-24 down to gap-10 to prevent Page 3 bleed */}
-              <div className="grid grid-cols-3 gap-4 font-bold text-[11px] whitespace-nowrap mt-4 px-2" style={{ pageBreakInside: 'avoid', breakInside: 'avoid' }}>
+              <div className="grid grid-cols-3 gap-4 font-bold text-[12px] whitespace-nowrap mt-10 px-2" style={{ pageBreakInside: 'avoid', breakInside: 'avoid' }}>
                 <div className="text-left">
                   <p>Name & Sign. of Visiting Faculty</p>
                 </div>
                 <div className="text-center">
                   <p>Name & Sign. of Program Incharge</p>
                 </div>
-                <div className="text-right flex flex-col gap-10">
+                <div className="text-right flex flex-col gap-14">
                   <p>Name & Sign. of Batch Mentor</p>
                   <p>Name & Sign. of Director</p>
                 </div>
