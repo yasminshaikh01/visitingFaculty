@@ -20,6 +20,9 @@ export default function MarkAttendanceGrid() {
   const [remarks, setRemarks] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
 
+  // NEW STATE: Toggle for 30-minute intervals
+  const [isHalfHourStep, setIsHalfHourStep] = useState(false);
+
   // Custom Modal States
   const [modalConfig, setModalConfig] = useState({
     isOpen: false,
@@ -126,22 +129,46 @@ export default function MarkAttendanceGrid() {
     setSelectedDay(1);
   };
 
+  // --- CUSTOM TIME HANDLER (Supports 30 or 60 minute steps) ---
   const handleTimeChange = (type, direction) => {
     if (!isDayAllowed(selectedDay)) return;
 
     const currentTime = type === 'start' ? startTime : endTime;
-    let hour = parseInt(currentTime.split(':')[0], 10);
+    const [h, m] = currentTime.split(':').map(Number);
+    
+    let totalMinutes = h * 60 + m;
+    const step = isHalfHourStep ? 30 : 60; // DYNAMIC STEP
     
     if (direction === 'up') {
-      hour = hour === 23 ? 0 : hour + 1;
+      totalMinutes += step;
+      if (totalMinutes >= 24 * 60) totalMinutes = 0;
     } else if (direction === 'down') {
-      hour = hour === 0 ? 23 : hour - 1;
+      totalMinutes -= step;
+      if (totalMinutes < 0) totalMinutes = (24 * 60) - step;
     }
     
-    const newTime = `${String(hour).padStart(2, '0')}:00`;
+    const newHour = Math.floor(totalMinutes / 60);
+    const newMin = totalMinutes % 60;
+    const newTime = `${String(newHour).padStart(2, '0')}:${String(newMin).padStart(2, '0')}`;
+    
     if (type === 'start') setStartTime(newTime);
     if (type === 'end') setEndTime(newTime);
   };
+
+  // --- CALCULATE EXACT DECIMALS ---
+  const calculateHours = () => {
+    if (!startTime || !endTime) return 0;
+    const [sHours, sMinutes] = startTime.split(':').map(Number);
+    const [eHours, eMinutes] = endTime.split(':').map(Number);
+    
+    const start = new Date(0, 0, 0, sHours, sMinutes, 0);
+    const end = new Date(0, 0, 0, eHours, eMinutes, 0);
+    
+    let diff = (end.getTime() - start.getTime()) / 1000 / 60 / 60;
+    return diff > 0 ? diff : 0; 
+  };
+
+  const hours = calculateHours();
 
   const processSubmission = async (payload) => {
     setIsSubmitting(true);
@@ -167,19 +194,23 @@ export default function MarkAttendanceGrid() {
     if (!isDayAllowed(selectedDay)) return showModal("error", "Invalid Date", "You cannot mark attendance for future or locked dates.");
     if (!selectedAllocationId) return showModal("error", "Missing Information", "Please select a subject before submitting.");
     
-    const sTime = new Date(`1970-01-01T${startTime}`);
-    const eTime = new Date(`1970-01-01T${endTime}`);
-    const diffHours = (eTime - sTime) / 1000 / 60 / 60;
-    
-    if (diffHours <= 0) return showModal("error", "Invalid Time", "End time must be after the start time.");
+    if (hours <= 0) return showModal("error", "Invalid Time", "End time must be after the start time.");
+
+    // STRICT VALIDATION: Block non-whole hour submissions
+    if (!Number.isInteger(hours)) {
+      return showModal(
+        "error", 
+        "Invalid Time Gap", 
+        `Total hours must be a whole number. Your selected duration is ${hours} hours. Please adjust Start and End times to create a full hour gap (e.g., 09:30 to 10:30).`
+      );
+    }
 
     const MAX_MONTHLY_PAY = 30000; 
     const activeAlloc = allocations.find(a => a.allocation_id.toString() === selectedAllocationId);
     const rate = parseFloat(activeAlloc.rate_per_hour) || 0;
-    const potentialEarnings = diffHours * rate;
+    const potentialEarnings = hours * rate;
 
     const currentMonthlyEarnings = monthlyRecords.reduce((sum, record) => {
-      // Ignore sessions that have already been capped by the backend
       if (record.is_billable === false || record.is_billable === 0) {
         return sum;
       }
@@ -199,7 +230,7 @@ export default function MarkAttendanceGrid() {
       attendance_date: dateString,
       start_time: `${startTime}:00`,
       end_time: `${endTime}:00`,
-      hours: diffHours.toFixed(2),
+      hours: hours.toFixed(2),
       month: monthName,
       year: year,
       status: "Pending",
@@ -464,7 +495,37 @@ export default function MarkAttendanceGrid() {
                   </div>
                 </div>
               </div>
+
+              {/* NEW: 30-Minute Checkbox for Grid */}
+              <div className="col-span-2 flex items-center gap-2 mt-1">
+                <input
+                  type="checkbox"
+                  id="halfHourToggleGrid"
+                  checked={isHalfHourStep}
+                  disabled={!isDayAllowed(selectedDay)}
+                  onChange={(e) => {
+                    const isChecked = e.target.checked;
+                    setIsHalfHourStep(isChecked);
+                    
+                    if (!isChecked) {
+                      setStartTime(prev => `${prev.split(':')[0]}:00`);
+                      setEndTime(prev => `${prev.split(':')[0]}:00`);
+                    }
+                  }}
+                  className="h-4 w-4 rounded border-slate-300 text-[#004DD2] focus:ring-[#004DD2] disabled:opacity-50"
+                />
+                <label htmlFor="halfHourToggleGrid" className={`text-xs font-medium cursor-pointer select-none ${!isDayAllowed(selectedDay) ? 'text-slate-400' : 'text-slate-600'}`}>
+                  Enable 30-minute intervals (Total hours must still be whole numbers)
+                </label>
+              </div>
+
             </div>
+          </div>
+
+          {/* NEW: Auto-Calculated Hours Banner (Matched from the List View) */}
+          <div className="mt-3 flex items-center justify-between rounded-lg bg-blue-50 px-4 py-3 text-sm border border-blue-100">
+            <span className="font-medium text-[#004DD2]">Total Hours</span>
+            <span className="font-bold text-[#004DD2]">{hours} hrs</span>
           </div>
           
           <div className="mt-5">
