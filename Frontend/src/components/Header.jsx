@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from "react";
-import { Phone, Mail, ChevronDown } from "lucide-react"; // Assuming you are using lucide-react for icons
+import { Phone, Mail, ChevronDown } from "lucide-react"; 
 
 const Header = ({ onNavigate }) => {
   const [showContact, setShowContact] = useState(false);
@@ -17,12 +17,12 @@ const Header = ({ onNavigate }) => {
     return () => document.removeEventListener("mousedown", handleClickOutside);
   }, []);
 
-  return (
-    <header className="w-full bg-white border-b border-[#C3C5D8] px-4 py-3 shadow-sm sm:px-8 md:px-12 md:py-0 md:h-[68px] flex flex-col gap-2 md:flex-row md:items-center md:justify-between z-50">
+return (
+    <header className="w-full bg-white border-b border-[#C3C5D8] px-4 py-3 shadow-sm sm:px-8 md:px-12 md:py-0 md:h-[68px] flex items-center justify-between z-50">
       
       {/* Left side: Institute Title (Clickable) */}
       <div 
-        className="flex items-center flex-1 overflow-hidden pr-0 md:pr-4 cursor-pointer group"
+        className="flex items-center flex-1 overflow-hidden pr-2 md:pr-4 cursor-pointer group"
         onClick={() => onNavigate('landing')}
       >
         {/* Full title for Desktop */}
@@ -37,7 +37,7 @@ const Header = ({ onNavigate }) => {
       </div>
 
       {/* Right side: Navigation/Actions */}
-      <nav className="flex items-center self-start md:self-auto shrink-0 relative" ref={dropdownRef}>
+      <nav className="flex items-center shrink-0 relative" ref={dropdownRef}>
         <button 
           type="button"
           onClick={() => setShowContact(!showContact)}

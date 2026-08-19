@@ -380,7 +380,7 @@ export default function MarkAttendanceGrid() {
             </div>
           )}
 
-          <div className="mt-6">
+          <div className="mt-6 w-full">
             <label className="mb-1.5 block text-sm font-medium text-slate-700">Allocated Subject</label>
             <select 
               value={selectedAllocationId}
@@ -389,11 +389,14 @@ export default function MarkAttendanceGrid() {
               className="w-full rounded-lg border border-slate-300 px-3.5 py-2.5 text-sm text-slate-700 focus:border-[#004DD2] focus:outline-none focus:ring-1 focus:ring-[#004DD2] disabled:bg-slate-50 disabled:text-slate-400"
             >
               <option value="">Select a Subject...</option>
-              {allocations.map(alloc => (
-                <option key={alloc.allocation_id} value={alloc.allocation_id}>
-                  {alloc.subject_code} - {alloc.course_name}
-                </option>
-              ))}
+              {allocations.map(alloc => {
+                const secName = alloc.section_name || alloc.Section?.section_name;
+                return (
+                  <option key={alloc.allocation_id} value={alloc.allocation_id}>
+                    {alloc.subject_code} - {alloc.subject_name} ({alloc.course_name}, Sem {alloc.semester_number}{secName ? `, Sec ${secName}` : ""})
+                  </option>
+                );
+              })}
             </select>
           </div>
 

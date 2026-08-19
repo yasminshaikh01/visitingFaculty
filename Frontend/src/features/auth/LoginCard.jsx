@@ -54,10 +54,24 @@ const LoginCard = ({ onNavigate, initialEmail = "" }) => {
       );
     } catch (error) {
       console.error("Login error:", error);
-      // Updated error text to reflect Email
-      setErrorMessage(
-        "Invalid credentials. Please check your E-mail and password and try again.",
-      );
+      
+      // Safely extract the error message from the backend response
+      const backendMessage = error.response?.data?.message?.toLowerCase() || error.response?.data?.error?.toLowerCase() || error.message?.toLowerCase() || "";
+      const backendData = typeof error.response?.data?.data === 'string' ? error.response.data.data.toLowerCase() : "";
+      const fullErrorString = backendMessage + " " + backendData;
+
+      // 1. Check for Pending Approval
+      if (fullErrorString.includes("pending approval")) {
+        setErrorMessage("Your account is currently not approved. Please wait for the confirmation mail.");
+      } 
+      // 2. Check for Deactivated Account (from your teammate's code)
+      else if (fullErrorString.includes("deactivated")) {
+        setErrorMessage("Your account has been deactivated. Please contact the Program Incharge for assistance.");
+      } 
+      // 3. Fallback to generic invalid credentials
+      else {
+        setErrorMessage("Invalid credentials. Please check your E-mail and password and try again.");
+      }
     } finally {
       setIsLoading(false);
     }

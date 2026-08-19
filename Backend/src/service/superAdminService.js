@@ -1,5 +1,5 @@
 const { User, AdminApproval } = require('../Schema');
-const sendEmail = require('../utils/emailService');
+const { sendEmail } = require('../utils/emailService');
 
 // ============================================
 // APPROVE ADMIN
@@ -9,9 +9,11 @@ const approveAdmin = async (params, Details, currentUser) => {
         const { user_id } = params;
         const { status, rejection_reason } = Details;
 
-        console.log('approveAdmin called with user_id:', user_id);
-        const user = await User.findOne({ where: { user_id: user_id } });
-        console.log('User found in DB:', user ? user.toJSON() : null);
+        // Fetch user and approval in parallel (2 queries → 1 round-trip)
+        const [user, approval] = await Promise.all([
+            User.findOne({ where: { user_id: user_id } }),
+            AdminApproval.findOne({ where: { user_id, status: 'pending' } })
+        ]);
 
         if (!user || user.role !== 'admin') {
             throw new Error('Admin not found');
@@ -19,33 +21,31 @@ const approveAdmin = async (params, Details, currentUser) => {
 
         let resultUser = user;
 
-        const approval = await AdminApproval.findOne({
-            where: { user_id, status: 'pending' }
-        });
-
         if (!approval) {
             throw new Error('No pending approval found');
         }
 
         if (status === 'approved') {
-            await User.update(
-                { is_approved: true },
-                { where: { user_id } }
-            );
+            // Update User and AdminApproval in parallel
+            await Promise.all([
+                User.update(
+                    { is_approved: true },
+                    { where: { user_id } }
+                ),
+                AdminApproval.update(
+                    {
+                        status: 'approved',
+                        approved_by: currentUser.user_id,
+                        approval_date: new Date()
+                    },
+                    { where: { user_id } }
+                )
+            ]);
 
             // Fetch the updated user instance
             resultUser = await User.findByPk(user_id);
 
-            // Update status, approved_by, and approval_date in AdminApproval
-            await AdminApproval.update(
-                {
-                    status: 'approved',
-                    approved_by: currentUser.user_id,
-                    approval_date: new Date()
-                },
-                { where: { user_id } }
-            );
-
+            // Send email non-blocking – don't make the API wait for SMTP
             sendEmail({
                 to: resultUser.email,
                 subject: 'Admin Account Approved - DAVV',
@@ -56,25 +56,28 @@ const approveAdmin = async (params, Details, currentUser) => {
                     <p>You can now login to the system.</p>
                     <p>Thank you,<br>DAVV Administration</p>
                 `
-            });
+            }).catch(err => console.error('Email send failed (admin approve):', err));
 
         } else if (status === 'rejected') {
             if (!rejection_reason) {
                 throw new Error('Rejection reason is required');
             }
 
-            await approval.update({
-                status: 'rejected',
-                approved_by: currentUser.user_id,
-                approval_date: new Date(),
-                rejection_reason
-            });
+            // Update approval and user in parallel
+            await Promise.all([
+                approval.update({
+                    status: 'rejected',
+                    approved_by: currentUser.user_id,
+                    approval_date: new Date(),
+                    rejection_reason
+                }),
+                user.update({
+                    is_approved: false,
+                    is_active: false
+                })
+            ]);
 
-            await user.update({
-                is_approved: false,
-                is_active: false
-            });
-
+            // Send email non-blocking
             sendEmail({
                 to: user.email,
                 subject: 'Admin Account Rejected - DAVV',
@@ -86,7 +89,7 @@ const approveAdmin = async (params, Details, currentUser) => {
                     <p>Please contact the system administrator.</p>
                     <p>Thank you,<br>DAVV Administration</p>
                 `
-            });
+            }).catch(err => console.error('Email send failed (admin reject):', err));
         }
 
         return resultUser;
@@ -195,6 +198,31 @@ async function getAdminById(user_id) {
     }
 }
 
+async function getDashboardStats(currentUser) {
+    try {
+        const [totalAdmin, approvedAdmin, pendingAdmin, superAdmin] = await Promise.all([
+            User.count({where: {role: 'admin'}}),
+            User.count({where: {role: 'admin', is_approved: true}}),
+            User.count({where: {role: 'admin', is_approved: false}}),
+            User.findByPk(currentUser.user_id, {attributes: ['user_id', 'full_name', 'last_login', 'updated_at']})
+
+        ]);
+        return {
+            totalAdmin, 
+            approvedAdmin,
+            pendingAdmin,
+            superAdminActivity:{
+                user_id: superAdmin?.user_id,
+                full_name: superAdmin?.full_name,
+                last_login: superAdmin?.last_login,
+                last_updated: superAdmin?.updated_at
+            }
+        };
+    } catch (error) {
+        console.error('Get Dashboard Stats Error:', error);
+        throw new Error('Failed to fetch dashboard stats');
+    }
+}
 
 
 module.exports = {
@@ -203,5 +231,6 @@ module.exports = {
     getRejectedAdmin,
     getApprovedAdmin,
     getAllAdmins,
-    getAdminById
+    getAdminById,
+    getDashboardStats
 };

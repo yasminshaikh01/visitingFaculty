@@ -4,7 +4,8 @@ import ProgramDetail from "./ProgramDetail";
 import { Eye, ChevronDown, Plus, Trash2 } from "lucide-react";
 import api from "../../api/axiosInstance";
 
-export default function ProgramsPage() {
+// UPDATED: Added onMenuClick prop
+export default function ProgramsPage({ onMenuClick }) {
   const [programs, setPrograms] = useState([]);
   const [selectedProgram, setSelectedProgram] = useState(null);
   const [loading, setLoading] = useState(true);
@@ -104,19 +105,23 @@ export default function ProgramsPage() {
           fetchPrograms(); 
         }} 
         onUpdate={handleProgramUpdate} 
+        onMenuClick={onMenuClick} // Pass down just in case ProgramDetail also needs drawer access
       />
     );
   }
 
   return (
     <div className="flex flex-col h-full bg-gray-50">
+      {/* UPDATED: Passed onMenuClick to Topbar */}
       <Topbar 
         title="Programs" 
         subtitle="View and manage all academic programs available in the IIPS." 
         showSearch={false} 
+        onMenuClick={onMenuClick}
       />
 
-      <div className="p-8 flex-1 overflow-y-auto">
+      {/* UPDATED: Adjusted px padding for mobile screens */}
+      <div className="px-4 sm:px-8 py-8 flex-1 overflow-y-auto max-w-full">
         
         {apiError && (
           <div className="bg-red-50 border border-red-200 text-red-600 px-4 py-3 rounded-lg mb-6 text-sm font-medium">
@@ -124,7 +129,8 @@ export default function ProgramsPage() {
           </div>
         )}
 
-        <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-6">
+        {/* UPDATED: Adjusted padding for mobile screens */}
+        <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-4 sm:p-6">
           
           <div className="flex items-center justify-between mb-6 flex-wrap gap-4">
             <div className="flex items-center gap-4">
@@ -133,9 +139,10 @@ export default function ProgramsPage() {
                 {programs.length} Programs
               </div>
             </div>
+            {/* UPDATED: Button spans full width on extra small screens */}
             <button 
               onClick={handleAddProgram}
-              className="flex items-center gap-2 bg-purple-600 text-white px-4 py-2 rounded-lg text-sm font-semibold hover:bg-purple-700 transition-colors"
+              className="w-full sm:w-auto flex items-center justify-center gap-2 bg-purple-600 text-white px-4 py-2 rounded-lg text-sm font-semibold hover:bg-purple-700 transition-colors"
             >
               <Plus className="w-4 h-4" /> Add Program
             </button>
@@ -144,55 +151,60 @@ export default function ProgramsPage() {
           {loading ? (
             <div className="p-8 text-center text-gray-500 font-medium">Loading programs from database...</div>
           ) : (
-            <table className="w-full text-left border-collapse">
-              <thead>
-                <tr className="bg-gray-50 border-y border-gray-100 text-xs font-semibold text-gray-500 uppercase tracking-wider">
-                  <th className="p-4">Program Name</th>
-                  <th className="p-4">Semesters</th>
-                  <th className="p-4">Sections</th>
-                  <th className="p-4 text-right">Actions</th>
-                </tr>
-              </thead>
-              <tbody className="text-sm text-gray-700">
-                {programs.length > 0 ? (
-                  programs.map((prog) => (
-                    <tr key={prog.course_id} className="border-b border-gray-50 hover:bg-gray-50/50 transition-colors">
-                      <td className="p-4 font-bold text-gray-900">{prog.course_name}</td>
-                      <td className="p-4">{prog.total_semesters}</td>
-                      <td className="p-4">
-                        <button className="flex items-center justify-between min-w-[100px] border border-gray-200 px-3 py-1.5 rounded-lg text-gray-600 hover:bg-gray-50 bg-white">
-                          <span className="text-left leading-tight">
-                            Section<br/>
-                            <span className="font-semibold">{prog.Sections?.length > 0 ? prog.Sections.map(s => s.section_name).join(", ") : "None"}</span>
-                          </span>
-                          <ChevronDown className="w-4 h-4 ml-2" />
-                        </button>
-                      </td>
-                      <td className="p-4 flex items-center justify-end gap-2 mt-1">
-                        <button 
-                          onClick={() => setSelectedProgram(prog)}
-                          className="flex items-center gap-2 text-blue-600 border border-blue-200 bg-blue-50 hover:bg-blue-100 px-4 py-1.5 rounded-lg font-medium transition-colors"
-                        >
-                          <Eye className="w-4 h-4" /> View
-                        </button>
-                        <button 
-                          onClick={() => handleDeleteProgram(prog.course_id)}
-                          className="text-red-500 border border-red-200 bg-red-50 hover:bg-red-100 p-2 rounded-lg font-medium transition-colors"
-                        >
-                          <Trash2 className="w-4 h-4" />
-                        </button>
+            /* UPDATED: Added overflow-x-auto to contain table on small devices */
+            <div className="overflow-x-auto min-h-[300px]">
+              <table className="w-full text-left border-collapse">
+                <thead>
+                  <tr className="bg-gray-50 border-y border-gray-100 text-xs font-semibold text-gray-500 uppercase tracking-wider">
+                    {/* UPDATED: Added whitespace-nowrap to headers */}
+                    <th className="p-4 whitespace-nowrap">Program Name</th>
+                    <th className="p-4 whitespace-nowrap">Semesters</th>
+                    <th className="p-4 whitespace-nowrap">Sections</th>
+                    <th className="p-4 text-right whitespace-nowrap">Actions</th>
+                  </tr>
+                </thead>
+                <tbody className="text-sm text-gray-700">
+                  {programs.length > 0 ? (
+                    programs.map((prog) => (
+                      <tr key={prog.course_id} className="border-b border-gray-50 hover:bg-gray-50/50 transition-colors">
+                        {/* UPDATED: Added whitespace-nowrap to cells */}
+                        <td className="p-4 font-bold text-gray-900 whitespace-nowrap">{prog.course_name}</td>
+                        <td className="p-4 whitespace-nowrap">{prog.total_semesters}</td>
+                        <td className="p-4 whitespace-nowrap">
+                          <button className="flex items-center justify-between min-w-[100px] border border-gray-200 px-3 py-1.5 rounded-lg text-gray-600 hover:bg-gray-50 bg-white">
+                            <span className="text-left leading-tight">
+                              Section<br/>
+                              <span className="font-semibold">{prog.Sections?.length > 0 ? prog.Sections.map(s => s.section_name).join(", ") : "None"}</span>
+                            </span>
+                            <ChevronDown className="w-4 h-4 ml-2 shrink-0" />
+                          </button>
+                        </td>
+                        <td className="p-4 flex items-center justify-end gap-2 mt-1 whitespace-nowrap">
+                          <button 
+                            onClick={() => setSelectedProgram(prog)}
+                            className="flex items-center gap-2 text-blue-600 border border-blue-200 bg-blue-50 hover:bg-blue-100 px-4 py-1.5 rounded-lg font-medium transition-colors"
+                          >
+                            <Eye className="w-4 h-4" /> View
+                          </button>
+                          <button 
+                            onClick={() => handleDeleteProgram(prog.course_id)}
+                            className="text-red-500 border border-red-200 bg-red-50 hover:bg-red-100 p-2 rounded-lg font-medium transition-colors"
+                          >
+                            <Trash2 className="w-4 h-4" />
+                          </button>
+                        </td>
+                      </tr>
+                    ))
+                  ) : (
+                    <tr>
+                      <td colSpan="4" className="p-8 text-center text-gray-500">
+                        No programs found.
                       </td>
                     </tr>
-                  ))
-                ) : (
-                  <tr>
-                    <td colSpan="4" className="p-8 text-center text-gray-500">
-                      No programs found.
-                    </td>
-                  </tr>
-                )}
-              </tbody>
-            </table>
+                  )}
+                </tbody>
+              </table>
+            </div>
           )}
         </div>
       </div>

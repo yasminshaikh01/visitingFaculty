@@ -35,7 +35,6 @@ const navItems = [
   { id: "bill-generation", label: "Bill Generation", icon: FileText },
 ];
 
-// --- INLINE ADMIN PROFILE MODAL ---
 // --- INLINE ADMIN PROFILE MODAL (BALANCED RATIO VERSION) ---
 function AdminProfileModal({ isOpen, onClose, userId, token }) {
   const [profileData, setProfileData] = useState(null);
@@ -157,7 +156,6 @@ function AdminProfileModal({ isOpen, onClose, userId, token }) {
 
   return (
     <div className="fixed inset-0 z-[100] flex items-center justify-center bg-slate-900/40 p-4 backdrop-blur-md transition-all">
-      {/* Changed to max-w-xl (narrower) and added min-h-[550px] to keep the ratio elegant */}
       <div className="relative w-full max-w-xl max-h-[92vh] min-h-[550px] overflow-hidden flex flex-col rounded-[24px] bg-white shadow-2xl ring-1 ring-slate-900/5">
         
         {/* Modal Header */}
@@ -197,7 +195,7 @@ function AdminProfileModal({ isOpen, onClose, userId, token }) {
 
               {/* Personal Information Section */}
               <section>
-                <div className="mb-5 flex items-center justify-between">
+                <div className="mb-5 flex flex-wrap gap-3 items-center justify-between">
                   <h3 className="text-sm font-bold text-[#004DD2] uppercase tracking-wider flex items-center gap-2">
                     <User className="h-4 w-4" /> Personal Details
                   </h3>
@@ -387,8 +385,33 @@ function AdminProfileModal({ isOpen, onClose, userId, token }) {
                         </div>
                       </div>
                     </div>
+
+                    {/* NEW: LIVE PASSWORD REQUIREMENTS UI */}
+                    <div className="bg-[#F8F9FA] p-4 rounded-xl mt-4">
+                      <p className="text-[11px] font-bold uppercase tracking-wider text-slate-800 mb-3">Password Requirements</p>
+                      <ul className="space-y-2.5">
+                        {[
+                          { label: 'At least 8 characters', met: passwordData.newPassword.length >= 8 },
+                          { label: 'One special symbol (e.g., @, #, $)', met: /[!@#$%^&*(),.?":{}|<>]/.test(passwordData.newPassword) },
+                          { label: 'At least one number', met: /\d/.test(passwordData.newPassword) },
+                        ].map((req, index) => (
+                          <li key={index} className="flex items-center gap-2.5 text-sm">
+                            {req.met ? (
+                              <svg className="w-4 h-4 text-green-500 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                                <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/>
+                              </svg>
+                            ) : (
+                              <div className="w-4 h-4 rounded-full border-[2px] border-slate-300 shrink-0" />
+                            )}
+                            <span className={req.met ? "text-slate-800 font-medium transition-colors" : "text-slate-500 transition-colors"}>
+                              {req.label}
+                            </span>
+                          </li>
+                        ))}
+                      </ul>
+                    </div>
                     
-                    <div className="flex items-center justify-end gap-3 pt-2">
+                    <div className="flex items-center justify-end gap-3 pt-4">
                       <button 
                         type="button" 
                         onClick={() => { 
@@ -431,7 +454,8 @@ function AdminProfileModal({ isOpen, onClose, userId, token }) {
 }
 
 // --- ADMIN SIDEBAR MAIN COMPONENT ---
-export default function Sidebar({ activeTab, setActiveTab, onSignOut }) {
+// UPDATED: Added isOpen and onClose to manage mobile sidebar drawer
+export default function Sidebar({ activeTab, setActiveTab, onSignOut, isOpen, onClose }) {
   const [isProfileModalOpen, setIsProfileModalOpen] = useState(false);
   const [adminName, setAdminName] = useState("Loading...");
   const [adminRole, setAdminRole] = useState("Program Incharge");
@@ -443,13 +467,40 @@ export default function Sidebar({ activeTab, setActiveTab, onSignOut }) {
       try {
         const session = JSON.parse(sessionStr);
         setSessionData(session);
-        setAdminName(session.full_name || session.name || session.user?.full_name || "Program Incharge User");
+        
+        // 1. Set temporary fallback from local storage
+        setAdminName(session.full_name || session.name || session.user?.full_name || "Loading...");
+        
         if (session.role) {
           setAdminRole(session.role === "admin" ? "Program Incharge" : session.role.replace("_", " ").replace(/\b\w/g, l => l.toUpperCase()));
         }
+
+        // 2. Fetch the actual up-to-date name from the API
+        const currentUserId = session.userId || session.id || session.user_id;
+        if (currentUserId) {
+          api.get(`/super_admin/admin/${currentUserId}`)
+            .then((res) => {
+              if (res.data.success && res.data.data?.full_name) {
+                setAdminName(res.data.data.full_name);
+                
+                // Optional: Update local storage so it's there instantly next time
+                const updatedSession = { ...session, full_name: res.data.data.full_name };
+                localStorage.setItem("iipsCurrentSession", JSON.stringify(updatedSession));
+              } else {
+                setAdminName("Program Incharge User"); // Ultimate fallback
+              }
+            })
+            .catch((err) => {
+              console.error("Error fetching admin name for sidebar:", err);
+              setAdminName("Program Incharge User");
+            });
+        }
       } catch (e) {
         console.error("Error parsing session data", e);
+        setAdminName("Program Incharge User");
       }
+    } else {
+      setAdminName("Program Incharge User");
     }
   }, []);
 
@@ -462,7 +513,21 @@ export default function Sidebar({ activeTab, setActiveTab, onSignOut }) {
 
   return (
     <>
-      <aside className="hidden md:flex md:flex-col w-[260px] shrink-0 h-screen sticky top-0 bg-white border-r border-slate-200">
+      {/* UPDATED: Overlay backdrop for mobile */}
+      {isOpen && (
+        <div 
+          className="fixed inset-0 z-40 bg-slate-900/50 backdrop-blur-sm md:hidden"
+          onClick={onClose}
+        />
+      )}
+
+      {/* UPDATED: Mobile responsive classes added for the sliding drawer effect */}
+      <aside className={`
+        fixed inset-y-0 left-0 z-50 flex flex-col w-[260px] shrink-0 h-screen bg-white border-r border-slate-200
+        transition-transform duration-300 ease-in-out
+        md:relative md:translate-x-0
+        ${isOpen ? 'translate-x-0' : '-translate-x-full'}
+      `}>
         
         {/* Brand */}
         <div className="flex items-center gap-3 px-6 h-20 border-b border-slate-100">
@@ -471,7 +536,7 @@ export default function Sidebar({ activeTab, setActiveTab, onSignOut }) {
           </div>
           <div>
             <p className="text-xl font-black leading-tight text-[#004DD2] tracking-tight">IIPS</p>
-            <p className="text-xs font-semibold leading-tight text-slate-500 uppercase tracking-wider mt-0.5">Program Incharge Portal</p>
+            <p className="text-xs font-semibold leading-tight text-slate-500 uppercase tracking-wider mt-0.5">Program Incharge</p>
           </div>
         </div>
 
@@ -484,7 +549,13 @@ export default function Sidebar({ activeTab, setActiveTab, onSignOut }) {
             {navItems.map(({ id, label, icon: Icon }) => (
               <li key={id}>
                 <button
-                  onClick={() => setActiveTab(id)}
+                  onClick={() => {
+                    setActiveTab(id);
+                    // NEW: Fire the refresh event automatically when switching tabs!
+                    window.dispatchEvent(new Event('refresh-dashboard'));
+                    // Close the mobile menu automatically upon selection
+                    if (onClose) onClose();
+                  }}
                   className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-medium transition-all duration-200 ${
                     activeTab === id
                       ? "bg-[#004DD2] text-white shadow-md shadow-blue-500/20"

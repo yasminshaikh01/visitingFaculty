@@ -1,45 +1,49 @@
 const { User, FacultyApproval, AdminApproval } = require('../Schema');
 const { generateFacultyId } = require('../utils/helper');
-const sendEmail = require('../utils/emailService');
+const { sendEmail } = require('../utils/emailService');
 
 async function approveFaculty(params, Details, currentUser) {
     try {
         const { user_id } = params;
         const { status, uvfin, rejection_reason } = Details;
-        const user = await User.findByPk(user_id);
+
+        // Fetch user and approval in parallel (2 queries → 1 round-trip)
+        const [user, approval] = await Promise.all([
+            User.findByPk(user_id),
+            FacultyApproval.findOne({ where: { user_id, status: 'pending' } })
+        ]);
+
         if (!user || user.role !== 'faculty') {
             throw new Error("Faculty not found");
         }
-
-        let resultUser = user;
-        const approval = await FacultyApproval.findOne({
-            where: { user_id, status: 'pending' }
-        });
         if (!approval) {
             throw new Error("no pending approval found");
         }
 
+        let resultUser = user;
+
         if (status === 'approved') {
-            await User.update(
-                { is_approved: true, uvfin: uvfin },
-                { where: { user_id } }
-            );
+            // Update User and FacultyApproval in parallel (2 queries → 1 round-trip)
+            await Promise.all([
+                User.update(
+                    { is_approved: true, uvfin: uvfin },
+                    { where: { user_id } }
+                ),
+                FacultyApproval.update(
+                    {
+                        status: 'approved',
+                        approved_by: currentUser.user_id,
+                        approval_date: new Date(),
+                        uvfin: uvfin
+                    },
+                    { where: { user_id } }
+                )
+            ]);
 
             // Fetch the updated user instance
             resultUser = await User.findByPk(user_id);
 
-            // Update status, approved_by, approval_date and uvfin in FacultyApproval
-            await FacultyApproval.update(
-                {
-                    status: 'approved',
-                    approved_by: currentUser.user_id,
-                    approval_date: new Date(),
-                    uvfin: uvfin
-                },
-                { where: { user_id } }
-            );
-
-
+            // Send email non-blocking – don't make the API wait for SMTP (~1-3s saved)
             sendEmail({
                 to: resultUser.email,
                 subject: 'Faculty Account Approved - DAVV',
@@ -50,25 +54,30 @@ async function approveFaculty(params, Details, currentUser) {
                     <p>You can now login to the system.</p>
                     <p>Thank you,<br>DAVV Administration</p>
                 `
-            });
+            }).catch(err => console.error('Email send failed (approve):', err));
 
         } else if (status === 'rejected') {
             if (!rejection_reason) {
                 throw new Error('Rejection reason is required');
             }
 
-            await approval.update({
-                status: 'rejected',
-                approved_by: currentUser.user_id,
-                approval_date: new Date(),
-                rejection_reason
-            });
+            // Update approval and user in parallel
+            await Promise.all([
+                approval.update({
+                    status: 'rejected',
+                    approved_by: currentUser.user_id,
+                    approval_date: new Date(),
+                    rejection_reason
+                }),
+                user.update({
+                    is_approved: false,
+                    is_active: false
+                })
+            ]);
 
-            await user.update({
-                is_approved: false,
-                is_active: false
-            });
+            resultUser = user;
 
+            // Send email non-blocking
             sendEmail({
                 to: user.email,
                 subject: 'Faculty Account Rejected - DAVV',
@@ -80,7 +89,7 @@ async function approveFaculty(params, Details, currentUser) {
                     <p>Please contact the administration.</p>
                     <p>Thank you,<br>DAVV Administration</p>
                 `
-            });
+            }).catch(err => console.error('Email send failed (reject):', err));
         }
 
         return resultUser;
@@ -189,38 +198,33 @@ async function getFacultyById(user_id) {
 }
 async function updateUvfin(user_id, uvfinId) {
     try {
-        const user = await User.findByPk(user_id);
+        // Fetch user, approval, and UVFIN duplicate check in parallel (3 queries → 1 round-trip)
+        const [user, approved, existingUvfin] = await Promise.all([
+            User.findByPk(user_id),
+            FacultyApproval.findOne({ where: { user_id, status: 'approved' } }),
+            User.findOne({ where: { uvfin: uvfinId } })
+        ]);
+
         if (!user || user.role != 'faculty') {
             throw new Error('Faculty member not found.');
         }
-
-        // FIX 1: Use FacultyApproval, not AdminApproval
-        const approved = await FacultyApproval.findOne({ where: { user_id, status: 'approved' } });
         if (!approved) {
             throw new Error('Cannot assign UVFIN: Faculty member is not approved yet.');
         }
-
-        // FIX 2: Check if UVFIN exists, but make sure it doesn't belong to the current user
-        // (in case they are just clicking save on their own existing UVFIN)
-        const existingUvfin = await User.findOne({ where: { uvfin: uvfinId } });
         if (existingUvfin && existingUvfin.user_id !== parseInt(user_id)) {
             throw new Error('This UVFIN is already assigned to another faculty member.');
         }
 
-        // FIX 3: Update BOTH tables to keep data perfectly in sync
-        await User.update({
-            uvfin: uvfinId
-        }, { where: { user_id } });
-
-        await FacultyApproval.update({
-            uvfin: uvfinId
-        }, { where: { user_id } });
+        // Update BOTH tables in parallel to keep data in sync
+        await Promise.all([
+            User.update({ uvfin: uvfinId }, { where: { user_id } }),
+            FacultyApproval.update({ uvfin: uvfinId }, { where: { user_id } })
+        ]);
 
         return { message: "UVFIN updated successfully!" };
         
     } catch (error) {
         console.error('Update UVFIN Error:', error);
-        // FIX 4: Pass the actual error message up to the controller and frontend
         throw new Error(error.message || 'Failed to update UVFIN.');
     }
 }

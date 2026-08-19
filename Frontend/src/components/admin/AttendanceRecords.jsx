@@ -12,7 +12,7 @@ export default function AttendanceRecords() {
   const [facultyOptions, setFacultyOptions] = useState([]);
   const [showFacultyDropdown, setShowFacultyDropdown] = useState(false);
   
-  // --- NEW STATE: Quick Select ---
+  // --- Quick Select ---
   const [allFaculties, setAllFaculties] = useState([]);
   const [facultiesLoading, setFacultiesLoading] = useState(true);
 
@@ -50,6 +50,19 @@ export default function AttendanceRecords() {
     document.addEventListener("mousedown", handleClickOutside);
     return () => document.removeEventListener("mousedown", handleClickOutside);
   }, []);
+
+  // NEW: Listen for global refresh events to auto-update active faculty history
+  useEffect(() => {
+    const handleRefresh = () => {
+      if (selectedFacultyId) {
+        handleSearch(selectedFacultyId);
+      }
+      loadAllFaculties();
+    };
+
+    window.addEventListener('refresh-dashboard', handleRefresh);
+    return () => window.removeEventListener('refresh-dashboard', handleRefresh);
+  }, [selectedFacultyId]);
 
   const loadAllFaculties = async () => {
     setFacultiesLoading(true);
@@ -169,7 +182,6 @@ export default function AttendanceRecords() {
     const classes = filteredAndSorted.length;
     const hours = filteredAndSorted.reduce((sum, r) => sum + (Number(r.hours) || 0), 0);
     const earnings = filteredAndSorted.reduce((sum, r) => {
-      // Ignore sessions that exceeded the 30k limit
       if (r.is_billable === false || r.is_billable === 0) return sum;
       
       const rate = Number(r.rate_per_hour) || 0;
@@ -190,7 +202,6 @@ export default function AttendanceRecords() {
       const hrs = Number(r.hours) || 0;
       const isCapped = r.is_billable === false || r.is_billable === 0;
       
-      // Format date to "30-Jul-2026" so Excel doesn't hide it behind ########
       let formattedDate = r.attendance_date || "N/A";
       if (formattedDate !== "N/A") {
         const d = new Date(formattedDate);
@@ -222,10 +233,10 @@ export default function AttendanceRecords() {
   };
 
   return (
-    <main className="p-4 sm:p-6 space-y-5 w-full bg-slate-50/50 min-h-screen">
+    <main className="p-4 sm:p-6 space-y-5 w-full bg-slate-50/50 min-h-screen max-w-full overflow-hidden">
       
       {/* SEARCH BAR */}
-      <div className="bg-white rounded-xl border border-slate-200 p-4 flex flex-col sm:flex-row gap-3 items-stretch shadow-sm">
+      <div className="bg-white rounded-xl border border-slate-200 p-4 flex flex-col sm:flex-row gap-3 items-stretch shadow-sm w-full">
         <div className="flex-1 relative" ref={dropdownRef}>
           <label className="text-sm font-medium text-slate-700 mb-1 block">Faculty Search</label>
           <div className="relative">
@@ -254,7 +265,6 @@ export default function AttendanceRecords() {
                     setSelectedFacultyId(f.user_id);
                     setFacultySearch(`${f.full_name} (${f.email})`);
                     setShowFacultyDropdown(false);
-                    // Automatically trigger search
                     handleSearch(f.user_id);
                   }}
                   className="px-4 py-2.5 text-sm text-slate-700 hover:bg-slate-50 cursor-pointer border-b border-slate-50 last:border-0"
@@ -267,14 +277,14 @@ export default function AttendanceRecords() {
         </div>
         <button
           onClick={() => handleSearch()}
-          className="self-end flex items-center justify-center gap-2 px-6 py-2.5 rounded-lg bg-[#0b57d0] text-white text-sm font-medium hover:bg-blue-700 transition-colors shadow-sm"
+          className="self-end w-full sm:w-auto flex items-center justify-center gap-2 px-6 py-2.5 rounded-lg bg-[#0b57d0] text-white text-sm font-medium hover:bg-blue-700 transition-colors shadow-sm"
         >
           <Search size={16} /> Search
         </button>
       </div>
 
-      {/* QUICK SELECT FACULTY LIST (Now always visible) */}
-      <div className="bg-white rounded-xl border border-slate-200 p-5 shadow-sm mb-2">
+      {/* QUICK SELECT FACULTY LIST */}
+      <div className="bg-white rounded-xl border border-slate-200 p-4 sm:p-5 shadow-sm mb-2 w-full">
         <h2 className="text-sm font-semibold text-slate-800 mb-4 flex items-center gap-2">
           <Users size={16} className="text-[#0b57d0]" /> Quick Select Faculty
         </h2>
@@ -284,14 +294,13 @@ export default function AttendanceRecords() {
         ) : allFaculties.length === 0 ? (
           <div className="text-sm text-slate-400 py-2">No faculty members found.</div>
         ) : (
-          <ul className="max-h-40 overflow-y-auto pr-3 space-y-2">
+          <ul className="max-h-40 overflow-y-auto pr-2 space-y-2 hide-scrollbar">
             {allFaculties.map((f) => (
               <li key={f.user_id}>
                 <button
                   onClick={() => {
                     setSelectedFacultyId(f.user_id);
                     setFacultySearch(`${f.full_name} (${f.email})`);
-                    // Automatically trigger search
                     handleSearch(f.user_id);
                   }}
                   className={`w-full text-left px-4 py-3 rounded-lg border transition-all ${
@@ -300,11 +309,11 @@ export default function AttendanceRecords() {
                       : "bg-white border-slate-200 hover:bg-slate-50 hover:border-slate-300"
                   }`}
                 >
-                  <div className="flex items-center justify-between">
-                    <span className={`text-sm font-medium ${selectedFacultyId === f.user_id ? 'text-[#0b57d0]' : 'text-slate-700'}`}>
+                  <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-1 sm:gap-0">
+                    <span className={`text-sm font-medium truncate ${selectedFacultyId === f.user_id ? 'text-[#0b57d0]' : 'text-slate-700'}`}>
                       {f.full_name}
                     </span>
-                    <span className={`text-xs ${selectedFacultyId === f.user_id ? 'text-blue-600' : 'text-slate-400'}`}>
+                    <span className={`text-xs truncate ${selectedFacultyId === f.user_id ? 'text-blue-600' : 'text-slate-400'}`}>
                       {f.email}
                     </span>
                   </div>
@@ -333,7 +342,6 @@ export default function AttendanceRecords() {
               </p>
             </div>
             
-            {/* Quick action to clear and search someone else */}
             <button 
               onClick={() => { setActiveFaculty(null); setRecords([]); setSelectedFacultyId(""); setFacultySearch(""); }}
               className="text-sm text-[#0b57d0] hover:underline font-medium"
@@ -342,22 +350,20 @@ export default function AttendanceRecords() {
             </button>
           </div>
 
-          <div className="grid sm:grid-cols-3 gap-4">
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
             <StatCard icon={Calendar} label="Classes Submitted" value={totals.classes} />
             <StatCard icon={Clock} label="Total Hours" value={`${totals.hours} hrs`} />
             <StatCard icon={IndianRupee} label="Total Earnings" value={`₹${totals.earnings.toLocaleString("en-IN")}`} />
           </div>
 
           {/* TABLE */}
-          <div className="bg-white rounded-xl border border-slate-200 overflow-hidden shadow-sm">
-            <div className="flex flex-col sm:flex-row gap-3 items-start sm:items-center justify-between px-6 py-4 border-b border-slate-100">
-              <div className="flex flex-wrap gap-3">
-                
-                {/* Dynamic Allocated Subjects */}
+          <div className="bg-white rounded-xl border border-slate-200 overflow-hidden shadow-sm w-full">
+            <div className="flex flex-col sm:flex-row gap-3 items-start sm:items-center justify-between px-4 sm:px-6 py-4 border-b border-slate-100">
+              <div className="flex flex-wrap gap-3 w-full sm:w-auto">
                 <select
                   value={subjectFilter}
                   onChange={(e) => setSubjectFilter(e.target.value)}
-                  className="px-3 py-2.5 rounded-lg border border-slate-200 text-sm bg-white focus:outline-none focus:border-blue-500 min-w-[160px]"
+                  className="w-full sm:w-auto px-3 py-2.5 rounded-lg border border-slate-200 text-sm bg-white focus:outline-none focus:border-blue-500 min-w-[160px]"
                 >
                   <option value="">All Subjects</option>
                   {subjects.map((s) => (
@@ -365,11 +371,10 @@ export default function AttendanceRecords() {
                   ))}
                 </select>
 
-                {/* Timeline Dropdown */}
                 <select
                   value={timelineFilter}
                   onChange={(e) => setTimelineFilter(e.target.value)}
-                  className="px-3 py-2.5 rounded-lg border border-slate-200 text-sm bg-white focus:outline-none focus:border-blue-500 min-w-[140px]"
+                  className="w-full sm:w-auto px-3 py-2.5 rounded-lg border border-slate-200 text-sm bg-white focus:outline-none focus:border-blue-500 min-w-[140px]"
                 >
                   <option value="">Current Session</option>
                   <option value="day">Day</option>
@@ -378,11 +383,10 @@ export default function AttendanceRecords() {
                 </select>
               </div>
 
-              {/* Advanced Filter / Sort Menu */}
-              <div className="relative" ref={filterRef}>
+              <div className="relative w-full sm:w-auto flex justify-end" ref={filterRef}>
                 <button 
                   onClick={() => setFilterMenuOpen(!filterMenuOpen)}
-                  className="flex items-center gap-2 px-4 py-2.5 rounded-lg border border-slate-200 text-sm font-medium text-slate-700 hover:bg-slate-50 transition-colors"
+                  className="w-full sm:w-auto flex items-center justify-center gap-2 px-4 py-2.5 rounded-lg border border-slate-200 text-sm font-medium text-slate-700 hover:bg-slate-50 transition-colors"
                 >
                   <Filter size={16} className="text-slate-500"/> Filter
                 </button>
@@ -407,18 +411,18 @@ export default function AttendanceRecords() {
               </div>
             </div>
 
-            <div className="overflow-x-auto">
-              <table className="w-full text-sm text-left">
+            <div className="overflow-x-auto hide-scrollbar w-full">
+              <table className="w-full text-sm text-left min-w-[700px]">
                 <thead>
                   <tr className="bg-slate-50 text-[11px] font-bold text-slate-500 uppercase tracking-wider border-b border-slate-200">
-                    <th className="px-5 py-4">SN.</th>
-                    <th className="px-5 py-4">Date</th>
-                    <th className="px-5 py-4">Subject Code</th>
-                    <th className="px-5 py-4">Subject Name</th>
-                    <th className="px-5 py-4">Type</th>
-                    <th className="px-5 py-4">Hours</th>
-                    <th className="px-5 py-4">Rate</th>
-                    <th className="px-5 py-4">Amount</th>
+                    <th className="px-4 sm:px-5 py-4 whitespace-nowrap">SN.</th>
+                    <th className="px-4 sm:px-5 py-4 whitespace-nowrap">Date</th>
+                    <th className="px-4 sm:px-5 py-4 whitespace-nowrap">Subject Code</th>
+                    <th className="px-4 sm:px-5 py-4 whitespace-nowrap">Subject Name</th>
+                    <th className="px-4 sm:px-5 py-4 whitespace-nowrap">Type</th>
+                    <th className="px-4 sm:px-5 py-4 whitespace-nowrap">Hours</th>
+                    <th className="px-4 sm:px-5 py-4 whitespace-nowrap">Rate</th>
+                    <th className="px-4 sm:px-5 py-4 whitespace-nowrap">Amount</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -437,13 +441,13 @@ export default function AttendanceRecords() {
 
                     return (
                       <tr key={r.attendance_id || idx} className={`border-b border-slate-100 transition-colors last:border-0 ${isCapped ? 'bg-orange-50/40 hover:bg-orange-50/60' : 'hover:bg-slate-50/50'}`}>
-                        <td className="px-5 py-4 text-slate-500">{(page - 1) * PAGE_SIZE + idx + 1}</td>
-                        <td className={`px-5 py-4 font-medium ${isCapped ? 'text-slate-400 line-through' : 'text-slate-700'}`}>{r.attendance_date}</td>
-                        <td className={`px-5 py-4 font-bold ${isCapped ? 'text-slate-400 line-through' : 'text-slate-900'}`}>{r.subject_code || "N/A"}</td>
-                        <td className={`px-5 py-4 ${isCapped ? 'text-slate-400 line-through' : 'text-slate-600'}`}>{r.subject_name || "N/A"}</td>
-                        <td className="px-5 py-4">
+                        <td className="px-4 sm:px-5 py-4 text-slate-500 whitespace-nowrap">{(page - 1) * PAGE_SIZE + idx + 1}</td>
+                        <td className={`px-4 sm:px-5 py-4 font-medium whitespace-nowrap ${isCapped ? 'text-slate-400 line-through' : 'text-slate-700'}`}>{r.attendance_date}</td>
+                        <td className={`px-4 sm:px-5 py-4 font-bold whitespace-nowrap ${isCapped ? 'text-slate-400 line-through' : 'text-slate-900'}`}>{r.subject_code || "N/A"}</td>
+                        <td className={`px-4 sm:px-5 py-4 whitespace-nowrap ${isCapped ? 'text-slate-400 line-through' : 'text-slate-600'}`}>{r.subject_name || "N/A"}</td>
+                        <td className="px-4 sm:px-5 py-4 whitespace-nowrap">
                           <span
-                            className={`px-2.5 py-1 rounded-full text-[11px] font-bold tracking-wide uppercase ${
+                            className={`px-2.5 py-1 rounded-full text-[11px] font-bold tracking-wide uppercase inline-block ${
                               isCapped 
                                 ? "bg-orange-100 text-orange-700"
                                 : r.session_type?.toLowerCase() === "practical"
@@ -454,9 +458,9 @@ export default function AttendanceRecords() {
                             {isCapped ? "Capped" : (r.session_type || "N/A")}
                           </span>
                         </td>
-                        <td className={`px-5 py-4 font-medium ${isCapped ? 'text-slate-400 line-through' : 'text-slate-700'}`}>{hours}h</td>
-                        <td className={`px-5 py-4 ${isCapped ? 'text-slate-400 line-through' : 'text-slate-500'}`}>₹{rate}</td>
-                        <td className={`px-5 py-4 font-semibold ${isCapped ? 'text-orange-600' : 'text-blue-600'}`}>
+                        <td className={`px-4 sm:px-5 py-4 font-medium whitespace-nowrap ${isCapped ? 'text-slate-400 line-through' : 'text-slate-700'}`}>{hours}h</td>
+                        <td className={`px-4 sm:px-5 py-4 whitespace-nowrap ${isCapped ? 'text-slate-400 line-through' : 'text-slate-500'}`}>₹{rate}</td>
+                        <td className={`px-4 sm:px-5 py-4 font-semibold whitespace-nowrap ${isCapped ? 'text-orange-600' : 'text-blue-600'}`}>
                           {isCapped ? "₹0 (Capped)" : `₹${amount}`}
                         </td>
                       </tr>
@@ -466,14 +470,14 @@ export default function AttendanceRecords() {
               </table>
             </div>
 
-            <div className="flex items-center justify-between px-6 py-4 border-t border-slate-100 text-sm bg-white">
-              <span className="text-slate-500">Showing {paginated.length} of {filteredAndSorted.length} records</span>
-              <div className="flex items-center gap-4">
-                <div className="flex items-center gap-1">
+            <div className="flex flex-col sm:flex-row items-center justify-between gap-4 px-4 sm:px-6 py-4 border-t border-slate-100 text-sm bg-white">
+              <span className="text-slate-500 text-center sm:text-left">Showing {paginated.length} of {filteredAndSorted.length} records</span>
+              <div className="flex flex-col sm:flex-row items-center gap-4 w-full sm:w-auto justify-end">
+                <div className="flex flex-wrap justify-center items-center gap-1">
                   <button
                     disabled={page === 1}
                     onClick={() => setPage((p) => Math.max(1, p - 1))}
-                    className="h-8 w-8 flex items-center justify-center rounded-lg border border-slate-200 disabled:opacity-40 hover:bg-slate-50 transition-colors text-slate-600"
+                    className="h-8 w-8 flex items-center justify-center rounded-lg border border-slate-200 disabled:opacity-40 hover:bg-slate-50 transition-colors text-slate-600 shrink-0"
                   >
                     ‹
                   </button>
@@ -481,7 +485,7 @@ export default function AttendanceRecords() {
                     <button
                       key={p}
                       onClick={() => setPage(p)}
-                      className={`h-8 w-8 flex items-center justify-center rounded-lg text-sm font-semibold transition-colors ${
+                      className={`h-8 w-8 flex items-center justify-center rounded-lg text-sm font-semibold transition-colors shrink-0 ${
                         p === page ? "bg-[#2563eb] text-white" : "border border-slate-200 text-slate-600 hover:bg-slate-50"
                       }`}
                     >
@@ -491,14 +495,14 @@ export default function AttendanceRecords() {
                   <button
                     disabled={page === totalPages}
                     onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
-                    className="h-8 w-8 flex items-center justify-center rounded-lg border border-slate-200 disabled:opacity-40 hover:bg-slate-50 transition-colors text-slate-600"
+                    className="h-8 w-8 flex items-center justify-center rounded-lg border border-slate-200 disabled:opacity-40 hover:bg-slate-50 transition-colors text-slate-600 shrink-0"
                   >
                     ›
                   </button>
                 </div>
                 <button
                   onClick={handleExport}
-                  className="flex items-center gap-2 px-4 py-2.5 rounded-lg bg-slate-800 text-white text-sm font-medium hover:bg-slate-900 transition-colors shadow-sm"
+                  className="w-full sm:w-auto flex items-center justify-center gap-2 px-4 py-2.5 rounded-lg bg-slate-800 text-white text-sm font-medium hover:bg-slate-900 transition-colors shadow-sm whitespace-nowrap"
                 >
                   <Download size={15} /> Export
                 </button>
@@ -519,13 +523,13 @@ export default function AttendanceRecords() {
 
 function StatCard({ icon: Icon, label, value }) {
   return (
-    <div className="bg-white rounded-xl border border-slate-200 p-5 flex items-center gap-4 shadow-sm hover:shadow-md transition-shadow">
-      <div className="h-12 w-12 rounded-xl bg-blue-50 text-blue-600 flex items-center justify-center">
+    <div className="bg-white rounded-xl border border-slate-200 p-5 flex items-center gap-4 shadow-sm hover:shadow-md transition-shadow w-full">
+      <div className="h-12 w-12 rounded-xl bg-blue-50 text-blue-600 flex items-center justify-center shrink-0">
         <Icon size={22} />
       </div>
-      <div>
-        <p className="text-[11px] font-bold text-slate-500 uppercase tracking-wider mb-1">{label}</p>
-        <p className="text-2xl font-extrabold text-slate-800">{value}</p>
+      <div className="min-w-0">
+        <p className="text-[11px] font-bold text-slate-500 uppercase tracking-wider mb-1 truncate">{label}</p>
+        <p className="text-2xl font-extrabold text-slate-800 truncate">{value}</p>
       </div>
     </div>
   );

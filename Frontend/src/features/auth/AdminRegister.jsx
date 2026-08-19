@@ -66,19 +66,28 @@ export default function AdminRegister({ onNavigate }) {
 
       setIsSuccess(true);
       
-    } catch (error) {
+} catch (error) {
       const responseData = error.response?.data;
-      const backendMessage = responseData?.message?.toLowerCase() || '';
-      const backendDetails = responseData?.data?.toLowerCase() || ''; 
+      // Safely grab the error message, checking error.message as well for the new backend logic
+      const backendMessage = responseData?.message?.toLowerCase() || error.message?.toLowerCase() || '';
+      const backendDetails = typeof responseData?.data === 'string' ? responseData.data.toLowerCase() : ''; 
+      const fullError = backendMessage + ' ' + backendDetails;
 
-      if (
+      // 1. Specifically catch the Mobile Number duplicate first
+      if (fullError.includes('mobile number already exist')) {
+        setFormError('This Mobile Number is already registered. Please use a different number.');
+      }
+      // 2. Catch Email duplicates (and any generic 409 conflict errors)
+      else if (
         error.response?.status === 409 || 
-        backendMessage.includes('already') || 
-        backendDetails.includes('already') ||
-        backendDetails.includes('exist')
+        fullError.includes('email already') ||
+        fullError.includes('already') || 
+        fullError.includes('exist')
       ) {
-        setIsDuplicate(true); 
-      } else {
+        setIsDuplicate(true); // Triggers the full-page Email duplicate UI
+      } 
+      // 3. Absolute fallback
+      else {
         setFormError(responseData?.message || 'Registration failed. Please try again.');
       }
     } finally {

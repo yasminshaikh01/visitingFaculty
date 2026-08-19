@@ -4,17 +4,30 @@ const { Op } = require('sequelize');
 const User = require('../Schema/userSchema');
 const FacultyApproval = require('../Schema/facultyApprovalSchema');
 const AdminApproval = require('../Schema/adminApprovalSchema');
-const sendEmail = require('../utils/emailService');
+const { sendEmail } = require('../utils/emailService');
 require('dotenv').config();
 
 // faculty registration logic
 async function registerFaculty(facultyData) {
-    const existingUser = await User.findOne({
-        where: { email: facultyData.email }
-    });
+    // Run all uniqueness checks in parallel for speed (~5x faster)
+    const [existingUserEmail, existingUserAadhar, existingUserPan, existingUserMobile] = await Promise.all([
+        User.findOne({ where: { email: facultyData.email } }),
+        User.findOne({ where: { aadhaar_no: facultyData.aadhaar_no } }),
+        User.findOne({ where: { pan_card_no: facultyData.pan_card_no } }),
+        User.findOne({ where: { phone_number: facultyData.phone_number } })
+    ]);
 
-    if (existingUser) {
+    if (existingUserEmail) {
         throw new Error('Email already exist');
+    }
+    if (existingUserAadhar) {
+        throw new Error('Aadhaar Number already exist');
+    }
+    if (existingUserPan) {
+        throw new Error('Pan Card Number already exist');
+    }
+    if (existingUserMobile) {
+        throw new Error('Mobile Number already exist');
     }
 
     const { password, user_id, ...restFacultyData } = facultyData;
@@ -35,12 +48,17 @@ async function registerFaculty(facultyData) {
 }
 
 async function registerAdmin(adminData) {
-    const existingUser = await User.findOne({
-        where: { email: adminData.email }
-    });
+    // Run all uniqueness checks in parallel
+    const [existingUser, existingUserMobile] = await Promise.all([
+        User.findOne({ where: { email: adminData.email } }),
+        User.findOne({ where: { phone_number: adminData.phone_number } })
+    ]);
 
     if (existingUser) {
         throw new Error('Email already exist');
+    }
+    if (existingUserMobile) {
+        throw new Error('Mobile Number already exist');
     }
 
     const { password, user_id, ...restAdminData } = adminData;
@@ -215,11 +233,11 @@ async function resetUserPassword(token, newPassword) {
 async function changePassword(user_id, oldPassword, newPassword) {
     try {
         const user = await User.findByPk(user_id);
-        if(!user){
+        if (!user) {
             throw new Error('user not found');
         }
         const isMatch = await user.comparePassword(oldPassword);
-        if(!isMatch){
+        if (!isMatch) {
             throw new Error('password does not match');
         }
         await user.update({

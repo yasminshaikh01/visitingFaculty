@@ -26,7 +26,6 @@ const emptyForm = {
   academic_year: "2026-27",
 };
 
-// NOTICE: We added 'prefilledFaculty' here!
 export default function SubjectAllocation({ prefilledFaculty }) {
   // --- STATE: Data from APIs ---
   const [facultyOptions, setFacultyOptions] = useState([]);
@@ -70,16 +69,18 @@ export default function SubjectAllocation({ prefilledFaculty }) {
     return () => document.removeEventListener("mousedown", handleClickOutside);
   }, []);
 
-  // --- NEW: Auto-fill logic when clicking from Faculty Management ---
+  // Listen for the global refresh event to instantly update allocations
+  useEffect(() => {
+    const handleRefresh = () => fetchAllocations();
+    window.addEventListener('refresh-dashboard', handleRefresh);
+    return () => window.removeEventListener('refresh-dashboard', handleRefresh);
+  }, []);
+
+  // --- Auto-fill logic when clicking from Faculty Management ---
   useEffect(() => {
     if (prefilledFaculty) {
-      // Let's log it to the console just in case we need to see the exact structure!
-      console.log("Passed Faculty Data from Table:", prefilledFaculty);
-
-      // Check if the actual details are nested inside a 'User' or 'user' object
       const nestedData = prefilledFaculty.User || prefilledFaculty.user || {};
 
-      // Look at the top level first, then look inside the nested object
       const targetId =
         prefilledFaculty.user_id ||
         prefilledFaculty.id ||
@@ -126,7 +127,6 @@ export default function SubjectAllocation({ prefilledFaculty }) {
   // ==========================================
   useEffect(() => {
     const delayDebounceFn = setTimeout(async () => {
-      // Don't search if the input exactly matches the prefilled data string format
       if (
         !facultySearch.trim() ||
         (prefilledFaculty && facultySearch.includes(prefilledFaculty.email))
@@ -207,15 +207,39 @@ export default function SubjectAllocation({ prefilledFaculty }) {
       return;
     }
 
+    // --- NEW: FRONTEND DUPLICATE ALLOCATION PREVENTION ---
+    const isDuplicate = allocations.find((a) => {
+      const matchCourse = String(a.course_id) === String(form.course_id);
+      const matchSemester = String(a.semester_id) === String(form.semester_id);
+      const matchSubject = String(a.subject_id) === String(form.subject_id);
+      // Section can be empty/null, so we fallback to empty strings for comparison
+      const matchSection = String(a.section_id || "") === String(form.section_id || "");
+      const matchType = String(a.session_type).toLowerCase() === String(form.session_type).toLowerCase();
+      
+      return matchCourse && matchSemester && matchSubject && matchSection && matchType;
+    });
+
+    if (isDuplicate) {
+      const assignedTo = isDuplicate.User?.full_name || "another faculty member";
+      setErrorModal(
+        `This ${form.session_type} subject is already allocated to ${assignedTo} for this specific section. Please remove the existing allocation first if you need to reassign it.`
+      );
+      return; // Stop execution here
+    }
+    // -----------------------------------------------------
+
     setSubmitting(true);
     try {
       const payload = { ...form, section_id: form.section_id || null };
       await api.post("/admin/allocations", payload);
 
-      setSuccessModal(true); // Trigger custom success modal
+      setSuccessModal(true); 
       setForm(emptyForm);
       setFacultySearch("");
       fetchAllocations();
+      
+      // Tell the rest of the app to refresh globally
+      window.dispatchEvent(new Event('refresh-dashboard'));
     } catch (err) {
       setFormError(err?.response?.data?.message || "Failed to assign subject.");
     } finally {
@@ -224,7 +248,7 @@ export default function SubjectAllocation({ prefilledFaculty }) {
   };
 
   const confirmDelete = (id) => {
-    setDeleteConfirmId(id); // Trigger custom delete modal
+    setDeleteConfirmId(id);
   };
 
   const executeDelete = async () => {
@@ -234,6 +258,9 @@ export default function SubjectAllocation({ prefilledFaculty }) {
       await api.delete(`/admin/allocations/${deleteConfirmId}`);
       setDeleteConfirmId(null);
       fetchAllocations();
+      
+      // Tell the rest of the app to refresh globally
+      window.dispatchEvent(new Event('refresh-dashboard'));
     } catch (err) {
       setDeleteConfirmId(null);
       setErrorModal("Failed to delete allocation. Please try again.");
@@ -268,10 +295,10 @@ export default function SubjectAllocation({ prefilledFaculty }) {
   useEffect(() => setPage(1), [search]);
 
   return (
-    <main className="p-4 sm:p-6 w-full relative">
+    <main className="p-4 sm:p-6 w-full relative max-w-full overflow-hidden">
       <div className="mb-5 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
         <div>
-          <h1 className="text-2xl font-bold text-slate-800">
+          <h1 className="text-xl sm:text-2xl font-bold text-slate-800">
             Subject Allocation
           </h1>
           <p className="text-sm text-slate-400">
@@ -280,11 +307,12 @@ export default function SubjectAllocation({ prefilledFaculty }) {
         </div>
       </div>
 
-      <div className="grid xl:grid-cols-[400px_1fr] gap-6 items-start">
+      <div className="grid grid-cols-1 xl:grid-cols-[400px_1fr] gap-6 items-start w-full">
+        
         {/* ASSIGNMENT FORM */}
         <form
           onSubmit={handleSubmit}
-          className="bg-white rounded-xl border border-slate-200 p-6 shadow-sm"
+          className="bg-white rounded-xl border border-slate-200 p-4 sm:p-6 shadow-sm w-full"
         >
           <div className="flex items-center gap-2 mb-6">
             <ClipboardCheck size={20} className="text-blue-600" />
@@ -294,7 +322,6 @@ export default function SubjectAllocation({ prefilledFaculty }) {
           </div>
 
           <div className="space-y-4">
-            {/* Faculty Smart Dropdown */}
             <div ref={dropdownRef}>
               <Field label="Select Faculty (Name or ID)">
                 <div className="relative">
@@ -475,10 +502,10 @@ export default function SubjectAllocation({ prefilledFaculty }) {
         </form>
 
         {/* ALLOCATIONS HISTORY TABLE */}
-        <div className="bg-white rounded-xl border border-slate-200 shadow-sm flex flex-col h-full">
-          <div className="flex items-center justify-between px-6 py-4 border-b border-slate-100">
+        <div className="bg-white rounded-xl border border-slate-200 shadow-sm flex flex-col h-full w-full overflow-hidden">
+          <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between px-4 sm:px-6 py-4 border-b border-slate-100 gap-3">
             <div className="flex items-center gap-2">
-              <ListChecks size={18} className="text-blue-600" />
+              <ListChecks size={18} className="text-blue-600 shrink-0" />
               <h2 className="font-semibold text-slate-800">
                 Current Allocations ({filteredAllocations.length})
               </h2>
@@ -488,19 +515,19 @@ export default function SubjectAllocation({ prefilledFaculty }) {
               placeholder="Search allocations..."
               value={search}
               onChange={(e) => setSearch(e.target.value)}
-              className="px-3 py-1.5 text-sm border border-slate-200 rounded-md focus:outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500 transition-all w-48"
+              className="w-full sm:w-48 px-3 py-1.5 text-sm border border-slate-200 rounded-md focus:outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500 transition-all"
             />
           </div>
 
-          <div className="overflow-x-auto flex-1">
-            <table className="w-full text-sm">
+          <div className="overflow-x-auto flex-1 hide-scrollbar w-full">
+            <table className="w-full text-sm min-w-[700px]">
               <thead>
                 <tr className="text-left text-xs font-medium text-slate-400 border-b border-slate-100 bg-slate-50/50">
-                  <th className="px-5 py-3">Faculty</th>
-                  <th className="px-5 py-3">Course Details</th>
-                  <th className="px-5 py-3">Subject</th>
-                  <th className="px-5 py-3">Details</th>
-                  <th className="px-5 py-3 text-right">Action</th>
+                  <th className="px-5 py-3 whitespace-nowrap">Faculty</th>
+                  <th className="px-5 py-3 whitespace-nowrap">Course Details</th>
+                  <th className="px-5 py-3 whitespace-nowrap">Subject</th>
+                  <th className="px-5 py-3 whitespace-nowrap">Details</th>
+                  <th className="px-5 py-3 text-right whitespace-nowrap">Action</th>
                 </tr>
               </thead>
               <tbody>
@@ -529,7 +556,7 @@ export default function SubjectAllocation({ prefilledFaculty }) {
                       key={a.allocation_id}
                       className="border-b border-slate-50 hover:bg-slate-50/50 transition-colors last:border-0"
                     >
-                      <td className="px-5 py-3">
+                      <td className="px-5 py-3 whitespace-nowrap">
                         <p className="font-medium text-slate-800">
                           {a.User?.full_name}
                         </p>
@@ -537,7 +564,7 @@ export default function SubjectAllocation({ prefilledFaculty }) {
                           {a.User?.email}
                         </p>
                       </td>
-                      <td className="px-5 py-3">
+                      <td className="px-5 py-3 whitespace-nowrap">
                         <p className="font-medium text-slate-700">
                           {a.Course?.course_name}
                         </p>
@@ -546,7 +573,7 @@ export default function SubjectAllocation({ prefilledFaculty }) {
                           {a.Section ? `• Sec ${a.Section.section_name}` : ""}
                         </p>
                       </td>
-                      <td className="px-5 py-3">
+                      <td className="px-5 py-3 whitespace-nowrap">
                         <p className="text-xs text-slate-400">
                           {a.Subject?.subject_code}
                         </p>
@@ -554,10 +581,10 @@ export default function SubjectAllocation({ prefilledFaculty }) {
                           {a.Subject?.subject_name}
                         </p>
                       </td>
-                      <td className="px-5 py-3">
+                      <td className="px-5 py-3 whitespace-nowrap">
                         <div className="flex flex-col items-start gap-1">
                           <span
-                            className={`px-2 py-0.5 rounded text-[11px] font-semibold tracking-wide ${
+                            className={`px-2 py-0.5 rounded text-[11px] font-semibold tracking-wide inline-block ${
                               a.session_type?.toLowerCase() === "practical"
                                 ? "bg-purple-50 text-purple-600"
                                 : "bg-blue-50 text-blue-600"
@@ -570,7 +597,7 @@ export default function SubjectAllocation({ prefilledFaculty }) {
                           </span>
                         </div>
                       </td>
-                      <td className="px-5 py-3 text-right">
+                      <td className="px-5 py-3 text-right whitespace-nowrap">
                         <button
                           onClick={() => confirmDelete(a.allocation_id)}
                           className="p-1.5 text-red-400 hover:bg-red-50 hover:text-red-600 rounded-md transition-colors"
@@ -585,34 +612,39 @@ export default function SubjectAllocation({ prefilledFaculty }) {
             </table>
           </div>
 
-          <div className="flex items-center justify-end gap-1 px-6 py-4 border-t border-slate-100">
-            <button
-              disabled={page === 1}
-              onClick={() => setPage((p) => Math.max(1, p - 1))}
-              className="h-8 w-8 flex items-center justify-center rounded-lg border border-slate-200 disabled:opacity-40 hover:bg-slate-50 transition-colors"
-            >
-              ‹
-            </button>
-            {Array.from({ length: totalPages }, (_, i) => i + 1).map((p) => (
+          <div className="flex flex-col sm:flex-row items-center justify-between gap-4 px-4 sm:px-6 py-4 border-t border-slate-100 bg-white">
+            <span className="text-slate-500 text-sm text-center sm:text-left">
+              Showing {paginated.length} of {filteredAllocations.length} records
+            </span>
+            <div className="flex flex-wrap items-center justify-center gap-1">
               <button
-                key={p}
-                onClick={() => setPage(p)}
-                className={`h-8 w-8 flex items-center justify-center rounded-lg text-sm font-medium transition-colors ${
-                  p === page
-                    ? "bg-[#0b57d0] text-white"
-                    : "border border-slate-200 text-slate-600 hover:bg-slate-50"
-                }`}
+                disabled={page === 1}
+                onClick={() => setPage((p) => Math.max(1, p - 1))}
+                className="h-8 w-8 flex items-center justify-center rounded-lg border border-slate-200 disabled:opacity-40 hover:bg-slate-50 transition-colors shrink-0 text-slate-600"
               >
-                {p}
+                ‹
               </button>
-            ))}
-            <button
-              disabled={page === totalPages}
-              onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
-              className="h-8 w-8 flex items-center justify-center rounded-lg border border-slate-200 disabled:opacity-40 hover:bg-slate-50 transition-colors"
-            >
-              ›
-            </button>
+              {Array.from({ length: totalPages }, (_, i) => i + 1).map((p) => (
+                <button
+                  key={p}
+                  onClick={() => setPage(p)}
+                  className={`h-8 w-8 flex items-center justify-center rounded-lg text-sm font-medium transition-colors shrink-0 ${
+                    p === page
+                      ? "bg-[#0b57d0] text-white"
+                      : "border border-slate-200 text-slate-600 hover:bg-slate-50"
+                  }`}
+                >
+                  {p}
+                </button>
+              ))}
+              <button
+                disabled={page === totalPages}
+                onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
+                className="h-8 w-8 flex items-center justify-center rounded-lg border border-slate-200 disabled:opacity-40 hover:bg-slate-50 transition-colors shrink-0 text-slate-600"
+              >
+                ›
+              </button>
+            </div>
           </div>
         </div>
       </div>
@@ -667,14 +699,14 @@ export default function SubjectAllocation({ prefilledFaculty }) {
               <button
                 onClick={() => setDeleteConfirmId(null)}
                 disabled={deleting}
-                className="px-5 py-2.5 bg-white border border-slate-200 text-slate-700 text-sm font-medium rounded-lg hover:bg-slate-50 transition-colors disabled:opacity-50"
+                className="w-full sm:w-auto px-5 py-2.5 bg-white border border-slate-200 text-slate-700 text-sm font-medium rounded-lg hover:bg-slate-50 transition-colors disabled:opacity-50"
               >
                 Cancel
               </button>
               <button
                 onClick={executeDelete}
                 disabled={deleting}
-                className="px-5 py-2.5 bg-red-600 text-white text-sm font-medium rounded-lg hover:bg-red-700 transition-colors disabled:opacity-50 flex items-center gap-2"
+                className="w-full sm:w-auto px-5 py-2.5 bg-red-600 text-white text-sm font-medium rounded-lg hover:bg-red-700 transition-colors disabled:opacity-50 flex items-center justify-center gap-2"
               >
                 {deleting ? "Removing..." : "Remove"}
               </button>
@@ -683,25 +715,27 @@ export default function SubjectAllocation({ prefilledFaculty }) {
         </div>
       )}
 
-      {/* Error Modal */}
+{/* Error Modal */}
       {errorModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/50 backdrop-blur-sm p-4 animate-in fade-in duration-200">
-          <div className="bg-white rounded-xl shadow-xl w-full max-w-sm overflow-hidden scale-100 animate-in zoom-in-95 duration-200">
-            <div className="p-6 text-center">
-              <div className="h-14 w-14 rounded-full bg-red-50 text-red-500 flex items-center justify-center mx-auto mb-4">
-                <X size={28} strokeWidth={2.5} />
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/60 backdrop-blur-sm p-4 animate-in fade-in duration-200">
+          <div className="bg-white rounded-2xl shadow-2xl w-full max-w-md overflow-hidden scale-100 animate-in zoom-in-95 duration-200">
+            <div className="p-6 sm:p-8 text-center">
+              <div className="h-16 w-16 rounded-full bg-red-50 text-red-500 flex items-center justify-center mx-auto mb-5 ring-4 ring-red-50/50">
+                <AlertTriangle size={32} strokeWidth={2} />
               </div>
-              <h3 className="text-xl font-bold text-slate-800 mb-2">
+              <h3 className="text-xl font-bold text-slate-900 mb-3">
                 Action Failed
               </h3>
-              <p className="text-slate-500 text-sm">{errorModal}</p>
+              <p className="text-slate-500 text-sm leading-relaxed">
+                {errorModal}
+              </p>
             </div>
-            <div className="p-4 bg-slate-50 border-t border-slate-100 flex justify-center">
+            <div className="p-4 sm:p-6 bg-slate-50 border-t border-slate-100 flex justify-center">
               <button
                 onClick={() => setErrorModal("")}
-                className="w-full px-6 py-2.5 bg-slate-800 text-white text-sm font-medium rounded-lg hover:bg-slate-900 transition-colors"
+                className="w-full sm:w-auto min-w-[140px] px-6 py-3 bg-slate-900 text-white text-sm font-semibold rounded-xl hover:bg-slate-800 transition-all shadow-md hover:shadow-lg focus:ring-2 focus:ring-slate-400 focus:ring-offset-2"
               >
-                Close
+                Understood
               </button>
             </div>
           </div>
@@ -713,7 +747,7 @@ export default function SubjectAllocation({ prefilledFaculty }) {
 
 function Field({ label, children }) {
   return (
-    <div>
+    <div className="w-full">
       <label className="block text-sm font-medium text-slate-700 mb-1">
         {label}
       </label>

@@ -8,26 +8,31 @@ export default function Topbar({ title, subtitle, onSearch, onPendingClick, show
   useEffect(() => {
     const fetchTopbarCount = async () => {
       try {
-        const session = JSON.parse(localStorage.getItem('iipsCurrentSession') || '{}');
-        const response = await api.get("/super_admin/pendingAdmin", {
-          headers: { 'Authorization': `Bearer ${session.token}` }
-        });
+        // CLEANED: Removed manual headers, axiosInstance handles this
+        const response = await api.get("/super_admin/pendingAdmin");
         setPendingCount(response.data.data.length);
       } catch (err) {
         console.error("Error fetching Topbar count", err);
       }
     };
-    fetchTopbarCount();
+    
+    fetchTopbarCount(); // Initial load
+
+    // NEW: Listen for global refresh events to auto-update the pending badge
+    window.addEventListener('refresh-dashboard', fetchTopbarCount);
+
+    // Cleanup the listener when the component unmounts
+    return () => window.removeEventListener('refresh-dashboard', fetchTopbarCount);
   }, []);
 
   return (
     <div className="flex flex-col sm:flex-row sm:items-center justify-between px-4 md:px-8 py-4 md:py-6 border-b border-gray-100 bg-white gap-4 w-full">
       
       <div className="flex items-center gap-3">
-        {/* Mobile Menu Button */}
+        {/* Mobile Menu Button - UPDATED to lg:hidden to sync perfectly with the Sidebar */}
         <button 
           onClick={onMenuClick}
-          className="p-2 -ml-2 rounded-lg hover:bg-gray-100 md:hidden text-gray-600 transition-colors"
+          className="p-2 -ml-2 rounded-lg hover:bg-gray-100 lg:hidden text-gray-600 transition-colors"
         >
           <Menu className="w-6 h-6" />
         </button>
@@ -60,7 +65,8 @@ export default function Topbar({ title, subtitle, onSearch, onPendingClick, show
           </div>
         )}
         
-        <div className="w-10 h-10 rounded-full bg-purple-100 flex items-center justify-center shrink-0">
+        {/* Hide shield on tiny mobile screens to save space for the search bar */}
+        <div className="hidden sm:flex w-10 h-10 rounded-full bg-purple-100 items-center justify-center shrink-0">
           <ShieldCheck className="w-5 h-5 text-purple-600" />
         </div>
       </div>

@@ -6,7 +6,7 @@ const initialFormState = {
   phone_number: '',
   email: '',
   address: '',
-  qualification: '',
+  qualification: [], // Changed to array to hold multiple qualifications (from Yasmin's code)
   aadhaar_no: '',
   pan_card_no: '',
   bank_name: '',
@@ -20,18 +20,22 @@ export default function Register({ onNavigate, onRegistrationSuccess }) {
   const [step, setStep] = useState(1);
   const [formData, setFormData] = useState(initialFormState);
   const [submitError, setSubmitError] = useState('');
+  const [errorField, setErrorField] = useState(''); // Tracks which field has an error (from your code)
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [successData, setSuccessData] = useState(null);
 
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
 
+  
+  const [otherQualification, setOtherQualification] = useState('');
+  const [showOtherQualification, setShowOtherQualification] = useState(false);
+
   // Reference to the top of the form for scrolling
   const formTopRef = useRef(null);
 
   const progressWidth = step === 1 ? '36%' : '100%';
 
-  // NEW: Password requirements array linked to formData.password
   const passwordRequirements = [
     { label: 'At least 8 characters', met: formData.password.length >= 8 },
     { label: 'One special symbol (e.g., @, #, $)', met: /[!@#$%^&*(),.?":{}|<>]/.test(formData.password) },
@@ -53,7 +57,42 @@ export default function Register({ onNavigate, onRegistrationSuccess }) {
     }));
 
     setSubmitError('');
+    setErrorField(''); // Clear field error as user types
   };
+
+  // --- New Qualification Handlers ---
+  const handleQualSelect = (e) => {
+    const val = e.target.value;
+    if (val === '') return;
+    
+    if (val === 'Other') {
+      setShowOtherQualification(true);
+    } else {
+      setShowOtherQualification(false);
+      if (!formData.qualification.includes(val)) {
+        setFormData(prev => ({ ...prev, qualification: [...prev.qualification, val] }));
+      }
+    }
+    setErrorField(''); // Clear error if they select something
+  };
+
+  const removeQual = (qualToRemove) => {
+    setFormData(prev => ({
+      ...prev,
+      qualification: prev.qualification.filter(q => q !== qualToRemove)
+    }));
+  };
+
+  const addOtherQual = () => {
+    const trimmed = otherQualification.trim();
+    if (trimmed && !formData.qualification.includes(trimmed)) {
+      setFormData(prev => ({ ...prev, qualification: [...prev.qualification, trimmed] }));
+      setOtherQualification('');
+      setShowOtherQualification(false);
+      setErrorField('');
+    }
+  };
+  // -----------------------------------
 
   const scrollToError = () => {
     setTimeout(() => {
@@ -64,42 +103,79 @@ export default function Register({ onNavigate, onRegistrationSuccess }) {
   };
 
   const validateStepOne = () => {
-    if (!formData.full_name.trim()) return 'Please enter your full name.';
-    if (!/^[0-9]{10}$/.test(formData.phone_number.trim())) return 'Phone number must be 10 digits.';
-    if (!formData.email.trim()) return 'Please enter your email address.';
-    if (!formData.address.trim()) return 'Please enter your address.';
+    if (!formData.full_name.trim()) {
+      setErrorField('full_name');
+      return 'Please enter your full name.';
+    }
+    if (!/^[0-9]{10}$/.test(formData.phone_number.trim())) {
+      setErrorField('phone_number');
+      return 'Phone number must be 10 digits.';
+    }
+    if (!formData.email.trim()) {
+      setErrorField('email');
+      return 'Please enter your email address.';
+    }
+    if (!formData.address.trim()) {
+      setErrorField('address');
+      return 'Please enter your address.';
+    }
+    setErrorField('');
     return '';
   };
 
   const validateStepTwo = () => {
-    if (!formData.qualification.trim()) return 'Qualification: Please select your highest qualification.';
+    // Array length check merged with errorField logic
+    if (formData.qualification.length === 0) {
+      setErrorField('qualification');
+      return 'Qualification: Please select at least one qualification.';
+    }
     
     if (!/^[0-9]{12}$/.test(formData.aadhaar_no.trim())) {
+      setErrorField('aadhaar_no');
       return 'Aadhaar No: It must be exactly 12 numeric digits without spaces.';
     }
     
     if (!/^[A-Z]{5}[0-9]{4}[A-Z]{1}$/.test(formData.pan_card_no.trim().toUpperCase())) {
+      setErrorField('pan_card_no');
       return 'PAN Card: Invalid format. It must be 5 letters, 4 numbers, and 1 letter (e.g., ABCDE1234F).';
     }
     
-    if (!formData.bank_name.trim()) return 'Bank Name: Please enter your bank name.';
+    if (!formData.bank_name.trim()) {
+      setErrorField('bank_name');
+      return 'Bank Name: Please enter your bank name.';
+    }
     
     if (!/^[0-9]{8,18}$/.test(formData.account_no.trim())) {
+      setErrorField('account_no');
       return 'Account No: Must be a valid account number between 8 and 18 digits.';
     }
     
     if (!/^[A-Z]{4}0[A-Z0-9]{6}$/.test(formData.ifsc_code.trim().toUpperCase())) {
+      setErrorField('ifsc_code');
       return 'IFSC Code: Invalid format. It must be 4 letters, a zero (0), and 6 letters/numbers (e.g., SBIN0001234).';
     }
     
-    // Check that all password requirements are strictly met
     if (!passwordRequirements.every(r => r.met)) {
+      setErrorField('password');
       return 'Password: Please meet all password requirements.';
     }
     
-    if (formData.password !== formData.confirmPassword) return 'Confirm Password: Passwords do not match.';
+    if (formData.password !== formData.confirmPassword) {
+      setErrorField('confirmPassword');
+      return 'Confirm Password: Passwords do not match.';
+    }
     
+    setErrorField('');
     return '';
+  };
+
+  // Helper function to return dynamic border styling for inputs
+  const getInputClass = (fieldName) => {
+    const baseClass = "w-full rounded-lg border px-4 py-2.5 text-[#141B2B] placeholder-[#9CA3AF] focus:outline-none focus:ring-2";
+    if (errorField === fieldName) {
+      return `${baseClass} border-red-500 bg-red-50/30 focus:border-red-500 focus:ring-red-500/20`;
+    }
+    return `${baseClass} border-[#C3C5D8] focus:border-[#004DD2] focus:ring-[#004DD2]/20`;
   };
 
   const handleNext = (event) => {
@@ -114,10 +190,11 @@ export default function Register({ onNavigate, onRegistrationSuccess }) {
 
     setStep(2);
     setSubmitError('');
+    setErrorField('');
     scrollToError(); 
   };
 
-  const handleSubmit = async (event) => {
+const handleSubmit = async (event) => {
     event.preventDefault();
 
     const validationMessage = validateStepTwo();
@@ -129,13 +206,14 @@ export default function Register({ onNavigate, onRegistrationSuccess }) {
 
     setIsSubmitting(true);
     setSubmitError('');
+    setErrorField('');
 
     const payload = {
       full_name: formData.full_name.trim(),
       phone_number: formData.phone_number.trim(),
       email: formData.email.trim(),
       address: formData.address.trim(),
-      qualification: formData.qualification.trim(),
+      qualification: formData.qualification.join(', '), 
       aadhaar_no: formData.aadhaar_no.trim(), 
       pan_card_no: formData.pan_card_no.trim().toUpperCase(),
       bank_name: formData.bank_name.trim(),
@@ -167,31 +245,34 @@ export default function Register({ onNavigate, onRegistrationSuccess }) {
       setStep(3);
       scrollToError(); 
     } catch (error) {
-      // ENHANCED ERROR CATCHING: Combines raw DB errors and formatted API duplicate responses
+      // Safely grab the error message coming from your teammate's updated backend
       const errorMessage = error.response?.data?.message?.toLowerCase() || error.message?.toLowerCase() || '';
       const errorDetails = typeof error.response?.data?.data === 'string' ? error.response.data.data.toLowerCase() : '';
       const fullError = errorMessage + ' ' + errorDetails;
       
-      if (
-        fullError.includes('er_dup_entry') || 
-        error.response?.status === 409 || 
-        fullError.includes('already') || 
-        fullError.includes('exist')
-      ) {
-        if (fullError.includes('pan_card_no') || fullError.includes('pan')) {
-          setSubmitError('PAN Card Number already exists. Please verify your details.');
-        } else if (fullError.includes('account_no') || fullError.includes('account')) {
-          setSubmitError('Bank Account Number already exists. Please verify your banking details.');
-        } else if (fullError.includes('aadhaar_no') || fullError.includes('aadhaar')) {
-          setSubmitError('Aadhaar Number already exists. Please verify your details.');
-        } else if (fullError.includes('email')) {
-          setSubmitError('Email Address already exists. Please return to login and sign in.');
-        } else {
-          setSubmitError('This information is already registered. Please check your details or sign in.');
-        }
-      } else {
+      // Match the exact strings your teammate added in userService.js
+      if (fullError.includes('aadhaar number already exist')) {
+        setErrorField('aadhaar_no');
+        setSubmitError('This Aadhaar Number is already registered. Please verify your details.');
+      } 
+      else if (fullError.includes('pan card number already exist')) {
+        setErrorField('pan_card_no');
+        setSubmitError('This PAN Card Number is already registered. Please verify your details.');
+      } 
+      else if (fullError.includes('mobile number already exist')) {
+        setErrorField('phone_number');
+        setSubmitError('This Mobile Number is already registered. Please use a different number or sign in.');
+      } 
+      // Keeping email fallback just in case the backend checks that too
+      else if (fullError.includes('email')) {
+        setErrorField('email');
+        setSubmitError('Email Address already exists. Please return to login and sign in.');
+      } 
+      // Absolute fallback for any other unexpected errors
+      else {
         setSubmitError(error.response?.data?.message || 'Unable to complete faculty registration.');
       }
+      
       scrollToError();
     } finally {
       setIsSubmitting(false);
@@ -278,10 +359,10 @@ export default function Register({ onNavigate, onRegistrationSuccess }) {
                 <input
                   type="text"
                   name="full_name"
-                  placeholder="Dr. Jane Smith"
+                  placeholder="Dr. Amit Kumar"
                   value={formData.full_name}
                   onChange={handleChange}
-                  className="w-full rounded-lg border border-[#C3C5D8] px-4 py-2.5 text-[#141B2B] placeholder-[#9CA3AF] focus:border-[#004DD2] focus:outline-none focus:ring-2 focus:ring-[#004DD2]/20"
+                  className={getInputClass('full_name')}
                   required
                 />
               </div>
@@ -296,7 +377,7 @@ export default function Register({ onNavigate, onRegistrationSuccess }) {
                     value={formData.phone_number}
                     onChange={handleChange}
                     maxLength={10}
-                    className="w-full rounded-lg border border-[#C3C5D8] px-4 py-2.5 text-[#141B2B] placeholder-[#9CA3AF] focus:border-[#004DD2] focus:outline-none focus:ring-2 focus:ring-[#004DD2]/20"
+                    className={getInputClass('phone_number')}
                     required
                   />
                 </div>
@@ -306,10 +387,10 @@ export default function Register({ onNavigate, onRegistrationSuccess }) {
                   <input
                     type="email"
                     name="email"
-                    placeholder="jane.smith@university.edu"
+                    placeholder="amitkumar@university.edu"
                     value={formData.email}
                     onChange={handleChange}
-                    className="w-full rounded-lg border border-[#C3C5D8] px-4 py-2.5 text-[#141B2B] placeholder-[#9CA3AF] focus:border-[#004DD2] focus:outline-none focus:ring-2 focus:ring-[#004DD2]/20"
+                    className={getInputClass('email')}
                     required
                   />
                 </div>
@@ -319,11 +400,11 @@ export default function Register({ onNavigate, onRegistrationSuccess }) {
                 <label className="mb-1.5 block text-sm font-medium text-[#424656]">Address</label>
                 <textarea
                   name="address"
-                  placeholder="123 Academic Way, Science District, Knowledge City"
+                  placeholder="452001 Indrapuri Colony ,Indore ,MP ,India"
                   value={formData.address}
                   onChange={handleChange}
                   rows={3}
-                  className="w-full rounded-lg border border-[#C3C5D8] px-4 py-2.5 text-[#141B2B] placeholder-[#9CA3AF] focus:border-[#004DD2] focus:outline-none focus:ring-2 focus:ring-[#004DD2]/20"
+                  className={getInputClass('address')}
                   required
                 />
               </div>
@@ -336,42 +417,80 @@ export default function Register({ onNavigate, onRegistrationSuccess }) {
                 </div>
 
                 <div className="grid gap-5 md:grid-cols-2">
+                  {/* Multi-Select Qualification Logic */}
                   <div>
                     <label className="mb-1.5 block text-sm font-medium text-[#424656]">Qualification / Specialization</label>
+                    
+                    {/* Render selected qualifications as tags */}
+                    {formData.qualification.length > 0 && (
+                      <div className="mb-2 flex flex-wrap gap-2">
+                        {formData.qualification.map((qual, index) => (
+                          <span key={index} className="flex items-center gap-1 bg-[#EEF3FF] text-[#004DD2] px-2.5 py-1 rounded-md text-xs font-semibold border border-[#D9E3FF]">
+                            {qual}
+                            <button 
+                              type="button" 
+                              onClick={() => removeQual(qual)} 
+                              className="text-[#004DD2] hover:text-red-500 hover:bg-white rounded-full p-0.5 transition-colors focus:outline-none"
+                              aria-label="Remove qualification"
+                            >
+                              <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M6 18L18 6M6 6l12 12"></path></svg>
+                            </button>
+                          </span>
+                        ))}
+                      </div>
+                    )}
+
                     <select
-                      name="qualification"
-                      value={formData.qualification}
-                      onChange={handleChange}
-                      className="w-full rounded-lg border border-[#C3C5D8] px-4 py-2.5 text-[#141B2B] focus:border-[#004DD2] focus:outline-none focus:ring-2 focus:ring-[#004DD2]/20"
-                      required
+                      value=""
+                      onChange={handleQualSelect}
+                      className={getInputClass('qualification')}
                     >
-                      <option value="">Select highest qualification</option>
+                      <option value="">Select a qualification to add...</option>
                       <optgroup label="Doctoral Degrees">
                         <option value="Ph.D. (Computer Science)">Ph.D. (Computer Science)</option>
                         <option value="Ph.D. (Management)">Ph.D. (Management)</option>
                         <option value="Ph.D. (Information Technology)">Ph.D. (Information Technology)</option>
-                        <option value="Ph.D. (Other)">Ph.D. (Other Fields)</option>
                       </optgroup>
                       <optgroup label="Master's Degrees">
                         <option value="M.Tech (Computer Science/IT)">M.Tech (CS / IT)</option>
                         <option value="MCA (Master of Computer Applications)">MCA</option>
                         <option value="MBA (Master of Business Administration)">MBA</option>
                         <option value="M.Sc. (Computer Science/Electronics)">M.Sc. (CS / Electronics)</option>
-                        <option value="M.A. / M.Com / Other Masters">Other Master's Degree</option>
                       </optgroup>
                       <optgroup label="Bachelor's / Graduation Degrees">
                         <option value="B.Tech / B.E. (Computer Science/IT)">B.Tech / B.E. (CS / IT)</option>
                         <option value="BCA (Bachelor of Computer Applications)">BCA</option>
                         <option value="BBA (Bachelor of Business Administration)">BBA</option>
                         <option value="B.Sc. (Computer Science/IT/Electronics)">B.Sc. (CS / IT / Electronics)</option>
-                        <option value="B.A. / B.Com / Other Bachelor's">Other Bachelor's Degree</option>
                       </optgroup>
                       <optgroup label="Professional Certifications / Clearance">
                         <option value="UGC NET Qualified">UGC NET Qualified</option>
                         <option value="CSIR NET Qualified">CSIR NET Qualified</option>
                         <option value="GATE Qualified">GATE Qualified</option>
                       </optgroup>
+                      <option value="Other">Other (Please specify)</option>
                     </select>
+
+                    {/* Show input box if 'Other' is selected */}
+                    {showOtherQualification && (
+                      <div className="mt-2 flex gap-2">
+                        <input 
+                          type="text" 
+                          value={otherQualification} 
+                          onChange={(e) => setOtherQualification(e.target.value)} 
+                          placeholder="Type specific qualification"
+                          className="flex-1 rounded-lg border border-[#C3C5D8] px-4 py-2 text-[#141B2B] text-sm focus:border-[#004DD2] focus:outline-none focus:ring-2 focus:ring-[#004DD2]/20"
+                          autoFocus
+                        />
+                        <button 
+                          type="button" 
+                          onClick={addOtherQual} 
+                          className="bg-[#004DD2] text-white px-4 py-2 rounded-lg text-sm font-medium hover:bg-[#003bb3] transition-colors"
+                        >
+                          Add
+                        </button>
+                      </div>
+                    )}
                   </div>
 
                   <div>
@@ -383,7 +502,7 @@ export default function Register({ onNavigate, onRegistrationSuccess }) {
                       value={formData.aadhaar_no}
                       onChange={handleChange}
                       maxLength={12}
-                      className="w-full rounded-lg border border-[#C3C5D8] px-4 py-2.5 text-[#141B2B] placeholder-[#9CA3AF] focus:border-[#004DD2] focus:outline-none focus:ring-2 focus:ring-[#004DD2]/20"
+                      className={getInputClass('aadhaar_no')}
                       required
                     />
                   </div>
@@ -393,11 +512,11 @@ export default function Register({ onNavigate, onRegistrationSuccess }) {
                     <input
                       type="text"
                       name="pan_card_no"
-                      placeholder="10-digit alphanumeric"
+                      placeholder="10-digit alphanumeric(ABCDE1234F)"
                       value={formData.pan_card_no}
                       onChange={handleChange}
                       maxLength={10}
-                      className="w-full rounded-lg border border-[#C3C5D8] px-4 py-2.5 text-[#141B2B] placeholder-[#9CA3AF] focus:border-[#004DD2] focus:outline-none focus:ring-2 focus:ring-[#004DD2]/20"
+                      className={getInputClass('pan_card_no')}
                       required
                     />
                   </div>
@@ -419,7 +538,7 @@ export default function Register({ onNavigate, onRegistrationSuccess }) {
                       placeholder="e.g. State Bank of India"
                       value={formData.bank_name}
                       onChange={handleChange}
-                      className="w-full rounded-lg border border-[#C3C5D8] px-4 py-2.5 text-[#141B2B] placeholder-[#9CA3AF] focus:border-[#004DD2] focus:outline-none focus:ring-2 focus:ring-[#004DD2]/20"
+                      className={getInputClass('bank_name')}
                       required
                     />
                   </div>
@@ -432,7 +551,7 @@ export default function Register({ onNavigate, onRegistrationSuccess }) {
                       placeholder="8 to 18 digit account number"
                       value={formData.account_no}
                       onChange={handleChange}
-                      className="w-full rounded-lg border border-[#C3C5D8] px-4 py-2.5 text-[#141B2B] placeholder-[#9CA3AF] focus:border-[#004DD2] focus:outline-none focus:ring-2 focus:ring-[#004DD2]/20"
+                      className={getInputClass('account_no')}
                       required
                     />
                   </div>
@@ -442,11 +561,11 @@ export default function Register({ onNavigate, onRegistrationSuccess }) {
                     <input
                       type="text"
                       name="ifsc_code"
-                      placeholder="11-digit IFSC code"
+                      placeholder="11-digit IFSC code( SBIN0001234)"
                       value={formData.ifsc_code}
                       onChange={handleChange}
                       maxLength={11}
-                      className="w-full rounded-lg border border-[#C3C5D8] px-4 py-2.5 text-[#141B2B] placeholder-[#9CA3AF] focus:border-[#004DD2] focus:outline-none focus:ring-2 focus:ring-[#004DD2]/20"
+                      className={getInputClass('ifsc_code')}
                       required
                     />
                   </div>
@@ -468,7 +587,7 @@ export default function Register({ onNavigate, onRegistrationSuccess }) {
                         placeholder="Create a strong password"
                         value={formData.password}
                         onChange={handleChange}
-                        className="w-full rounded-lg border border-[#C3C5D8] py-2.5 pl-4 pr-12 text-[#141B2B] placeholder-[#9CA3AF] focus:border-[#004DD2] focus:outline-none focus:ring-2 focus:ring-[#004DD2]/20"
+                        className={`w-full rounded-lg border py-2.5 pl-4 pr-12 text-[#141B2B] placeholder-[#9CA3AF] focus:outline-none focus:ring-2 ${errorField === 'password' ? 'border-red-500 bg-red-50/30 focus:border-red-500 focus:ring-red-500/20' : 'border-[#C3C5D8] focus:border-[#004DD2] focus:ring-[#004DD2]/20'}`}
                         required
                       />
                       <button 
@@ -502,7 +621,7 @@ export default function Register({ onNavigate, onRegistrationSuccess }) {
                         placeholder="Repeat your password"
                         value={formData.confirmPassword}
                         onChange={handleChange}
-                        className="w-full rounded-lg border border-[#C3C5D8] py-2.5 pl-4 pr-12 text-[#141B2B] placeholder-[#9CA3AF] focus:border-[#004DD2] focus:outline-none focus:ring-2 focus:ring-[#004DD2]/20"
+                        className={`w-full rounded-lg border py-2.5 pl-4 pr-12 text-[#141B2B] placeholder-[#9CA3AF] focus:outline-none focus:ring-2 ${errorField === 'confirmPassword' ? 'border-red-500 bg-red-50/30 focus:border-red-500 focus:ring-red-500/20' : 'border-[#C3C5D8] focus:border-[#004DD2] focus:ring-[#004DD2]/20'}`}
                         required
                       />
                       <button 

@@ -14,6 +14,7 @@ import {
   XCircle,
   X,
   Building2,
+  Menu,
 } from "lucide-react";
 import api from "../../api/axiosInstance"; // Adjust the ../ as needed based on folder depth
 
@@ -65,7 +66,8 @@ function Toast({ toast, onClose }) {
 // ═══════════════════════════════════════════════════════════
 // Main Component
 // ═══════════════════════════════════════════════════════════
-export default function MonthlySummary() {
+// UPDATED: Added onMenuClick prop for the mobile Sidebar
+export default function MonthlySummary({ onMenuClick }) {
   const { month: curMonth, year: curYear } = getCurrentMonthYear();
 
   // ── State ────────────────────────────────────────────────
@@ -154,6 +156,19 @@ export default function MonthlySummary() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
+  // ── NEW: Global Auto-Refresh ─────────────────────────────
+  useEffect(() => {
+    const handleRefresh = () => {
+      if (hasApplied) {
+        fetchAllCourses(selectedMonth, selectedYear);
+        fetchSummary(selectedMonth, selectedYear, selectedCourseId);
+      }
+    };
+    
+    window.addEventListener('refresh-dashboard', handleRefresh);
+    return () => window.removeEventListener('refresh-dashboard', handleRefresh);
+  }, [selectedMonth, selectedYear, selectedCourseId, hasApplied]);
+
   // ── When course selection changes, refetch ───────────────
   const handleCourseSelect = (courseId) => {
     setSelectedCourseId(courseId);
@@ -226,6 +241,7 @@ export default function MonthlySummary() {
         // Refresh data after a short delay to allow the backend to process
         setTimeout(() => {
           handleApplyFilters();
+          window.dispatchEvent(new Event('refresh-dashboard')); // Tell others to refresh too
         }, 2000);
       }
     } catch (err) {
@@ -319,71 +335,80 @@ export default function MonthlySummary() {
       <Toast toast={toast} onClose={() => setToast((p) => ({ ...p, show: false }))} />
 
       {/* ─── Custom Top Bar ─────────────────────────────── */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between px-4 md:px-8 py-4 md:py-5 border-b border-gray-100 bg-white gap-4 w-full">
+      <div className="flex flex-col xl:flex-row xl:items-center justify-between px-4 md:px-8 py-4 md:py-5 border-b border-gray-100 bg-white gap-4 w-full">
         <div className="flex items-center gap-3">
+          {/* UPDATED: Mobile Menu Button */}
+          <button 
+            onClick={onMenuClick}
+            className="p-2 -ml-2 rounded-lg hover:bg-gray-100 lg:hidden text-gray-600 transition-colors shrink-0"
+          >
+            <Menu className="w-6 h-6" />
+          </button>
+          
           <div className="hidden md:flex w-10 h-10 rounded-xl bg-gradient-to-br from-purple-500 to-indigo-600 items-center justify-center shrink-0 shadow-md">
             <CalendarDays className="w-5 h-5 text-white" />
           </div>
           <div>
-            <h2 className="text-base md:text-lg font-bold text-gray-900">
+            <h2 className="text-base md:text-lg font-bold text-gray-900 leading-tight">
               Monthly Summary Report
             </h2>
             <div className="flex items-center gap-2 mt-0.5">
-              <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-semibold bg-orange-100 text-orange-700 border border-orange-200">
+              <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[10px] md:text-xs font-semibold bg-orange-100 text-orange-700 border border-orange-200">
                 Current Session: {currentYear}-{(currentYear + 1).toString().slice(2)}
               </span>
             </div>
           </div>
         </div>
 
-        <div className="flex items-center gap-3 flex-wrap">
+        {/* UPDATED: Action buttons grid for responsiveness */}
+        <div className="grid grid-cols-1 sm:grid-cols-3 xl:flex items-center gap-3 w-full xl:w-auto">
           {/* Trigger Cron */}
           <button
             onClick={handleTriggerNow}
             disabled={isTriggering}
-            className="flex items-center gap-2 px-4 py-2.5 rounded-xl border border-gray-200 text-gray-700 bg-white hover:bg-gray-50 text-sm font-semibold transition-all hover:shadow-sm disabled:opacity-50"
+            className="w-full xl:w-auto flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl border border-gray-200 text-gray-700 bg-white hover:bg-gray-50 text-sm font-semibold transition-all hover:shadow-sm disabled:opacity-50"
           >
             <RefreshCw className={`w-4 h-4 ${isTriggering ? "animate-spin" : ""}`} />
-            {isTriggering ? "Triggering..." : "Refresh Data"}
+            <span className="truncate">{isTriggering ? "Triggering..." : "Refresh Data"}</span>
           </button>
 
           {/* Export PDF */}
           <button
             onClick={handleDownloadPDF}
             disabled={isDownloading || !hasApplied}
-            className="flex items-center gap-2 px-4 py-2.5 rounded-xl border border-gray-200 text-gray-700 bg-white hover:bg-gray-50 text-sm font-semibold transition-all hover:shadow-sm disabled:opacity-50"
+            className="w-full xl:w-auto flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl border border-gray-200 text-gray-700 bg-white hover:bg-gray-50 text-sm font-semibold transition-all hover:shadow-sm disabled:opacity-50"
           >
             {isDownloading ? (
-              <Loader2 className="w-4 h-4 animate-spin" />
+              <Loader2 className="w-4 h-4 animate-spin shrink-0" />
             ) : (
-              <Download className="w-4 h-4" />
+              <Download className="w-4 h-4 shrink-0" />
             )}
-            Export PDF
+            <span className="truncate">Export PDF</span>
           </button>
 
           {/* Share / Institute PDF */}
           <button
             onClick={handleDownloadInstitutePDF}
             disabled={isDownloadingInstitute || !hasApplied}
-            className="flex items-center gap-2 px-5 py-2.5 rounded-xl bg-gradient-to-r from-purple-600 to-indigo-600 text-white text-sm font-semibold hover:from-purple-700 hover:to-indigo-700 transition-all shadow-md hover:shadow-lg disabled:opacity-50"
+            className="w-full xl:w-auto flex items-center justify-center gap-2 px-5 py-2.5 rounded-xl bg-gradient-to-r from-purple-600 to-indigo-600 text-white text-sm font-semibold hover:from-purple-700 hover:to-indigo-700 transition-all shadow-md hover:shadow-lg disabled:opacity-50"
           >
             {isDownloadingInstitute ? (
-              <Loader2 className="w-4 h-4 animate-spin" />
+              <Loader2 className="w-4 h-4 animate-spin shrink-0" />
             ) : (
-              <Share2 className="w-4 h-4" />
+              <Share2 className="w-4 h-4 shrink-0" />
             )}
-            Share Report
+            <span className="truncate">Share Report</span>
           </button>
         </div>
       </div>
 
       {/* ─── Content ────────────────────────────────────── */}
-      <div className="p-4 md:p-8 flex-1 overflow-y-auto">
+      <div className="p-4 md:p-8 flex-1 overflow-y-auto max-w-full">
         {/* ── Filter Bar ──────────────────────────────────── */}
-        <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-5 mb-6">
+        <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-4 md:p-5 mb-6">
           <div className="flex flex-col lg:flex-row lg:items-end gap-4">
             {/* Search */}
-            <div className="flex-1 min-w-0">
+            <div className="flex-1 min-w-0 w-full">
               <label className="block text-xs font-semibold text-gray-500 mb-1.5 tracking-wide">
                 Search Report Data
               </label>
@@ -400,7 +425,7 @@ export default function MonthlySummary() {
             </div>
 
             {/* Month Picker */}
-            <div className="w-full lg:w-56">
+            <div className="w-full lg:w-56 shrink-0">
               <label className="block text-xs font-semibold text-gray-500 mb-1.5 tracking-wide">
                 Select Month
               </label>
@@ -413,7 +438,7 @@ export default function MonthlySummary() {
             </div>
 
             {/* Course Dropdown */}
-            <div className="w-full lg:w-64 relative" ref={dropdownRef}>
+            <div className="w-full lg:w-64 relative shrink-0" ref={dropdownRef}>
               <label className="block text-xs font-semibold text-gray-500 mb-1.5 tracking-wide">
                 Select Program
               </label>
@@ -421,7 +446,7 @@ export default function MonthlySummary() {
                 onClick={() => setShowCourseDropdown(!showCourseDropdown)}
                 className="w-full flex items-center justify-between bg-gray-50 border border-gray-200 rounded-xl px-4 py-2.5 text-sm text-gray-700 hover:border-purple-400 focus:border-purple-400 focus:ring-2 focus:ring-purple-100 outline-none transition-all"
               >
-                <span className="truncate">
+                <span className="truncate pr-2">
                   {selectedCourseId
                     ? selectedCourseName
                     : "All Programs (Institute)"}
@@ -469,9 +494,9 @@ export default function MonthlySummary() {
             {/* Apply Button */}
             <button
               onClick={handleApplyFilters}
-              className="flex items-center justify-center gap-2 px-6 py-2.5 rounded-xl bg-gray-900 text-white text-sm font-semibold hover:bg-gray-800 transition-all shadow-sm whitespace-nowrap"
+              className="w-full lg:w-auto flex items-center justify-center gap-2 px-6 py-2.5 rounded-xl bg-gray-900 text-white text-sm font-semibold hover:bg-gray-800 transition-all shadow-sm whitespace-nowrap shrink-0"
             >
-              <Filter className="w-4 h-4" />
+              <Filter className="w-4 h-4 shrink-0" />
               Apply Filters
             </button>
           </div>
@@ -484,45 +509,45 @@ export default function MonthlySummary() {
             <p className="text-gray-500 font-medium">Loading summary data...</p>
           </div>
         ) : !hasApplied ? (
-          <div className="flex flex-col items-center justify-center py-24 gap-4 text-gray-400">
+          <div className="flex flex-col items-center justify-center py-24 gap-4 text-gray-400 px-4 text-center">
             <FileText className="w-16 h-16 text-gray-300" />
             <p className="font-medium text-lg">Select month & year, then click "Apply Filters"</p>
           </div>
         ) : (
           <div className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
             {/* ── Institute Header ───────────────────────── */}
-            <div className="border-b-2 border-gray-800 mx-6 md:mx-10 mt-8 pb-6 text-center">
+            <div className="border-b-2 border-gray-800 mx-4 md:mx-10 mt-8 pb-6 text-center">
               <div className="flex items-center justify-center gap-3 mb-2">
-                <Building2 className="w-6 h-6 text-gray-700" />
-                <h2 className="text-lg md:text-xl font-bold text-gray-900 tracking-wide uppercase">
+                <Building2 className="w-5 h-5 md:w-6 md:h-6 text-gray-700 shrink-0" />
+                <h2 className="text-sm md:text-xl font-bold text-gray-900 tracking-wide uppercase">
                   International Institute of Professional Studies
                 </h2>
               </div>
-              <p className="text-sm text-gray-600 font-medium tracking-wide uppercase">
+              <p className="text-xs md:text-sm text-gray-600 font-medium tracking-wide uppercase">
                 Devi Ahilya University, Indore
               </p>
               <div className="mt-4">
-                <p className="text-base font-bold text-gray-800">
+                <p className="text-sm md:text-base font-bold text-gray-800">
                   Visiting Faculty Payment
                 </p>
-                <p className="text-sm font-semibold text-gray-500 tracking-widest uppercase mt-0.5">
+                <p className="text-xs md:text-sm font-semibold text-gray-500 tracking-widest uppercase mt-0.5">
                   Monthly Summary
                 </p>
               </div>
             </div>
 
             {/* ── Month / Year / Course ──────────────────── */}
-            <div className="flex flex-col sm:flex-row items-center justify-between px-6 md:px-10 py-5">
-              <p className="text-base font-bold text-gray-800">
+            <div className="flex flex-col sm:flex-row items-center justify-between gap-3 px-6 md:px-10 py-5 text-center sm:text-left">
+              <p className="text-sm md:text-base font-bold text-gray-800">
                 Month:{" "}
                 <span className="text-gray-600 font-semibold">{selectedMonth}</span>
               </p>
               {selectedCourseId && (
-                <p className="text-sm font-semibold text-purple-600 bg-purple-50 px-3 py-1 rounded-full">
+                <p className="text-xs md:text-sm font-semibold text-purple-600 bg-purple-50 px-3 py-1 rounded-full">
                   {selectedCourseName}
                 </p>
               )}
-              <p className="text-base font-bold text-gray-800">
+              <p className="text-sm md:text-base font-bold text-gray-800">
                 Year:{" "}
                 <span className="text-gray-600 font-semibold">{selectedYear}</span>
               </p>
@@ -531,85 +556,88 @@ export default function MonthlySummary() {
             {/* ── Data Table ─────────────────────────────── */}
             <div className="px-4 md:px-10 pb-6">
               <div className="border border-gray-200 rounded-xl overflow-hidden">
-                <table className="w-full text-sm">
-                  <thead>
-                    <tr className="bg-gray-50 border-b border-gray-200">
-                      <th className="text-left px-4 md:px-6 py-4 font-bold text-gray-700 text-xs uppercase tracking-wider w-16">
-                        S. No.
-                      </th>
-                      <th className="text-left px-4 md:px-6 py-4 font-bold text-gray-700 text-xs uppercase tracking-wider w-28">
-                        UVFIN
-                      </th>
-                      <th className="text-left px-4 md:px-6 py-4 font-bold text-gray-700 text-xs uppercase tracking-wider">
-                        Name of Faculty
-                      </th>
-                      <th className="text-right px-4 md:px-6 py-4 font-bold text-gray-700 text-xs uppercase tracking-wider w-40">
-                        Total Amount
-                      </th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {facultyRows.length > 0 ? (
-                      facultyRows.map((row, idx) => (
-                        <tr
-                          key={row.uvfin || idx}
-                          className="border-b border-gray-100 hover:bg-gray-50/70 transition-colors"
-                        >
-                          <td className="px-4 md:px-6 py-4 text-gray-500 font-medium">
-                            {idx + 1}.
-                          </td>
-                          <td className="px-4 md:px-6 py-4 text-gray-600 font-mono text-xs">
-                            {row.uvfin || "—"}
-                          </td>
-                          <td className="px-4 md:px-6 py-4 text-gray-800 font-medium">
-                            {row.name}
-                          </td>
-                          <td className="px-4 md:px-6 py-4 text-right text-gray-800 font-semibold tabular-nums">
-                            {formatCurrency(row.totalAmount)}
+                {/* UPDATED: Added overflow-x-auto to prevent table squishing on mobile */}
+                <div className="overflow-x-auto hide-scrollbar">
+                  <table className="w-full text-sm min-w-[500px]">
+                    <thead>
+                      <tr className="bg-gray-50 border-b border-gray-200">
+                        <th className="text-left px-4 md:px-6 py-4 font-bold text-gray-700 text-xs uppercase tracking-wider w-16 whitespace-nowrap">
+                          S. No.
+                        </th>
+                        <th className="text-left px-4 md:px-6 py-4 font-bold text-gray-700 text-xs uppercase tracking-wider w-28 whitespace-nowrap">
+                          UVFIN
+                        </th>
+                        <th className="text-left px-4 md:px-6 py-4 font-bold text-gray-700 text-xs uppercase tracking-wider whitespace-nowrap">
+                          Name of Faculty
+                        </th>
+                        <th className="text-right px-4 md:px-6 py-4 font-bold text-gray-700 text-xs uppercase tracking-wider w-40 whitespace-nowrap">
+                          Total Amount
+                        </th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {facultyRows.length > 0 ? (
+                        facultyRows.map((row, idx) => (
+                          <tr
+                            key={row.uvfin || idx}
+                            className="border-b border-gray-100 hover:bg-gray-50/70 transition-colors"
+                          >
+                            <td className="px-4 md:px-6 py-4 text-gray-500 font-medium whitespace-nowrap">
+                              {idx + 1}.
+                            </td>
+                            <td className="px-4 md:px-6 py-4 text-gray-600 font-mono text-xs whitespace-nowrap">
+                              {row.uvfin || "—"}
+                            </td>
+                            <td className="px-4 md:px-6 py-4 text-gray-800 font-medium whitespace-nowrap">
+                              {row.name}
+                            </td>
+                            <td className="px-4 md:px-6 py-4 text-right text-gray-800 font-semibold tabular-nums whitespace-nowrap">
+                              {formatCurrency(row.totalAmount)}
+                            </td>
+                          </tr>
+                        ))
+                      ) : (
+                        <tr>
+                          <td
+                            colSpan={4}
+                            className="px-6 py-12 text-center text-gray-400 font-medium"
+                          >
+                            <FileText className="w-8 h-8 mx-auto mb-2 text-gray-300" />
+                            No faculty data found for {selectedMonth} {selectedYear}
                           </td>
                         </tr>
-                      ))
-                    ) : (
-                      <tr>
-                        <td
-                          colSpan={4}
-                          className="px-6 py-12 text-center text-gray-400 font-medium"
-                        >
-                          <FileText className="w-8 h-8 mx-auto mb-2 text-gray-300" />
-                          No faculty data found for {selectedMonth} {selectedYear}
-                        </td>
-                      </tr>
-                    )}
+                      )}
 
-                    {/* Grand Total Row */}
-                    {facultyRows.length > 0 && (
-                      <tr className="bg-gray-50 border-t-2 border-gray-200">
-                        <td
-                          colSpan={3}
-                          className="px-4 md:px-6 py-4 text-right font-bold text-gray-900 uppercase tracking-wide text-sm"
-                        >
-                          Grand Total
-                        </td>
-                        <td className="px-4 md:px-6 py-4 text-right font-bold text-purple-600 text-lg tabular-nums">
-                          {formatCurrency(grandTotal)}
-                        </td>
-                      </tr>
-                    )}
-                  </tbody>
-                </table>
+                      {/* Grand Total Row */}
+                      {facultyRows.length > 0 && (
+                        <tr className="bg-gray-50 border-t-2 border-gray-200">
+                          <td
+                            colSpan={3}
+                            className="px-4 md:px-6 py-4 text-right font-bold text-gray-900 uppercase tracking-wide text-sm whitespace-nowrap"
+                          >
+                            Grand Total
+                          </td>
+                          <td className="px-4 md:px-6 py-4 text-right font-bold text-purple-600 text-lg tabular-nums whitespace-nowrap">
+                            {formatCurrency(grandTotal)}
+                          </td>
+                        </tr>
+                      )}
+                    </tbody>
+                  </table>
+                </div>
               </div>
             </div>
 
             {/* ── Signature Blocks ────────────────────────── */}
-            <div className="px-6 md:px-10 pb-8 pt-4">
-              <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-x-8 gap-y-8">
+            <div className="px-4 md:px-10 pb-8 pt-4">
+              <div className="grid grid-cols-2 md:grid-cols-3 gap-x-4 md:gap-x-8 gap-y-8">
                 {programIncharges.map((name, idx) => (
                   <div key={idx} className="text-center">
                     <div className="border-b border-gray-300 mb-2 pb-8" />
-                    <p className="text-sm font-bold text-gray-700">
+                    <p className="text-[10px] md:text-sm font-bold text-gray-700">
                       Program Incharge
                     </p>
-                    <p className="text-xs text-gray-500 mt-0.5">{name}</p>
+                    <p className="text-[9px] md:text-xs text-gray-500 mt-0.5">{name}</p>
                   </div>
                 ))}
               </div>
@@ -626,48 +654,50 @@ export default function MonthlySummary() {
               <div className="px-4 md:px-10 pb-8">
                 <div className="border-t-2 border-gray-200 pt-6">
                   <h3 className="text-base font-bold text-gray-800 mb-4 flex items-center gap-2">
-                    <CalendarDays className="w-5 h-5 text-purple-500" />
+                    <CalendarDays className="w-5 h-5 text-purple-500 shrink-0" />
                     Course-wise Breakdown
                   </h3>
                   <div className="border border-gray-200 rounded-xl overflow-hidden">
-                    <table className="w-full text-sm">
-                      <thead>
-                        <tr className="bg-gray-50 border-b border-gray-200">
-                          <th className="text-left px-4 md:px-6 py-3 font-bold text-gray-700 text-xs uppercase tracking-wider">
-                            Course
-                          </th>
-                          <th className="text-right px-4 md:px-6 py-3 font-bold text-gray-700 text-xs uppercase tracking-wider w-40">
-                            Grand Total
-                          </th>
-                        </tr>
-                      </thead>
-                      <tbody>
-                        {allCoursesData.courses.map((c) => (
-                          <tr
-                            key={c.courseId || c.course_id}
-                            className="border-b border-gray-100 hover:bg-gray-50/70 transition-colors cursor-pointer"
-                            onClick={() => handleCourseSelect(c.courseId || c.course_id)}
-                          >
-                            <td className="px-4 md:px-6 py-3 text-gray-800 font-medium">
-                              {c.courseName || c.course_name}
+                    <div className="overflow-x-auto hide-scrollbar">
+                      <table className="w-full text-sm min-w-[400px]">
+                        <thead>
+                          <tr className="bg-gray-50 border-b border-gray-200">
+                            <th className="text-left px-4 md:px-6 py-3 font-bold text-gray-700 text-xs uppercase tracking-wider whitespace-nowrap">
+                              Course
+                            </th>
+                            <th className="text-right px-4 md:px-6 py-3 font-bold text-gray-700 text-xs uppercase tracking-wider w-40 whitespace-nowrap">
+                              Grand Total
+                            </th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {allCoursesData.courses.map((c) => (
+                            <tr
+                              key={c.courseId || c.course_id}
+                              className="border-b border-gray-100 hover:bg-gray-50/70 transition-colors cursor-pointer"
+                              onClick={() => handleCourseSelect(c.courseId || c.course_id)}
+                            >
+                              <td className="px-4 md:px-6 py-3 text-gray-800 font-medium whitespace-nowrap">
+                                {c.courseName || c.course_name}
+                              </td>
+                              <td className="px-4 md:px-6 py-3 text-right text-gray-800 font-semibold tabular-nums whitespace-nowrap">
+                                {formatCurrency(c.grandTotal || c.grand_total)}
+                              </td>
+                            </tr>
+                          ))}
+                          <tr className="bg-gray-50 border-t-2 border-gray-200">
+                            <td className="px-4 md:px-6 py-3 font-bold text-gray-900 uppercase text-xs md:text-sm whitespace-nowrap">
+                              Institute Grand Total
                             </td>
-                            <td className="px-4 md:px-6 py-3 text-right text-gray-800 font-semibold tabular-nums">
-                              {formatCurrency(c.grandTotal || c.grand_total)}
+                            <td className="px-4 md:px-6 py-3 text-right font-bold text-purple-600 text-sm md:text-base tabular-nums whitespace-nowrap">
+                              {formatCurrency(
+                                allCoursesData.grandTotal || allCoursesData.grand_total
+                              )}
                             </td>
                           </tr>
-                        ))}
-                        <tr className="bg-gray-50 border-t-2 border-gray-200">
-                          <td className="px-4 md:px-6 py-3 font-bold text-gray-900 uppercase text-sm">
-                            Institute Grand Total
-                          </td>
-                          <td className="px-4 md:px-6 py-3 text-right font-bold text-purple-600 text-base tabular-nums">
-                            {formatCurrency(
-                              allCoursesData.grandTotal || allCoursesData.grand_total
-                            )}
-                          </td>
-                        </tr>
-                      </tbody>
-                    </table>
+                        </tbody>
+                      </table>
+                    </div>
                   </div>
                 </div>
               </div>

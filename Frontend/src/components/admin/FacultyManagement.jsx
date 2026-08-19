@@ -15,7 +15,6 @@ const statusStyles = {
 };
 
 export default function FacultyManagement({ setActiveTab, onAllocateSubject }) {
-  // ... your component code
   const [faculty, setFaculty] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
@@ -50,6 +49,13 @@ export default function FacultyManagement({ setActiveTab, onAllocateSubject }) {
 
   useEffect(() => {
     fetchAll();
+  }, []);
+
+  // NEW: Listen for the global refresh event to instantly update table data
+  useEffect(() => {
+    const handleRefresh = () => fetchAll();
+    window.addEventListener('refresh-dashboard', handleRefresh);
+    return () => window.removeEventListener('refresh-dashboard', handleRefresh);
   }, []);
 
   useEffect(() => {
@@ -166,30 +172,35 @@ export default function FacultyManagement({ setActiveTab, onAllocateSubject }) {
   };
 
   return (
-    <main className="p-4 sm:p-6 space-y-6 w-full relative bg-slate-50/50 min-h-screen">
-      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+    <main className="p-4 sm:p-6 space-y-6 w-full relative bg-slate-50/50 min-h-screen max-w-full overflow-hidden">
+      
+      {/* Header Section */}
+      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
         <div>
-          <h1 className="text-2xl font-bold text-slate-900">Faculty Management</h1>
+          <h1 className="text-xl sm:text-2xl font-bold text-slate-900">Faculty Management</h1>
           <p className="text-sm text-slate-500 mt-0.5">All registered visiting faculty members</p>
         </div>
-        <div className="flex gap-3">
+        {/* UPDATED: Buttons wrap nicely on mobile */}
+        <div className="flex flex-wrap sm:flex-nowrap gap-3 w-full md:w-auto">
           <button
             onClick={handleExport}
-            className="flex items-center gap-2 px-4 py-2.5 rounded-lg border border-slate-200 bg-white text-sm font-medium text-slate-700 hover:bg-slate-50 transition-colors shadow-sm"
+            className="flex-1 sm:flex-none flex items-center justify-center gap-2 px-4 py-2.5 rounded-lg border border-slate-200 bg-white text-sm font-medium text-slate-700 hover:bg-slate-50 transition-colors shadow-sm whitespace-nowrap"
           >
             <Download size={16} /> Export
           </button>
           <button
             onClick={() => setActiveTab("dashboard")}
-            className="flex items-center gap-2 px-4 py-2.5 rounded-lg bg-[#2563eb] text-white text-sm font-medium hover:bg-blue-700 transition-colors shadow-sm"
+            className="flex-1 sm:flex-none flex items-center justify-center gap-2 px-4 py-2.5 rounded-lg bg-[#2563eb] text-white text-sm font-medium hover:bg-blue-700 transition-colors shadow-sm whitespace-nowrap"
           >
             <Plus size={16} /> Register New
           </button>
         </div>
       </div>
 
-      <div className="bg-white rounded-xl border border-slate-200 p-2 sm:p-3 flex flex-col md:flex-row gap-3 shadow-sm">
-        <div className="relative flex-1">
+      {/* Filters Section */}
+      {/* UPDATED: flex-col for mobile, wraps seamlessly into row on md screens */}
+      <div className="bg-white rounded-xl border border-slate-200 p-3 sm:p-4 flex flex-col lg:flex-row gap-3 shadow-sm w-full">
+        <div className="relative flex-1 w-full">
           <Search size={16} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400" />
           <input
             value={search}
@@ -199,53 +210,55 @@ export default function FacultyManagement({ setActiveTab, onAllocateSubject }) {
           />
         </div>
         
-        <select
-          value={designation}
-          onChange={(e) => setDesignation(e.target.value)}
-          className="px-3 py-2.5 rounded-lg border border-slate-200 text-sm font-medium text-slate-700 bg-white min-w-[190px] focus:outline-none focus:border-blue-500"
-        >
-          <option value="approved">Approved Faculty</option>
-          <option value="pending">Pending Approval</option>
-          <option value="rejected">Rejected Applications</option>
-          <option value="">All Faculty (Except Rejected)</option>
-        </select>
-        
-        <select
-          value={status}
-          onChange={(e) => setStatus(e.target.value)}
-          disabled={designation === "rejected"} // Disable status filter on rejected view
-          className="px-3 py-2.5 rounded-lg border border-slate-200 text-sm text-slate-600 bg-white min-w-[140px] focus:outline-none focus:border-blue-500 disabled:opacity-50 disabled:bg-slate-50"
-        >
-          <option value="">Select Status</option>
-          <option value="active">Active</option>
-          <option value="inactive">Inactive</option>
-        </select>
-
-        <div className="relative" ref={filterRef}>
-          <button 
-            onClick={() => setFilterMenuOpen(!filterMenuOpen)}
-            className="flex items-center gap-2 px-4 py-2.5 rounded-lg border border-slate-200 bg-white text-sm font-medium text-slate-700 hover:bg-slate-50 transition-colors h-full"
+        <div className="flex flex-col sm:flex-row gap-3 w-full lg:w-auto">
+          <select
+            value={designation}
+            onChange={(e) => setDesignation(e.target.value)}
+            className="w-full sm:w-auto lg:min-w-[190px] px-3 py-2.5 rounded-lg border border-slate-200 text-sm font-medium text-slate-700 bg-white focus:outline-none focus:border-blue-500"
           >
-            <Filter size={16} className="text-slate-500" /> Filter
-          </button>
+            <option value="approved">Approved Faculty</option>
+            <option value="pending">Pending Approval</option>
+            <option value="rejected">Rejected Applications</option>
+            <option value="">All Faculty (Except Rejected)</option>
+          </select>
           
-          {filterMenuOpen && (
-            <div className="absolute right-0 mt-2 w-56 bg-white border border-slate-200 rounded-xl shadow-lg py-1.5 z-20">
-              <div className="px-3 py-1.5 text-xs font-semibold text-slate-400 uppercase tracking-wider">Sort by Date</div>
-              <button
-                onClick={() => { setSortOrder("newest"); setFilterMenuOpen(false); }}
-                className={`w-full text-left px-4 py-2.5 text-sm hover:bg-slate-50 transition-colors ${sortOrder === "newest" ? "text-blue-600 font-medium bg-blue-50/50" : "text-slate-700"}`}
-              >
-                Date: Newest to Oldest
-              </button>
-              <button
-                onClick={() => { setSortOrder("oldest"); setFilterMenuOpen(false); }}
-                className={`w-full text-left px-4 py-2.5 text-sm hover:bg-slate-50 transition-colors ${sortOrder === "oldest" ? "text-blue-600 font-medium bg-blue-50/50" : "text-slate-700"}`}
-              >
-                Date: Oldest to Newest
-              </button>
-            </div>
-          )}
+          <select
+            value={status}
+            onChange={(e) => setStatus(e.target.value)}
+            disabled={designation === "rejected"}
+            className="w-full sm:w-auto lg:min-w-[140px] px-3 py-2.5 rounded-lg border border-slate-200 text-sm text-slate-600 bg-white focus:outline-none focus:border-blue-500 disabled:opacity-50 disabled:bg-slate-50"
+          >
+            <option value="">Select Status</option>
+            <option value="active">Active</option>
+            <option value="inactive">Inactive</option>
+          </select>
+
+          <div className="relative w-full sm:w-auto" ref={filterRef}>
+            <button 
+              onClick={() => setFilterMenuOpen(!filterMenuOpen)}
+              className="flex items-center justify-center gap-2 w-full px-4 py-2.5 rounded-lg border border-slate-200 bg-white text-sm font-medium text-slate-700 hover:bg-slate-50 transition-colors h-full"
+            >
+              <Filter size={16} className="text-slate-500" /> Filter
+            </button>
+            
+            {filterMenuOpen && (
+              <div className="absolute right-0 mt-2 w-56 bg-white border border-slate-200 rounded-xl shadow-lg py-1.5 z-20">
+                <div className="px-3 py-1.5 text-xs font-semibold text-slate-400 uppercase tracking-wider">Sort by Date</div>
+                <button
+                  onClick={() => { setSortOrder("newest"); setFilterMenuOpen(false); }}
+                  className={`w-full text-left px-4 py-2.5 text-sm hover:bg-slate-50 transition-colors ${sortOrder === "newest" ? "text-blue-600 font-medium bg-blue-50/50" : "text-slate-700"}`}
+                >
+                  Date: Newest to Oldest
+                </button>
+                <button
+                  onClick={() => { setSortOrder("oldest"); setFilterMenuOpen(false); }}
+                  className={`w-full text-left px-4 py-2.5 text-sm hover:bg-slate-50 transition-colors ${sortOrder === "oldest" ? "text-blue-600 font-medium bg-blue-50/50" : "text-slate-700"}`}
+                >
+                  Date: Oldest to Newest
+                </button>
+              </div>
+            )}
+          </div>
         </div>
       </div>
 
@@ -253,17 +266,18 @@ export default function FacultyManagement({ setActiveTab, onAllocateSubject }) {
       {/* 1. MAIN FACULTY TABLE (Shows when Designation !== "rejected") */}
       {/* ======================================================= */}
       {designation !== "rejected" && (
-        <div className="bg-white rounded-xl border border-slate-200 overflow-hidden shadow-sm animate-in fade-in duration-300">
-          <div className="overflow-x-auto">
-            <table className="w-full text-sm text-left">
+        <div className="bg-white rounded-xl border border-slate-200 overflow-hidden shadow-sm animate-in fade-in duration-300 w-full">
+          {/* UPDATED: hide-scrollbar added to keep it clean on mobile */}
+          <div className="overflow-x-auto hide-scrollbar w-full">
+            <table className="w-full text-sm text-left min-w-[750px]">
               <thead>
                 <tr className="bg-slate-50 text-[11px] font-bold text-slate-500 uppercase tracking-wider border-b border-slate-200">
-                  <th className="px-6 py-4">UVFIN</th>
-                  <th className="px-6 py-4">Faculty Name</th>
-                  <th className="px-6 py-4">Qualification</th>
-                  <th className="px-6 py-4">Status</th>
-                  <th className="px-6 py-4">Allocate Subject</th>
-                  <th className="px-6 py-4 text-center">Actions</th>
+                  <th className="px-4 sm:px-6 py-4 whitespace-nowrap">UVFIN</th>
+                  <th className="px-4 sm:px-6 py-4 whitespace-nowrap">Faculty Name</th>
+                  <th className="px-4 sm:px-6 py-4 whitespace-nowrap">Qualification</th>
+                  <th className="px-4 sm:px-6 py-4 whitespace-nowrap">Status</th>
+                  <th className="px-4 sm:px-6 py-4 whitespace-nowrap">Allocate Subject</th>
+                  <th className="px-4 sm:px-6 py-4 text-center whitespace-nowrap">Actions</th>
                 </tr>
               </thead>
               <tbody>
@@ -303,14 +317,14 @@ export default function FacultyManagement({ setActiveTab, onAllocateSubject }) {
                     
                     return (
                       <tr key={f.user_id} className="border-b border-slate-100 hover:bg-slate-50/50 transition-colors last:border-0">
-                        <td className="px-6 py-4 font-medium text-slate-600">
+                        <td className="px-4 sm:px-6 py-4 font-medium text-slate-600 whitespace-nowrap">
                         {(f.uvfin || f.FacultyApproval?.uvfin) ? (
                           f.uvfin || f.FacultyApproval?.uvfin
                         ) : (
                           <span className="text-slate-400 font-normal italic">Pending</span>
                         )}
                       </td>
-                        <td className="px-6 py-4">
+                        <td className="px-4 sm:px-6 py-4 whitespace-nowrap">
                           <div className="flex items-center gap-3">
                             <div className="h-9 w-9 shrink-0 rounded-full bg-[#eff6ff] text-[#2563eb] flex items-center justify-center text-sm font-bold uppercase border border-blue-100">
                               {f.full_name?.charAt(0) ?? "F"}
@@ -318,13 +332,13 @@ export default function FacultyManagement({ setActiveTab, onAllocateSubject }) {
                             <span className="font-bold text-slate-900">{f.full_name}</span>
                           </div>
                         </td>
-                        <td className="px-6 py-4 text-slate-600">{f.qualification || "N/A"}</td>
-                        <td className="px-6 py-4">
+                        <td className="px-4 sm:px-6 py-4 text-slate-600 whitespace-nowrap">{f.qualification || "N/A"}</td>
+                        <td className="px-4 sm:px-6 py-4 whitespace-nowrap">
                           {isPending ? (
                             <span className="text-slate-400 italic">N/A</span>
                           ) : (
                             <span
-                              className={`px-3 py-1 rounded-full text-xs font-semibold capitalize ${
+                              className={`px-3 py-1 rounded-full text-xs font-semibold capitalize inline-block ${
                                 isActive ? statusStyles.active : statusStyles.inactive
                               }`}
                             >
@@ -332,7 +346,7 @@ export default function FacultyManagement({ setActiveTab, onAllocateSubject }) {
                             </span>
                           )}
                         </td>
-                        <td className="px-6 py-4">
+                        <td className="px-4 sm:px-6 py-4 whitespace-nowrap">
                           {isPending ? (
                             <span className="text-slate-400 italic">N/A</span>
                           ) : f.allocated ? (
@@ -353,7 +367,7 @@ export default function FacultyManagement({ setActiveTab, onAllocateSubject }) {
                           </button>
                           )}
                         </td>
-                        <td className="px-6 py-4 text-center">
+                        <td className="px-4 sm:px-6 py-4 text-center whitespace-nowrap">
                           <button
                             onClick={() => setViewId(f.user_id)}
                             className="inline-flex flex-col items-center gap-1 text-slate-400 hover:text-[#004DD2] transition-colors"
@@ -369,15 +383,16 @@ export default function FacultyManagement({ setActiveTab, onAllocateSubject }) {
             </table>
           </div>
 
-          <div className="flex items-center justify-between px-6 py-4 border-t border-slate-100 text-sm bg-white">
-            <span className="text-slate-500">
+          {/* UPDATED: Pagination flex-wrap for mobile */}
+          <div className="flex flex-col sm:flex-row items-center justify-between gap-4 px-4 sm:px-6 py-4 border-t border-slate-100 text-sm bg-white">
+            <span className="text-slate-500 text-center sm:text-left">
               Showing {paginatedMain.length} of {mainFilteredAndSorted.length} records
             </span>
-            <div className="flex items-center gap-1">
+            <div className="flex flex-wrap justify-center items-center gap-1">
               <button
                 disabled={page === 1}
                 onClick={() => setPage((p) => Math.max(1, p - 1))}
-                className="h-8 w-8 flex items-center justify-center rounded-lg border border-slate-200 disabled:opacity-40 hover:bg-slate-50 transition-colors text-slate-600"
+                className="h-8 w-8 flex items-center justify-center rounded-lg border border-slate-200 disabled:opacity-40 hover:bg-slate-50 transition-colors text-slate-600 shrink-0"
               >
                 ‹
               </button>
@@ -385,7 +400,7 @@ export default function FacultyManagement({ setActiveTab, onAllocateSubject }) {
                 <button
                   key={p}
                   onClick={() => setPage(p)}
-                  className={`h-8 w-8 flex items-center justify-center rounded-lg text-sm font-semibold transition-colors ${
+                  className={`h-8 w-8 flex items-center justify-center rounded-lg text-sm font-semibold transition-colors shrink-0 ${
                     p === page ? "bg-[#2563eb] text-white" : "border border-slate-200 text-slate-600 hover:bg-slate-50"
                   }`}
                 >
@@ -395,7 +410,7 @@ export default function FacultyManagement({ setActiveTab, onAllocateSubject }) {
               <button
                 disabled={page === totalPages}
                 onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
-                className="h-8 w-8 flex items-center justify-center rounded-lg border border-slate-200 disabled:opacity-40 hover:bg-slate-50 transition-colors text-slate-600"
+                className="h-8 w-8 flex items-center justify-center rounded-lg border border-slate-200 disabled:opacity-40 hover:bg-slate-50 transition-colors text-slate-600 shrink-0"
               >
                 ›
               </button>
@@ -408,22 +423,23 @@ export default function FacultyManagement({ setActiveTab, onAllocateSubject }) {
       {/* 2. REJECTED APPLICATIONS TABLE (Shows ONLY when Designation === "rejected") */}
       {/* ============================================================== */}
       {designation === "rejected" && (
-        <div className="animate-in fade-in duration-300">
+        <div className="animate-in fade-in duration-300 w-full">
           <div className="flex items-center gap-2 mb-4">
             <UserX size={20} className="text-red-600" />
             <h2 className="text-lg font-bold text-slate-800">Rejected Applications</h2>
           </div>
           
-          <div className="bg-white rounded-xl border border-red-100 overflow-hidden shadow-sm">
-            <div className="overflow-x-auto">
-              <table className="w-full text-sm text-left">
+          <div className="bg-white rounded-xl border border-red-100 overflow-hidden shadow-sm w-full">
+            {/* UPDATED: horizontal scroll for mobile */}
+            <div className="overflow-x-auto hide-scrollbar w-full">
+              <table className="w-full text-sm text-left min-w-[600px]">
                 <thead>
                   <tr className="bg-red-50/50 text-[11px] font-bold text-slate-500 uppercase tracking-wider border-b border-red-100">
-                    <th className="px-6 py-4">UVFIN</th>
-                    <th className="px-6 py-4">Faculty Name</th>
-                    <th className="px-6 py-4">Qualification</th>
-                    <th className="px-6 py-4">Status</th>
-                    <th className="px-6 py-4 text-center">Actions</th>
+                    <th className="px-4 sm:px-6 py-4 whitespace-nowrap">UVFIN</th>
+                    <th className="px-4 sm:px-6 py-4 whitespace-nowrap">Faculty Name</th>
+                    <th className="px-4 sm:px-6 py-4 whitespace-nowrap">Qualification</th>
+                    <th className="px-4 sm:px-6 py-4 whitespace-nowrap">Status</th>
+                    <th className="px-4 sm:px-6 py-4 text-center whitespace-nowrap">Actions</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -440,8 +456,8 @@ export default function FacultyManagement({ setActiveTab, onAllocateSubject }) {
 
                   {paginatedRejected.map((f) => (
                     <tr key={f.user_id} className="border-b border-slate-50 hover:bg-slate-50/50 transition-colors last:border-0">
-                      <td className="px-6 py-4 font-medium text-slate-400 italic">N/A</td>
-                      <td className="px-6 py-4">
+                      <td className="px-4 sm:px-6 py-4 font-medium text-slate-400 italic whitespace-nowrap">N/A</td>
+                      <td className="px-4 sm:px-6 py-4 whitespace-nowrap">
                         <div className="flex items-center gap-3">
                           <div className="h-9 w-9 shrink-0 rounded-full bg-slate-100 text-slate-400 flex items-center justify-center text-sm font-bold uppercase border border-slate-200">
                             {f.full_name?.charAt(0) ?? "F"}
@@ -449,13 +465,13 @@ export default function FacultyManagement({ setActiveTab, onAllocateSubject }) {
                           <span className="font-bold text-slate-700">{f.full_name}</span>
                         </div>
                       </td>
-                      <td className="px-6 py-4 text-slate-500">{f.qualification || "N/A"}</td>
-                      <td className="px-6 py-4">
-                        <span className="px-3 py-1 rounded-full text-xs font-semibold bg-red-50 text-red-600">
+                      <td className="px-4 sm:px-6 py-4 text-slate-500 whitespace-nowrap">{f.qualification || "N/A"}</td>
+                      <td className="px-4 sm:px-6 py-4 whitespace-nowrap">
+                        <span className="px-3 py-1 rounded-full text-xs font-semibold bg-red-50 text-red-600 inline-block">
                           Rejected
                         </span>
                       </td>
-                      <td className="px-6 py-4 text-center">
+                      <td className="px-4 sm:px-6 py-4 text-center whitespace-nowrap">
                         <button
                           onClick={() => setViewId(f.user_id)}
                           className="px-4 py-1.5 border border-slate-200 rounded-lg text-xs font-semibold text-slate-600 hover:bg-slate-50 transition-colors inline-flex items-center gap-2"
@@ -470,15 +486,15 @@ export default function FacultyManagement({ setActiveTab, onAllocateSubject }) {
             </div>
             
             {paginatedRejected.length > 0 && (
-              <div className="flex items-center justify-between px-6 py-4 border-t border-red-100 text-sm bg-white">
-                <span className="text-slate-500">
+              <div className="flex flex-col sm:flex-row items-center justify-between gap-4 px-4 sm:px-6 py-4 border-t border-red-100 text-sm bg-white">
+                <span className="text-slate-500 text-center sm:text-left">
                   Showing {paginatedRejected.length} of {rejectedFilteredAndSorted.length} records
                 </span>
-                <div className="flex items-center gap-1">
+                <div className="flex flex-wrap justify-center items-center gap-1">
                   <button
                     disabled={rejectedPage === 1}
                     onClick={() => setRejectedPage((p) => Math.max(1, p - 1))}
-                    className="h-8 w-8 flex items-center justify-center rounded-lg border border-slate-200 disabled:opacity-40 hover:bg-slate-50 transition-colors text-slate-600"
+                    className="h-8 w-8 flex items-center justify-center rounded-lg border border-slate-200 disabled:opacity-40 hover:bg-slate-50 transition-colors text-slate-600 shrink-0"
                   >
                     ‹
                   </button>
@@ -486,7 +502,7 @@ export default function FacultyManagement({ setActiveTab, onAllocateSubject }) {
                     <button
                       key={p}
                       onClick={() => setRejectedPage(p)}
-                      className={`h-8 w-8 flex items-center justify-center rounded-lg text-sm font-semibold transition-colors ${
+                      className={`h-8 w-8 flex items-center justify-center rounded-lg text-sm font-semibold transition-colors shrink-0 ${
                         p === rejectedPage ? "bg-slate-800 text-white" : "border border-slate-200 text-slate-600 hover:bg-slate-50"
                       }`}
                     >
@@ -496,7 +512,7 @@ export default function FacultyManagement({ setActiveTab, onAllocateSubject }) {
                   <button
                     disabled={rejectedPage === totalRejectedPages}
                     onClick={() => setRejectedPage((p) => Math.min(totalRejectedPages, p + 1))}
-                    className="h-8 w-8 flex items-center justify-center rounded-lg border border-slate-200 disabled:opacity-40 hover:bg-slate-50 transition-colors text-slate-600"
+                    className="h-8 w-8 flex items-center justify-center rounded-lg border border-slate-200 disabled:opacity-40 hover:bg-slate-50 transition-colors text-slate-600 shrink-0"
                   >
                     ›
                   </button>
@@ -512,7 +528,11 @@ export default function FacultyManagement({ setActiveTab, onAllocateSubject }) {
         <FacultyModal 
           userId={viewId} 
           onClose={() => setViewId(null)} 
-          onActionSuccess={() => fetchAll()} 
+          // Fire the global refresh when an action succeeds in the modal
+          onActionSuccess={() => {
+            fetchAll();
+            window.dispatchEvent(new Event('refresh-dashboard'));
+          }} 
         />
       )}
     </main>

@@ -16,11 +16,15 @@ export default function SuperAdminDashboard({ onSignOut }) {
   });
   const [pendingCount, setPendingCount] = useState(0);
 
+  // NEW: State to control mobile sidebar drawer
+  const [isSidebarOpen, setIsSidebarOpen] = useState(false);
+
   // 2. Save to localStorage whenever the tab changes
   useEffect(() => {
     localStorage.setItem("superAdminActiveTab", activeTab);
   }, [activeTab]);
 
+  // 3. UPDATED: Fetch pending count and listen for global refreshes
   useEffect(() => {
     const fetchPendingCount = async () => {
       try {
@@ -32,7 +36,13 @@ export default function SuperAdminDashboard({ onSignOut }) {
       }
     };
 
-    fetchPendingCount();
+    fetchPendingCount(); // Initial fetch on mount or tab change
+
+    // Listen for global refresh events triggered by other components
+    window.addEventListener('refresh-dashboard', fetchPendingCount);
+
+    // Cleanup the listener when the component unmounts or before it re-runs
+    return () => window.removeEventListener('refresh-dashboard', fetchPendingCount);
   }, [activeTab]);
 
   const handleSignOut = async () => {
@@ -59,35 +69,36 @@ export default function SuperAdminDashboard({ onSignOut }) {
   const renderMainContent = () => {
     switch (activeTab) {
       case "pending":
-        return <PendingApprovalsPage onNavigate={setActiveTab} />;
+        return <PendingApprovalsPage onNavigate={setActiveTab} onMenuClick={() => setIsSidebarOpen(true)} />;
         
-      // 🛑 CHECK YOUR SIDEBAR.JSX! 🛑 
-      // If your sidebar passes "allAdmins" or "all_admins", change the string below to match it!
       case "programincharges":
-        return <AllAdminsPage onNavigate={setActiveTab} />;
+        return <AllAdminsPage onNavigate={setActiveTab} onMenuClick={() => setIsSidebarOpen(true)} />;
         
       case "programs":
-        return <ProgramsPage onNavigate={setActiveTab} />;
+        return <ProgramsPage onNavigate={setActiveTab} onMenuClick={() => setIsSidebarOpen(true)} />;
       case "monthly-summary":
-        return <MonthlySummary />;
+        return <MonthlySummary onMenuClick={() => setIsSidebarOpen(true)} />;
       case "settings":
-        return <SettingsPage onNavigate={setActiveTab} />;
+        return <SettingsPage onNavigate={setActiveTab} onMenuClick={() => setIsSidebarOpen(true)} />;
       default:
-        // This default fallback is why PendingApprovals kept showing up!
-        return <PendingApprovalsPage onNavigate={setActiveTab} />;
+        return <PendingApprovalsPage onNavigate={setActiveTab} onMenuClick={() => setIsSidebarOpen(true)} />;
     }
   };
 
   return (
-    <div className="flex w-full h-screen overflow-hidden bg-gray-50">
+    // Added 'relative' to the parent wrapper
+    <div className="flex w-full h-screen overflow-hidden bg-gray-50 relative">
       <Sidebar 
         active={activeTab} 
         onNavigate={setActiveTab} 
         onSignOut={handleSignOut} 
-        pendingCount={pendingCount} 
+        pendingCount={pendingCount}
+        isOpen={isSidebarOpen}         // Pass state down
+        setIsOpen={setIsSidebarOpen}   // Pass setter down
       />
 
-      <main className="flex-1 h-screen overflow-y-auto">
+      {/* Added 'w-full' to ensure main content takes full width on mobile */}
+      <main className="flex-1 h-screen overflow-y-auto w-full">
         {renderMainContent()}
       </main>
     </div>

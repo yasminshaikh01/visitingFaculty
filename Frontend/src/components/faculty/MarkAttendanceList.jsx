@@ -232,15 +232,14 @@ export default function MarkAttendanceList() {
 
   return (
     <div className="px-4 py-6 sm:px-8 relative">
-      <div className="mx-auto max-w-2xl rounded-2xl border border-slate-200 bg-white p-6 shadow-sm sm:p-8">
-        <h2 className="text-lg font-bold text-slate-900">Class Details</h2>
+      <div className="mx-auto max-w-2xl rounded-2xl border border-slate-200 bg-white p-4 shadow-sm sm:p-8">
         <p className="mt-1 text-sm text-slate-500">
           Please fill in all required fields for the academic record.
         </p>
 
         <div className="mt-6 space-y-5">
           {/* Date Picker Restricted by New Rules */}
-          <div>
+          <div className="w-full">
             <label className="mb-1.5 block text-sm font-medium text-slate-700">Date</label>
             <input
               type="date"
@@ -253,7 +252,7 @@ export default function MarkAttendanceList() {
           </div>
 
           {/* Allocation Selection */}
-          <div>
+          <div className="w-full">
             <label className="mb-1.5 block text-sm font-medium text-slate-700">Subject & Class</label>
             <select 
               value={selectedAllocationId}
@@ -261,11 +260,14 @@ export default function MarkAttendanceList() {
               className="w-full rounded-lg border border-slate-300 px-3.5 py-2.5 text-sm text-slate-700 focus:border-[#004DD2] focus:outline-none focus:ring-1 focus:ring-[#004DD2]"
             >
               <option value="">-- Select Allocated Subject --</option>
-              {allocations.map(alloc => (
-                <option key={alloc.allocation_id} value={alloc.allocation_id}>
-                  {alloc.subject_code} - {alloc.subject_name} ({alloc.course_name}, Sem {alloc.semester_number})
-                </option>
-              ))}
+              {allocations.map(alloc => {
+                const secName = alloc.section_name || alloc.Section?.section_name;
+                return (
+                  <option key={alloc.allocation_id} value={alloc.allocation_id}>
+                    {alloc.subject_code} - {alloc.subject_name} ({alloc.course_name}, Sem {alloc.semester_number}{secName ? `, Sec ${secName}` : ""})
+                  </option>
+                );
+              })}
             </select>
           </div>
 

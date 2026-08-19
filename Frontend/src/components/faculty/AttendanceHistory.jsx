@@ -261,6 +261,56 @@ export default function AttendanceHistory() {
     return timeStr.substring(0, 5);
   };
 
+  // --- EXPORT LOGIC ---
+  const handleExport = () => {
+    if (processedRecords.length === 0) return;
+
+    // 1. Define CSV Headers
+    const headers = ["Date", "Subject Code", "Subject Name", "Type", "Time", "Hours", "Rate", "Amount", "Status"];
+
+    // 2. Map the data into CSV rows
+    const rows = processedRecords.map(r => {
+      const date = formatDate(r.attendance_date);
+      const time = `${formatTime(r.start_time)} - ${formatTime(r.end_time)}`;
+      const baseAmount = (parseFloat(r.hours) || 0) * (parseFloat(r.rate_per_hour) || 0);
+      const isBillable = r.is_billable !== false && r.is_billable !== 0;
+      const typeStr = r.session_type || "Theory";
+      
+      // Helper to escape strings containing commas
+      const escape = (str) => `"${String(str).replace(/"/g, '""')}"`;
+
+      return [
+        escape(date),
+        escape(r.subject_code),
+        escape(r.subject_name),
+        escape(typeStr),
+        escape(time),
+        r.hours,
+        r.rate_per_hour,
+        isBillable ? baseAmount : 0, // Show 0 if capped
+        isBillable ? "Billable" : "Capped"
+      ].join(",");
+    });
+
+    // 3. Combine headers and rows
+    const csvContent = [headers.join(","), ...rows].join("\n");
+
+    // 4. Create a Blob and trigger the download
+    const blob = new Blob([csvContent], { type: "text/csv;charset=utf-8;" });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement("a");
+    
+    // Create a clean filename like: Attendance_John_Doe_2026-08-05.csv
+    const safeName = facultyName.replace(/[^a-z0-9]/gi, '_');
+    const todayStr = new Date().toISOString().split('T')[0];
+    
+    link.setAttribute("href", url);
+    link.setAttribute("download", `Attendance_${safeName}_${todayStr}.csv`);
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+  };
+
   const indexOfLastRecord = currentPage * recordsPerPage;
   const indexOfFirstRecord = indexOfLastRecord - recordsPerPage;
   const currentRecords = processedRecords.slice(indexOfFirstRecord, indexOfLastRecord);
@@ -271,7 +321,11 @@ export default function AttendanceHistory() {
       <PageHeader
         title="Attendance History"
         right={
-          <button className="flex items-center gap-2 rounded-lg border border-slate-300 px-4 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50 transition-colors bg-white shadow-sm">
+          <button 
+            onClick={handleExport}
+            disabled={processedRecords.length === 0}
+            className="flex items-center gap-2 rounded-lg border border-slate-300 px-4 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50 transition-colors bg-white shadow-sm disabled:opacity-50 disabled:cursor-not-allowed"
+          >
             <Download className="h-4 w-4" /> Export
           </button>
         }

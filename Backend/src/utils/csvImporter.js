@@ -45,15 +45,15 @@ function parseCSV(text) {
 
 // Map known course metadata (total semesters, sections, program incharge and year)
 const defaultCourseMeta = {
-    'C1': { name: 'MCA-(Integrated)', semCount: 10, sections: ['A', 'B'], program_incharge: 'Dr. Shaligram Prajapat', year: 5 },
-    'C2': { name: 'Mtech(IT)-(Integrated)', semCount: 10, sections: ['A', 'B'], program_incharge: 'Dr. Kirti Mathur', year: 5 },
-    'C3': { name: 'Mtech(CS)-(Integrated)', semCount: 10, sections: [], program_incharge: 'Dr. Yasmin Shaikh', year: 5 },
-    'C4': { name: 'MBA(MS)-(Integrated)', semCount: 10, sections: ['A', 'B'], program_incharge: 'Dr. Manmindar Singh', year: 5 },
-    'C5': { name: 'MBA(MS)', semCount: 4, sections: ['A', 'B', 'C'], program_incharge: 'Dr. Kapil Jain', year: 2 },
+    'C1': { name: 'MCA', semCount: 10, sections: ['A', 'B'], program_incharge: 'Dr. Shaligram Prajapat', year: 5 },
+    'C2': { name: 'M.Tech(IT)', semCount: 10, sections: ['A', 'B'], program_incharge: 'Dr. Kirti Mathur', year: 5 },
+    'C3': { name: 'M.Tech(CS)', semCount: 10, sections: [], program_incharge: 'Dr. Yasmin Shaikh', year: 5 },
+    'C4': { name: 'MBA(MS)-5YRS', semCount: 10, sections: ['A', 'B'], program_incharge: 'Dr. Manmindar Singh', year: 5 },
+    'C5': { name: 'MBA(MS)-2YRS', semCount: 4, sections: ['A', 'B', 'C'], program_incharge: 'Dr. Kapil Jain', year: 2 },
     'C6': { name: 'MBA(APR)', semCount: 4, sections: [], program_incharge: 'Dr. Anshu Bhati', year: 2 },
     'C7': { name: 'MBA(E-SHIP)', semCount: 4, sections: [], program_incharge: 'Dr. Nirmala Sawan', year: 2 },
     'C8': { name: 'Bcom(Hons)', semCount: 8, sections: [], program_incharge: 'Dr. Sujata Parwani', year: 4 },
-    'C9': { name: 'MBA(TM)-(Integrated)', semCount: 10, sections: [], program_incharge: 'Dr. Shilpa Bagdare', year: 5 }
+    'C9': { name: 'MBA(TM)', semCount: 10, sections: [], program_incharge: 'Dr. Shilpa Bagdare', year: 5 }
 };
 
 /**

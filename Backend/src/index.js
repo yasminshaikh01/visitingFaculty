@@ -42,6 +42,49 @@ app.use('/api/attendance', attendanceRoutes);
 app.use('/api/account-status', accountStatusRoutes);
 app.use('/api/monthly-summary', monthlySummaryRoutes);
 
+// ── Email diagnostic endpoint (hit on Railway to debug email issues) ──
+const { testEmailConnection, sendEmail } = require('./utils/emailService');
+app.get('/api/test-email', async (req, res) => {
+    try {
+        // Step 1: Test SMTP connection
+        const connectionResult = await testEmailConnection();
+        if (!connectionResult.success) {
+            return res.status(500).json({
+                step: 'SMTP Connection',
+                success: false,
+                error: connectionResult.error,
+                code: connectionResult.code
+            });
+        }
+
+        // Step 2: Send a test email
+        const emailResult = await sendEmail({
+            to: process.env.SMTP_USER,
+            subject: `Railway Email Test - ${new Date().toLocaleString()}`,
+            html: `<h2>✅ Railway Email Working</h2><p>Sent at: ${new Date().toLocaleString()}</p><p>Environment: ${process.env.NODE_ENV}</p>`
+        });
+
+        return res.json({
+            step: 'Send Email',
+            success: emailResult.success,
+            messageId: emailResult.messageId,
+            response: emailResult.response,
+            error: emailResult.error || null,
+            config: {
+                host: process.env.SMTP_HOST,
+                port: process.env.SMTP_PORT,
+                user: process.env.SMTP_USER,
+                secure: process.env.SMTP_SECURE
+            }
+        });
+    } catch (error) {
+        return res.status(500).json({
+            success: false,
+            error: error.message
+        });
+    }
+});
+
 const sequelize = require('./config/database');
 const { User, Subject } = require('./Schema');
 const PORT = process.env.PORT || 5000;

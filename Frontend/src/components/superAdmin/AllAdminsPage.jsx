@@ -3,7 +3,8 @@ import Topbar from "./Topbar";
 import { Users, UserCheck, ClipboardList, Download, ChevronLeft, ChevronRight, Loader2, Eye, CheckCircle, X, AlertCircle } from "lucide-react";
 import api from "../../api/axiosInstance"; // Adjust the ../ as needed based on folder depth
 
-export default function AllAdminsPage({ onNavigate }) {
+// UPDATED: Added onMenuClick prop
+export default function AllAdminsPage({ onNavigate, onMenuClick }) {
   const [admins, setAdmins] = useState([]);
   const [isLoading, setIsLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState("");
@@ -18,6 +19,13 @@ export default function AllAdminsPage({ onNavigate }) {
 
   useEffect(() => {
     fetchAllAdmins();
+  }, []);
+
+  // NEW: Listen for global refresh events to auto-update data from other tabs
+  useEffect(() => {
+    const handleRefresh = () => fetchAllAdmins();
+    window.addEventListener('refresh-dashboard', handleRefresh);
+    return () => window.removeEventListener('refresh-dashboard', handleRefresh);
   }, []);
 
   const fetchAllAdmins = async () => {
@@ -50,6 +58,9 @@ export default function AllAdminsPage({ onNavigate }) {
       const updatedAdmin = { ...selectedAdmin, is_active: !currentlyActive };
       setSelectedAdmin(updatedAdmin);
       setAdmins(admins.map(a => a.user_id === targetId ? updatedAdmin : a));
+
+      // NEW: Dispatch event so sidebar/topbar and other tabs sync instantly
+      window.dispatchEvent(new Event('refresh-dashboard'));
 
     } catch (err) {
       console.error(`Error trying to ${selectedAdmin.is_active !== false ? 'deactivate' : 'activate'} admin:`, err);
@@ -93,13 +104,20 @@ export default function AllAdminsPage({ onNavigate }) {
   const exportToCSV = () => {
     const headers = ["Name", "Email", "Department", "Approved On", "Role", "Status"];
     
+    // NEW: Compact date format just for CSV to prevent Excel ######## column width issue
+    const formatDateForCSV = (dateString) => {
+      if (!dateString) return "N/A";
+      const date = new Date(dateString);
+      return isNaN(date.getTime()) ? dateString : date.toLocaleDateString('en-GB'); // Outputs DD/MM/YYYY
+    };
+
     const csvContent = [
       headers.join(","),
       ...filteredAdmins.map(a => [
         a.full_name, 
         a.email, 
         a.department || "N/A", 
-        formatDate(a.updated_at || a.created_at), 
+        formatDateForCSV(a.updated_at || a.created_at), 
         "Program Incharge",
         a.is_active !== false ? "Active" : "Inactive"
       ].join(","))
@@ -120,6 +138,7 @@ export default function AllAdminsPage({ onNavigate }) {
 
   return (
     <div className="flex-1 bg-gray-50 min-h-screen relative overflow-hidden">
+      {/* UPDATED: Passed onMenuClick to Topbar */}
       <Topbar 
         title="All Program Incharge Accounts" 
         subtitle="Active and approved VFM System administrators"
@@ -129,17 +148,20 @@ export default function AllAdminsPage({ onNavigate }) {
           setSearchTerm(value);
           setCurrentPage(1); // Reset to page 1 on search
         }} 
+        onMenuClick={onMenuClick}
       />
       
-      <div className="px-8 py-8 pb-24">
-        <div className="flex items-start justify-between mb-6 flex-wrap gap-4">
+      {/* UPDATED: Adjusted px padding to match mobile */}
+      <div className="px-4 sm:px-8 py-8 pb-24 max-w-full">
+        {/* UPDATED: Flex-col on mobile, full width button */}
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between mb-6 gap-4">
           <div>
-            <h1 className="text-2xl font-bold text-gray-900 mb-1">All Program Incharge</h1>
-            <p className="text-gray-400">Active and approved VFM System administrators</p>
+            <h1 className="text-xl sm:text-2xl font-bold text-gray-900 mb-1">All Program Incharge</h1>
+            <p className="text-sm sm:text-base text-gray-400">Active and approved VFM System administrators</p>
           </div>
           <button 
             onClick={exportToCSV}
-            className="flex items-center gap-2 border border-gray-200 rounded-full px-5 py-2.5 text-sm font-semibold text-gray-700 bg-white hover:bg-gray-50 transition-colors shadow-sm"
+            className="w-full sm:w-auto flex items-center justify-center gap-2 border border-gray-200 rounded-full px-5 py-2.5 text-sm font-semibold text-gray-700 bg-white hover:bg-gray-50 transition-colors shadow-sm"
           >
             <Download className="w-4 h-4" /> Export
           </button>
@@ -153,7 +175,7 @@ export default function AllAdminsPage({ onNavigate }) {
         </div>
 
         {/* Table card */}
-        <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-6">
+        <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-4 sm:p-6">
           <div className="overflow-x-auto min-h-[400px]">
             {isLoading ? (
               <div className="flex flex-col items-center justify-center py-20 text-gray-500">
@@ -177,7 +199,7 @@ export default function AllAdminsPage({ onNavigate }) {
                       const isActive = a.is_active !== false;
                       return (
                         <tr key={a.user_id || a.email} className="border-b border-gray-50 last:border-0 hover:bg-gray-50 transition-colors align-middle">
-                          <td className="py-4 pr-4">
+                          <td className="py-4 pr-4 min-w-[200px]">
                             <div className="flex items-center gap-3">
                               <div className={`w-9 h-9 rounded-full flex items-center justify-center font-semibold text-sm uppercase shrink-0 ${isActive ? 'bg-purple-100 text-purple-600' : 'bg-gray-200 text-gray-500'}`}>
                                 {a.full_name ? a.full_name[0] : 'A'}
@@ -228,19 +250,19 @@ export default function AllAdminsPage({ onNavigate }) {
             )}
           </div>
           
-          {/* Functional Pagination Bar */}
+          {/* UPDATED: Mobile responsive flex layout for Pagination */}
           {!isLoading && filteredAdmins.length > 0 && (
-            <div className="mt-6 border-t border-gray-100 pt-4 flex items-center justify-between">
-              <div className="text-sm text-gray-400">
+            <div className="mt-6 border-t border-gray-100 pt-4 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+              <div className="text-sm text-gray-400 text-center sm:text-left">
                 Showing {indexOfFirstRecord + 1} to {Math.min(indexOfLastRecord, filteredAdmins.length)} of {filteredAdmins.length} records
               </div>
-              <div className="flex items-center gap-2">
+              <div className="flex items-center justify-center gap-2">
                 <button onClick={() => setCurrentPage(prev => Math.max(1, prev - 1))} disabled={currentPage === 1} className="p-1 text-gray-400 hover:text-gray-600 disabled:opacity-30 disabled:cursor-not-allowed transition-colors">
                   <ChevronLeft className="w-5 h-5" />
                 </button>
-                <div className="flex gap-1">
+                <div className="flex gap-1 overflow-x-auto hide-scrollbar max-w-[150px] sm:max-w-none">
                   {[...Array(totalPages)].map((_, i) => (
-                    <button key={i} onClick={() => setCurrentPage(i + 1)} className={`w-7 h-7 rounded-full text-xs font-bold transition-colors ${ currentPage === i + 1 ? "bg-[#004DD2] text-white" : "text-gray-500 hover:bg-gray-100" }`}>
+                    <button key={i} onClick={() => setCurrentPage(i + 1)} className={`shrink-0 w-7 h-7 rounded-full text-xs font-bold transition-colors ${ currentPage === i + 1 ? "bg-[#004DD2] text-white" : "text-gray-500 hover:bg-gray-100" }`}>
                       {i + 1}
                     </button>
                   ))}
@@ -259,25 +281,27 @@ export default function AllAdminsPage({ onNavigate }) {
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm p-4">
           <div className="bg-white rounded-2xl w-full max-w-2xl shadow-xl overflow-hidden flex flex-col max-h-[90vh]">
             
-            <div className="flex items-start justify-between p-6 border-b border-gray-100">
+            {/* UPDATED: Adjusted modal padding */}
+            <div className="flex items-start justify-between p-4 sm:p-6 border-b border-gray-100">
               <div>
-                <h2 className="text-xl font-bold text-gray-900">Program Incharge Application Details</h2>
-                <p className="text-sm text-gray-500 mt-1">Ref: {selectedAdmin.user_id || 'AR00X'} - Submitted {formatDate(selectedAdmin.created_at || selectedAdmin.submitted_date)}</p>
+                <h2 className="text-lg sm:text-xl font-bold text-gray-900">Program Incharge Application Details</h2>
+                <p className="text-xs sm:text-sm text-gray-500 mt-1">Submitted: {formatDate(selectedAdmin.created_at || selectedAdmin.submitted_date)}</p>
               </div>
-              <button onClick={closeModal} className="p-2 text-gray-400 hover:bg-gray-100 rounded-full transition-colors">
+              <button onClick={closeModal} className="p-2 text-gray-400 hover:bg-gray-100 rounded-full transition-colors shrink-0">
                 <X className="w-5 h-5" />
               </button>
             </div>
 
-            <div className="p-6 overflow-y-auto flex-1">
-              <div className="grid grid-cols-2 gap-4 mb-6">
+            <div className="p-4 sm:p-6 overflow-y-auto flex-1">
+              {/* UPDATED: grid-cols-1 on small screens, grid-cols-2 on sm */}
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-6">
                 <div className="bg-gray-50 p-4 rounded-xl border border-gray-100">
                   <p className="text-xs text-gray-400 mb-1">Full Name</p>
                   <p className="text-sm font-semibold text-gray-900">{selectedAdmin.full_name || 'Unknown'}</p>
                 </div>
-                <div className="bg-gray-50 p-4 rounded-xl border border-gray-100">
+                <div className="bg-gray-50 p-4 rounded-xl border border-gray-100 overflow-hidden">
                   <p className="text-xs text-gray-400 mb-1">Email Address</p>
-                  <p className="text-sm font-semibold text-gray-900">{selectedAdmin.email || 'Unknown'}</p>
+                  <p className="text-sm font-semibold text-gray-900 truncate">{selectedAdmin.email || 'Unknown'}</p>
                 </div>
                 <div className="bg-gray-50 p-4 rounded-xl border border-gray-100">
                   <p className="text-xs text-gray-400 mb-1">Mobile</p>
@@ -328,12 +352,12 @@ export default function AllAdminsPage({ onNavigate }) {
               )}
             </div>
 
-            <div className="p-4 border-t border-gray-100 bg-gray-50 flex items-center justify-between">
-              
+            {/* UPDATED: Flex wrapping and widths for buttons on mobile */}
+            <div className="p-4 sm:p-6 border-t border-gray-100 bg-gray-50 flex flex-col sm:flex-row items-center justify-between gap-3">
               <button 
                 onClick={handleToggleStatus}
                 disabled={isTogglingStatus}
-                className={`px-5 py-2.5 text-sm font-semibold rounded-full transition-colors flex items-center gap-2 border bg-white shadow-sm disabled:opacity-50 ${
+                className={`w-full sm:w-auto px-5 py-2.5 text-sm font-semibold rounded-full transition-colors flex items-center justify-center gap-2 border bg-white shadow-sm disabled:opacity-50 ${
                   selectedAdmin.is_active !== false 
                     ? 'border-red-200 text-red-600 hover:bg-red-50' 
                     : 'border-green-200 text-green-600 hover:bg-green-50'
@@ -346,11 +370,10 @@ export default function AllAdminsPage({ onNavigate }) {
 
               <button 
                 onClick={closeModal}
-                className="px-5 py-2.5 text-sm font-semibold text-gray-600 hover:bg-gray-200 rounded-full transition-colors"
+                className="w-full sm:w-auto px-5 py-2.5 text-sm font-semibold text-gray-600 hover:bg-gray-200 rounded-full transition-colors"
               >
                 Close
               </button>
-
             </div>
           </div>
         </div>
@@ -362,13 +385,13 @@ export default function AllAdminsPage({ onNavigate }) {
 // Helper Component for Stats
 function StatCard({ label, value, icon: Icon, bg, color }) {
   return (
-    <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-6 flex items-center gap-4">
-      <div className={`w-12 h-12 rounded-xl ${bg} flex items-center justify-center`}>
+    <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-4 sm:p-6 flex items-center gap-4 w-full">
+      <div className={`w-12 h-12 rounded-xl ${bg} flex items-center justify-center shrink-0`}>
         <Icon className={`w-6 h-6 ${color}`} />
       </div>
-      <div>
-        <p className="text-gray-400 text-sm">{label}</p>
-        <p className="text-2xl font-bold text-gray-900">{value}</p>
+      <div className="min-w-0">
+        <p className="text-gray-400 text-xs sm:text-sm truncate">{label}</p>
+        <p className="text-xl sm:text-2xl font-bold text-gray-900 truncate">{value}</p>
       </div>
     </div>
   );

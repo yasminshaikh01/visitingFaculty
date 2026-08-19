@@ -149,14 +149,13 @@ export default function ViewBill({ facultyUserId }) {
     fetchMonthlyBill();
   }, [selectedMonth, selectedYear, facultyUserId]);
 
-  // --- NEW: Filter out records that are marked as non-billable (exceeded 30k limit) ---
+  // Filter out records that are marked as non-billable (exceeded 30k limit)
   const billableRecords = useMemo(() => {
     return records.filter(r => r.is_billable !== false && r.is_billable !== 0);
   }, [records]);
 
   const aggregatedRecords = useMemo(() => {
     const grouped = {};
-    // Iterate over billableRecords ONLY
     billableRecords.forEach(r => {
       const key = `${r.course_name}_${r.semester_number}_${r.subject_code}_${r.rate_per_hour}`;
       if (!grouped[key]) {
@@ -208,21 +207,16 @@ export default function ViewBill({ facultyUserId }) {
 
   const monthShort = selectedMonth.substring(0, 3).toUpperCase();
   const billReferenceCode = `VFB/${selectedYear}/${monthShort}/001`;
-
-  // Display a warning if some records were excluded from this bill
   const excludedRecordsCount = records.length - billableRecords.length;
 
   return (
     <div className="pb-12 print:pb-0 print:bg-white">
-      {/* FOOLPROOF PRINT CSS INJECTION */}
       <style>
         {`
           @media print {
             @page { size: A4; margin: 10mm; }
-            
             body * { visibility: hidden; }
             #printable-bill, #printable-bill * { visibility: visible; }
-            
             #printable-bill {
               position: absolute;
               left: 0;
@@ -231,7 +225,9 @@ export default function ViewBill({ facultyUserId }) {
               border: none !important;
               box-shadow: none !important;
             }
-
+            /* NEW: Force body to collapse so hidden elements don't create blank pages */
+            html, body { height: auto !important; min-height: auto !important; overflow: visible !important; }
+            
             body { background: white !important; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
             .print-hide { display: none !important; }
             .print-force-break { page-break-before: always; }
@@ -240,67 +236,76 @@ export default function ViewBill({ facultyUserId }) {
       </style>
 
       <div className="print-hide">
-        <PageHeader
-          title="View Bill"
-          subtitle="Official DAVV remuneration bill"
-        />
+        <PageHeader title="View Bill" subtitle="Official DAVV remuneration bill" />
       </div>
 
       <div className="px-4 py-6 sm:px-8 print:p-0">
-        <div className="relative flex flex-wrap items-center justify-between gap-3 print-hide mb-6">
+        
+        {/* TOP BAR WITH NEW FLEX LAYOUT */}
+        <div className="relative flex flex-col sm:flex-row sm:items-center justify-between gap-4 print-hide mb-6">
           <div>
             <h2 className="text-lg font-bold text-slate-900">Document Preview</h2>
             <p className="mt-0.5 text-sm text-slate-500">Review the generated document before downloading.</p>
           </div>
           
-          <div className="relative">
+          <div className="flex flex-wrap items-center gap-3 w-full sm:w-auto">
+            {/* Download Button moved to the middle */}
             <button 
-              onClick={() => setShowFilter(!showFilter)}
-              className="flex items-center gap-2 rounded-lg bg-slate-900 px-4 py-2.5 text-sm font-semibold text-white transition-colors hover:bg-slate-800"
+              disabled={billableRecords.length === 0}
+              onClick={handleDownloadPDF}
+              className="flex flex-1 sm:flex-none items-center justify-center gap-2 rounded-lg bg-[#004DD2] px-4 py-2.5 text-sm font-semibold text-white transition-colors hover:bg-blue-800 disabled:cursor-not-allowed disabled:opacity-50"
             >
-              <Calendar className="h-4 w-4" /> 
-              {selectedMonth} {selectedYear}
-              <ChevronDown className="h-4 w-4" />
+              <Download className="h-4 w-4" /> Download PDF
             </button>
 
-            {showFilter && (
-              <div className="absolute right-0 top-full z-10 mt-2 w-64 rounded-xl border border-slate-200 bg-white p-4 shadow-xl">
-                <div className="space-y-4">
-                  <div>
-                    <label className="mb-1 block text-xs font-semibold text-slate-500">Month</label>
-                    <select 
-                      value={selectedMonth}
-                      onChange={(e) => setSelectedMonth(e.target.value)}
-                      className="w-full rounded-lg border border-slate-300 p-2 text-sm outline-none focus:border-[#004DD2] focus:ring-1 focus:ring-[#004DD2]"
+            <div className="relative flex-1 sm:flex-none">
+              <button 
+                onClick={() => setShowFilter(!showFilter)}
+                className="flex w-full sm:w-auto items-center justify-center gap-2 rounded-lg bg-slate-900 px-4 py-2.5 text-sm font-semibold text-white transition-colors hover:bg-slate-800"
+              >
+                <Calendar className="h-4 w-4" /> 
+                {selectedMonth} {selectedYear}
+                <ChevronDown className="h-4 w-4" />
+              </button>
+
+              {showFilter && (
+                <div className="absolute right-0 top-full z-10 mt-2 w-64 rounded-xl border border-slate-200 bg-white p-4 shadow-xl">
+                  <div className="space-y-4">
+                    <div>
+                      <label className="mb-1 block text-xs font-semibold text-slate-500">Month</label>
+                      <select 
+                        value={selectedMonth}
+                        onChange={(e) => setSelectedMonth(e.target.value)}
+                        className="w-full rounded-lg border border-slate-300 p-2 text-sm outline-none focus:border-[#004DD2] focus:ring-1 focus:ring-[#004DD2]"
+                      >
+                        {months.map(m => <option key={m} value={m}>{m}</option>)}
+                      </select>
+                    </div>
+                    <div>
+                      <label className="mb-1 block text-xs font-semibold text-slate-500">Year</label>
+                      <select 
+                        value={selectedYear}
+                        onChange={(e) => setSelectedYear(Number(e.target.value))}
+                        className="w-full rounded-lg border border-slate-300 p-2 text-sm outline-none focus:border-[#004DD2] focus:ring-1 focus:ring-[#004DD2]"
+                      >
+                        {years.map(y => <option key={y} value={y}>{y}</option>)}
+                      </select>
+                    </div>
+                    <button 
+                      onClick={fetchMonthlyBill}
+                      className="w-full rounded-lg bg-[#004DD2] py-2 text-sm font-semibold text-white hover:bg-blue-800"
                     >
-                      {months.map(m => <option key={m} value={m}>{m}</option>)}
-                    </select>
+                      Apply Filter
+                    </button>
                   </div>
-                  <div>
-                    <label className="mb-1 block text-xs font-semibold text-slate-500">Year</label>
-                    <select 
-                      value={selectedYear}
-                      onChange={(e) => setSelectedYear(Number(e.target.value))}
-                      className="w-full rounded-lg border border-slate-300 p-2 text-sm outline-none focus:border-[#004DD2] focus:ring-1 focus:ring-[#004DD2]"
-                    >
-                      {years.map(y => <option key={y} value={y}>{y}</option>)}
-                    </select>
-                  </div>
-                  <button 
-                    onClick={fetchMonthlyBill}
-                    className="w-full rounded-lg bg-[#004DD2] py-2 text-sm font-semibold text-white hover:bg-blue-800"
-                  >
-                    Apply Filter
-                  </button>
                 </div>
-              </div>
-            )}
+              )}
+            </div>
           </div>
         </div>
 
-        {/* MOBILE RESPONSIVE FIGMA CARD VIEW */}
+        {/* MOBILE RESPONSIVE CARD VIEW */}
         <div className={`max-w-md mx-auto bg-white rounded-2xl border border-slate-200 shadow-sm p-5 space-y-5 print-hide ${isFullDocumentView ? 'hidden' : 'block lg:hidden'}`}>
-          
           {excludedRecordsCount > 0 && (
             <div className="rounded-xl bg-orange-50 border border-orange-200 p-3 mb-4">
               <p className="text-xs font-semibold text-orange-800">Payment Cap Applied</p>
@@ -309,21 +314,14 @@ export default function ViewBill({ facultyUserId }) {
               </p>
             </div>
           )}
-
           <div className="flex items-center justify-between">
-            <span className="px-3 py-1 bg-indigo-50 text-[#004DD2] text-xs font-semibold rounded-full">
-              PREVIEW MODE
-            </span>
-            <span className="text-xs font-medium text-slate-500">
-              {selectedMonth} {selectedYear}
-            </span>
+            <span className="px-3 py-1 bg-indigo-50 text-[#004DD2] text-xs font-semibold rounded-full">PREVIEW MODE</span>
+            <span className="text-xs font-medium text-slate-500">{selectedMonth} {selectedYear}</span>
           </div>
-
           <div className="bg-slate-50 rounded-xl p-4 border border-slate-100">
             <p className="text-[11px] font-semibold tracking-wider text-slate-400 uppercase">Bill Reference</p>
             <p className="text-base font-bold text-slate-900 mt-0.5">{billReferenceCode}</p>
           </div>
-
           <div className="grid grid-cols-2 gap-4">
             <div>
               <p className="text-[11px] font-semibold text-slate-400 uppercase">Faculty Name & Email</p>
@@ -335,15 +333,12 @@ export default function ViewBill({ facultyUserId }) {
               <p className="text-sm font-semibold text-slate-800 mt-0.5">{totalHours} Hours</p>
             </div>
           </div>
-
           <div className="bg-blue-50/60 rounded-xl p-4 border border-blue-100 flex items-center justify-between">
             <span className="text-sm font-medium text-slate-600">Total Amount</span>
             <span className="text-xl font-bold text-[#004DD2]">
               ₹{totalAmount.toLocaleString('en-IN', { maximumFractionDigits: 2 })}
             </span>
           </div>
-
-          {/* Document Thumbnail Preview Banner */}
           <div className="relative rounded-xl overflow-hidden border border-slate-200 bg-slate-900 h-36 flex items-center justify-center">
             <div className="absolute inset-0 opacity-40 bg-cover bg-center" style={{ backgroundImage: `url(${davvLogo})` }}></div>
             <div className="absolute inset-0 bg-gradient-to-t from-slate-900/80 to-transparent"></div>
@@ -352,7 +347,6 @@ export default function ViewBill({ facultyUserId }) {
               <p className="text-xs font-semibold text-white">Verified by International Institute of Professional Studies</p>
             </div>
           </div>
-
           <div className="space-y-3 pt-2">
             <button 
               disabled={billableRecords.length === 0}
@@ -361,18 +355,12 @@ export default function ViewBill({ facultyUserId }) {
             >
               <Download className="h-4 w-4" /> Download PDF
             </button>
-            
             <button 
               onClick={() => setIsFullDocumentView(true)}
               className="w-full flex items-center justify-center gap-2 rounded-xl bg-blue-50 py-3 text-sm font-semibold text-[#004DD2] hover:bg-blue-100 transition-colors"
             >
               <Eye className="h-4 w-4" /> View Full Bill
             </button>
-          </div>
-
-          <div className="rounded-xl bg-slate-50 p-3.5 text-xs text-slate-500 border border-slate-100 flex gap-2">
-            <Calendar className="h-4 w-4 text-slate-400 shrink-0 mt-0.5" />
-            <p>Once generated, this bill will be sent to the Finance Department for final approval. Ensure all attendance hours are accurate before downloading.</p>
           </div>
         </div>
 
@@ -406,15 +394,13 @@ export default function ViewBill({ facultyUserId }) {
             ) : (
               <div className="p-4 sm:p-8 print:p-0">
                 
-                {/* --- PAGE 1: ANNEXURE IV --- */}
-                <div className={`mx-auto w-full min-h-[297mm] bg-white text-black print:block ${billPage === 1 ? 'block' : 'hidden'}`}>
+               {/* --- PAGE 1: ANNEXURE IV --- */}
+                <div className={`mx-auto w-full min-h-[297mm] print:min-h-0 bg-white text-black print:block ${billPage === 1 ? 'block' : 'hidden'}`}>
                   <div className="text-[13px] leading-relaxed p-6">
-                    
                     <div className="relative mb-6 flex items-center justify-center min-h-[5rem]">
                       <div className="absolute left-0 top-1/2 -translate-y-1/2 h-20 w-20">
                         <img src={davvLogo} alt="DAVV Logo" className="h-full w-full object-contain grayscale" />
                       </div>
-                      
                       <div className="text-center w-full px-24">
                         <p className="font-bold underline underline-offset-4 text-sm tracking-wide">ANNEXURE -IV</p>
                         <h1 className="mt-2 text-xl font-bold uppercase tracking-tight">DEVI AHILYA VISHWAVIDYALAYA, INDORE</h1>
@@ -441,31 +427,22 @@ export default function ViewBill({ facultyUserId }) {
                     <div className="mb-6 space-y-4 text-[14px]">
                       <div className="flex items-end gap-2">
                         <span className="w-16 shrink-0 font-medium">Name</span>
-                        <span className="flex-1 border-b border-black pb-0.5 text-left pl-2 font-semibold">
-                          {facultyInfo.name}
-                        </span>
+                        <span className="flex-1 border-b border-black pb-0.5 text-left pl-2 font-semibold">{facultyInfo.name}</span>
                       </div>
                       <div className="flex items-end gap-2">
                         <span className="w-16 shrink-0 font-medium">Address</span>
-                        <span className="flex-1 border-b border-black pb-0.5 text-left pl-2 font-semibold">
-                          {facultyInfo.address || "\u00A0"}
-                        </span>
+                        <span className="flex-1 border-b border-black pb-0.5 text-left pl-2 font-semibold">{facultyInfo.address || "\u00A0"}</span>
                       </div>
                       <div className="flex items-end gap-4">
                         <div className="flex flex-1 items-end gap-2">
                           <span className="shrink-0 font-medium">Mob No.</span>
-                          <span className="flex-1 border-b border-black pb-0.5 text-left pl-2 font-semibold">
-                            {facultyInfo.mobile || "\u00A0"}
-                          </span>
+                          <span className="flex-1 border-b border-black pb-0.5 text-left pl-2 font-semibold">{facultyInfo.mobile || "\u00A0"}</span>
                         </div>
                         <div className="flex flex-1 items-end gap-2">
                           <span className="shrink-0 font-medium">Qualification</span>
-                          <span className="flex-1 border-b border-black pb-0.5 text-left pl-2 font-semibold">
-                            {facultyInfo.qualification || "\u00A0"}
-                          </span>
+                          <span className="flex-1 border-b border-black pb-0.5 text-left pl-2 font-semibold">{facultyInfo.qualification || "\u00A0"}</span>
                         </div>
                       </div>
-                      
                       <div className="flex items-end justify-between gap-2 text-[13px]">
                         <div className="flex items-end gap-2">
                           <span className="font-medium">Month</span>
@@ -487,73 +464,73 @@ export default function ViewBill({ facultyUserId }) {
                       </div>
                     </div>
 
-                    <table className="mb-4 w-full border-collapse border border-black text-center text-sm">
-                      <thead>
-                        <tr>
-                          <th className="border border-black p-2 w-[12%]">Program</th>
-                          <th className="border border-black p-2 w-[15%]">Semester</th>
-                          <th className="border border-black p-2 w-[25%]">Subject</th>
-                          <th className="border border-black p-2 w-[20%]">Dates with<br/>Duration (Hrs.)</th>
-                          <th className="border border-black p-2 w-[8%]">Total<br/>Hrs.</th>
-                          <th className="border border-black p-2 w-[10%]">Rate</th>
-                          <th className="border border-black p-2 w-[10%]">Amount</th>
-                        </tr>
-                      </thead>
-                      <tbody>
-                        {aggregatedRecords.map((r, index) => (
-                          <tr key={index}>
-                            <td className="border border-black p-3 font-medium">{r.program}</td>
-                            <td className="border border-black p-3 font-medium">{r.semester}</td>
-                            <td className="border border-black p-3 font-medium">{r.subject}</td>
-                            <td className="border border-black p-2 text-xs leading-relaxed text-slate-700">
-                              {r.dates.map((dateStr, i) => (
-                                <React.Fragment key={i}>
-                                  {dateStr}
-                                  {i < r.dates.length - 1 && <br />}
-                                </React.Fragment>
-                              ))}
-                            </td>
-                            <td className="border border-black p-3 font-medium">{r.totalHrs}</td>
-                            <td className="border border-black p-3 font-medium">{r.rate}</td>
-                            <td className="border border-black p-3 font-medium">{r.amount.toLocaleString('en-IN', { maximumFractionDigits: 2 })}</td>
-                          </tr>
+              <table className="mb-2 w-full border-collapse border border-black text-center text-sm">
+                <thead>
+                  <tr>
+                    <th className="border border-black p-2 w-[12%]">Program</th>
+                    <th className="border border-black p-2 w-[15%]">Semester</th>
+                    <th className="border border-black p-2 w-[25%]">Subject</th>
+                    <th className="border border-black p-2 w-[20%]">Dates with<br/>Duration (Hrs.)</th>
+                    <th className="border border-black p-2 w-[8%]">Total<br/>Hrs.</th>
+                    <th className="border border-black p-2 w-[10%]">Rate</th>
+                    <th className="border border-black p-2 w-[10%]">Amount</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {aggregatedRecords.map((r, index) => (
+                    <tr key={index}>
+                      <td className="border border-black py-[1mm] px-2 text-xs font-medium">{r.program}</td>
+                      <td className="border border-black py-[1mm] px-2 text-xs font-medium">{r.semester}</td>
+                      <td className="border border-black py-[1mm] px-2 text-xs font-medium">{r.subject}</td>
+                      <td className="border border-black py-[1mm] px-2 text-[11px] leading-relaxed text-slate-700">
+                        {r.dates.map((dateStr, i) => (
+                          <React.Fragment key={i}>
+                            {dateStr}
+                            {i < r.dates.length - 1 && <br />}
+                          </React.Fragment>
                         ))}
-                      </tbody>
-                    </table>
+                      </td>
+                      <td className="border border-black py-[1mm] px-2 text-xs font-medium">{r.totalHrs}</td>
+                      <td className="border border-black py-[1mm] px-2 text-xs font-medium">{r.rate}</td>
+                      <td className="border border-black py-[1mm] px-2 text-xs font-medium">{r.amount.toLocaleString('en-IN', { maximumFractionDigits: 2 })}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
 
-                    <p className="mb-4 text-[11px] font-medium">*Total amount should not exceed the maximum limit of remuneration for a month.</p>
-                    
-                    <div className="mb-8 flex items-end font-bold text-[14px]">
-                      <span>Total Hours</span>
-                      <span className="mx-2 w-16 border-b border-black text-center">{totalHours}</span>
-                      <span className="ml-4">Total Amount</span>
-                      <span className="mx-2 w-24 border-b border-black text-center">{totalAmount.toLocaleString('en-IN', { maximumFractionDigits: 2 })}</span>
-                      <span className="ml-4 font-normal">(Amount in Words</span>
-                      <span className="mx-2 flex-1 border-b border-black text-center">{amountInWords}</span>
-                      <span className="font-normal">)</span>
-                    </div>
+              <p className="mb-3 text-[11px] font-medium">*Total amount should not exceed the maximum limit of remuneration for a month.</p>
+              
+              <div className="mb-4 flex items-end font-bold text-[14px]">
+                <span>Total Hours</span>
+                <span className="mx-2 w-16 border-b border-black text-center">{totalHours}</span>
+                <span className="ml-4">Total Amount</span>
+                <span className="mx-2 w-24 border-b border-black text-center">{totalAmount.toLocaleString('en-IN', { maximumFractionDigits: 2 })}</span>
+                <span className="ml-4 font-normal">(Amount in Words</span>
+                <span className="mx-2 flex-1 border-b border-black text-center">{amountInWords}</span>
+                <span className="font-normal">)</span>
+              </div>
 
-                    <div className="mb-8 text-[12px] font-medium leading-relaxed">
-                      <p className="font-bold underline text-[14px] mb-1">Note:</p>
-                      <ol className="list-[upper-alpha] pl-6 space-y-0.5">
-                        <li>Rate of Remuneration will be as per university rules.</li>
-                        <li>Faculty members are requested to complete all the above entries.</li>
-                        <li>Rates to be verified as per visiting faculty attendance register and signed by authorized person.</li>
-                        <li>Fill this form for theory/practical classes for every month.</li>
-                        <li>Faculty should not be paid excess amount of Rs 30,000/- PM from D.A.V.V.</li>
-                        <li>Verified visiting faculty Teaching attendance details should be attached with this bill.</li>
-                      </ol>
-                    </div>
+              <div className="mb-4 text-[12px] font-medium leading-relaxed">
+                <p className="font-bold underline text-[14px] mb-1">Note:</p>
+                <ol className="list-[upper-alpha] pl-6 space-y-0.5">
+                  <li>Rate of Remuneration will be as per university rules.</li>
+                  <li>Faculty members are requested to complete all the above entries.</li>
+                  <li>Rates to be verified as per visiting faculty attendance register and signed by authorized person.</li>
+                  <li>Fill this form for theory/practical classes for every month.</li>
+                  <li>Faculty should not be paid excess amount of Rs 30,000/- PM from D.A.V.V.</li>
+                  <li>Verified visiting faculty Teaching attendance details should be attached with this bill.</li>
+                </ol>
+              </div>
 
-                    <div className="mb-12 text-center text-[12px]" style={{ pageBreakInside: 'avoid', breakInside: 'avoid' }}>
-                      <p className="mb-2 font-bold underline text-[15px]">UNDERTAKING</p>
-                      <p className="text-justify mb-6 font-medium leading-relaxed">
-                        I was directed and permitted by the Head to engage the above Classes. For this I have submitted this bill. I therefore, request you to deduct _______% against Income Tax Returns from my payment. Further, I certify that total amount received per month doesn't exceed the maximum permissible limit of remuneration of any amount paid by D.A.V.V. which is Rs. 30,000/- at present.
-                      </p>
-                      
-                      <div className="flex justify-between mt-8" style={{ pageBreakInside: 'avoid', breakInside: 'avoid' }}>
-                        
-                        {/* LEFT COLUMN: Bank Details & Payment Info */}
+              {/* REMOVED aggressive pageBreakInside from this outer div so it doesn't jump to Page 2 */}
+              <div className="mb-4 text-center text-[12px]">
+                <p className="mb-1 font-bold underline text-[15px]">UNDERTAKING</p>
+                <p className="text-justify mb-4 font-medium leading-relaxed">
+                  I was directed and permitted by the Head to engage the above Classes. For this I have submitted this bill. I therefore, request you to deduct _______% against Income Tax Returns from my payment. Further, I certify that total amount received per month doesn't exceed the maximum permissible limit of remuneration of any amount paid by D.A.V.V. which is Rs. 30,000/- at present.
+                </p>
+                
+                {/* Kept pageBreakInside here so the signatures/bank details never split in half */}
+                <div className="flex justify-between mt-4" style={{ pageBreakInside: 'avoid', breakInside: 'avoid' }}>
                         <div className="flex flex-col justify-between">
                           <div className="w-72 border-2 border-black p-3 text-left space-y-1.5 font-semibold text-[13px]">
                             <p>Pan Card No. <span className="border-b border-black inline-block w-40">{facultyInfo.pan}</span></p>
@@ -570,7 +547,6 @@ export default function ViewBill({ facultyUserId }) {
                           </div>
                         </div>
 
-                        {/* RIGHT COLUMN: All Signatures Perfectly Aligned */}
                         <div className="flex flex-col justify-between items-center font-bold text-[12px] gap-8">
                           <div className="text-center mt-2">
                             <p>_____________________________________</p>
@@ -589,13 +565,13 @@ export default function ViewBill({ facultyUserId }) {
                             <p className="mt-1">Signature Director/Head (Name & Seal)</p>
                           </div>
                         </div>
-
                       </div>
                     </div>
                   </div>
                 </div>
+
                 {/* --- PAGE 2: ATTENDANCE REGISTER --- */}
-                <div className={`mx-auto w-full min-h-[297mm] bg-white text-black print:block print-force-break ${billPage === 2 ? 'block' : 'hidden'}`}>
+                <div className={`mx-auto w-full min-h-[297mm] print:min-h-0 bg-white text-black print:block print-force-break ${billPage === 2 ? 'block' : 'hidden'}`}>
                   <div className="text-[13px] leading-relaxed p-6 pt-12">
                     <div className="mb-8 flex items-center justify-end gap-2">
                       <span className="font-bold text-sm">UVFIN</span>
@@ -627,47 +603,53 @@ export default function ViewBill({ facultyUserId }) {
                         </tr>
                         <tr>
                           <td className="border border-black p-2.5">Month and Year : {selectedMonth} {selectedYear}</td>
-                          <td className="border border-black p-2.5">Semester and Session : {facultyInfo.semester} ({facultyInfo.session})</td>
+                          {/* UPDATED: Semester text removed, showing only session */}
+                          <td className="border border-black p-2.5">Session : {facultyInfo.session}</td>
                         </tr>
                       </tbody>
                     </table>
+              <table className="mb-6 w-full border-collapse border-2 border-t-0 border-black text-center text-sm">
+                <thead>
+                  <tr>
+                    <th className="border border-black py-1.5 px-2 w-[15%]">Date</th>
+                    <th className="border border-black py-1.5 px-2 w-[20%]">Subject Code</th>
+                    <th className="border border-black py-1.5 px-2 text-left pl-4 w-[35%]">Subject Name</th>
+                    <th className="border border-black py-1.5 px-2 w-[15%]">Theory / Practice</th>
+                    <th className="border border-black py-1.5 px-2 w-[15%]">Hours</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {billableRecords.map((r, i) => (
+                    <tr key={i}>
+                      {/* Minimal 1mm padding top/bottom to maximize rows per page */}
+                      <td className="border border-black py-[1mm] px-2 text-[12px]">{formatDate(r.attendance_date)}</td>
+                      <td className="border border-black py-[1mm] px-2 text-[12px] font-semibold">{r.subject_code}</td>
+                      
+                      {/* Subject Name is 2 sizes smaller (10px) with tight line-spacing for wrapping */}
+                      <td className="border border-black py-[1mm] px-2 text-left pl-4 font-semibold text-[10px] leading-tight">
+                        {r.subject_name}
+                      </td>
+                      
+                      <td className="border border-black py-[1mm] px-2 text-[12px]">{r.session_type || 'Theory'}</td>
+                      <td className="border border-black py-[1mm] px-2 text-[12px] font-bold">{parseFloat(r.hours)}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
 
-                    <table className="mb-24 w-full border-collapse border-2 border-t-0 border-black text-center text-sm">
-                      <thead>
-                        <tr>
-                          <th className="border border-black p-2.5 w-[15%]">Date</th>
-                          <th className="border border-black p-2.5 w-[20%]">Subject Code</th>
-                          <th className="border border-black p-2.5 text-left pl-4 w-[35%]">Subject Name</th>
-                          <th className="border border-black p-2.5 w-[15%]">Theory / Practice</th>
-                          <th className="border border-black p-2.5 w-[15%]">Hours</th>
-                        </tr>
-                      </thead>
-                      <tbody>
-                        {/* ONLY Map billable records for the official PDF */}
-                        {billableRecords.map((r, i) => (
-                          <tr key={i}>
-                            <td className="border border-black p-2.5">{formatDate(r.attendance_date)}</td>
-                            <td className="border border-black p-2.5 font-semibold">{r.subject_code}</td>
-                            <td className="border border-black p-2.5 text-left pl-4 font-semibold">{r.subject_name}</td>
-                            <td className="border border-black p-2.5">{r.session_type || 'Theory'}</td>
-                            <td className="border border-black p-2.5 font-bold">{parseFloat(r.hours)}</td>
-                          </tr>
-                        ))}
-                      </tbody>
-                    </table>
-
-                    <div className="grid grid-cols-3 gap-4 font-bold text-[12px] whitespace-nowrap mt-20 px-4" style={{ pageBreakInside: 'avoid', breakInside: 'avoid' }}>
-                      <div className="text-left">
-                        <p>Name & Sign. of Visiting Faculty</p>
-                      </div>
-                      <div className="text-center">
-                        <p>Name & Sign. of Program Incharge</p>
-                      </div>
-                      <div className="text-right flex flex-col gap-24">
-                        <p>Name & Sign. of Batch Mentor</p>
-                        <p>Name & Sign. of Director</p>
-                      </div>
-                    </div>
+              {/* UPDATED: Reduced top margin and completely rebuilt the vertical gap to fit perfectly on Page 2 */}
+              <div className="grid grid-cols-3 gap-4 font-bold text-[12px] whitespace-nowrap mt-4 px-4" style={{ pageBreakInside: 'avoid', breakInside: 'avoid' }}>
+                <div className="text-left">
+                  <p>Name & Sign. of Visiting Faculty</p>
+                </div>
+                <div className="text-center">
+                  <p>Name & Sign. of Program Incharge</p>
+                </div>
+                <div className="text-right flex flex-col gap-10">
+                  <p>Name & Sign. of Batch Mentor</p>
+                  <p>Name & Sign. of Director</p>
+                </div>
+              </div>
                   </div>
                 </div>
 
@@ -675,6 +657,7 @@ export default function ViewBill({ facultyUserId }) {
             )}
           </div>
 
+          {/* PAGE TOGGLE BUTTONS */}
           <div className="flex flex-row lg:flex-col gap-2 shrink-0 justify-center print-hide">
             <button 
               onClick={() => setBillPage(1)}
@@ -701,16 +684,6 @@ export default function ViewBill({ facultyUserId }) {
           </div>
         </div>
 
-        {/* Desktop Download Button Footer */}
-        <div className="mt-4 hidden lg:flex justify-end print-hide">
-          <button 
-            disabled={billableRecords.length === 0}
-            onClick={handleDownloadPDF}
-            className="flex items-center gap-2 rounded-lg bg-[#004DD2] px-6 py-3 text-sm font-semibold text-white transition-colors hover:bg-blue-800 disabled:cursor-not-allowed disabled:opacity-50"
-          >
-            <Download className="h-4 w-4" /> Download Full PDF
-          </button>
-        </div>
       </div>
     </div>
   );

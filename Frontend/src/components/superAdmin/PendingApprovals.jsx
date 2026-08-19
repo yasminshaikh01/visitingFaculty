@@ -10,7 +10,8 @@ const tabs = [
   { key: "allAdmin", label: "All" },
 ];
 
-export default function PendingApprovalsPage() {
+// UPDATED: Added onNavigate and onMenuClick props
+export default function PendingApprovalsPage({ onNavigate, onMenuClick }) {
   const [activeTab, setActiveTab] = useState("pendingAdmin");
   
   const [admins, setAdmins] = useState([]);
@@ -72,49 +73,7 @@ export default function PendingApprovalsPage() {
     return null;
   };
 
-  // const handleStatusUpdate = async (status) => {
-  //   if (status === 'rejected' && !rejectReason.trim()) {
-  //     setUpdateError("Please provide a reason for rejection.");
-  //     return;
-  //   }
-
-  //   if (!selectedAdmin) {
-  //     setUpdateError("No admin selected.");
-  //     return;
-  //   }
-
-  //   setIsUpdating(true);
-  //   setUpdateError("");
-
-  //   try {
-  //     const session = JSON.parse(localStorage.getItem('iipsCurrentSession') || '{}');
-  //     const targetUserId = selectedAdmin.user_id || selectedAdmin.id || selectedAdmin.userId;
-
-  //     if (!targetUserId) {
-  //       throw new Error("Could not identify the User ID.");
-  //     }
-
-  //     const payload = { status: status };
-  //     if (status === 'rejected') payload.rejection_reason = rejectReason;
-
-  //     await api.put(`/super_admin/admin/${targetUserId}/approve`, payload);
-
-  //     if (status === 'approved') {
-  //       showToast('success', 'Program Incharge Approved', `Credentials emailed to ${selectedAdmin.email}`);
-  //     } else {
-  //       showToast('error', 'Application Rejected', `Rejection notice sent to ${selectedAdmin.email}`);
-  //     }
-
-  //     closeModal();
-  //     fetchAdmins(activeTab); 
-
-  //   } catch (err) {
-  //     console.error(`Error updating status to ${status}:`, err);
-  //     setUpdateError(err.response?.data?.message || err.message || "An error occurred while updating.");
-  //   } finally {
-  //     setIsUpdating(false);
-  //   }
-  // };
+  // RESTORED: Uses your preferred server-sync method instead of local state mutation
   const handleStatusUpdate = async (status) => {
     if (status === 'rejected' && !rejectReason.trim()) {
       setUpdateError("Please provide a reason for rejection.");
@@ -130,6 +89,7 @@ export default function PendingApprovalsPage() {
     setUpdateError("");
 
     try {
+      const session = JSON.parse(localStorage.getItem('iipsCurrentSession') || '{}');
       const targetUserId = selectedAdmin.user_id || selectedAdmin.id || selectedAdmin.userId;
 
       if (!targetUserId) {
@@ -147,27 +107,13 @@ export default function PendingApprovalsPage() {
         showToast('error', 'Application Rejected', `Rejection notice sent to ${selectedAdmin.email}`);
       }
 
-      // Instantly update local state instead of refetching
-      setAdmins(prevAdmins =>
-        prevAdmins
-          .map(admin => {
-            const id = admin.user_id || admin.id || admin.userId;
-            if (id !== targetUserId) return admin;
-            return {
-              ...admin,
-              status: status,
-              AdminApproval: {
-                ...admin.AdminApproval,
-                status: status,
-                rejection_reason: status === 'rejected' ? rejectReason : admin.AdminApproval?.rejection_reason,
-              },
-            };
-          })
-          // If viewing the "pending" tab, the item should disappear immediately
-          .filter(admin => activeTab !== 'pendingAdmin' || getAdminStatus(admin) === 'pending')
-      );
-
       closeModal();
+      
+      // Fetch fresh data directly from the server to guarantee accuracy
+      fetchAdmins(activeTab); 
+      
+      // Fire the global refresh so the Sidebar and Topbar instantly sync their counts
+      window.dispatchEvent(new Event('refresh-dashboard'));
 
     } catch (err) {
       console.error(`Error updating status to ${status}:`, err);
@@ -273,30 +219,38 @@ export default function PendingApprovalsPage() {
         </div>
       )}
 
-      <Topbar title="Pending Program Incharge Approvals" subtitle="Review, approve or reject PI registration requests" showSearch={false} />
+      {/* UPDATED: Added onMenuClick prop */}
+      <Topbar title="Pending Program Incharge Approvals" subtitle="Review, approve or reject PI registration requests" showSearch={false} onMenuClick={onMenuClick} />
 
-      <div className="px-8 py-8 pb-24">
-        <h1 className="text-2xl font-bold text-gray-900 mb-1">Program Incharge Registration Approvals</h1>
-        <p className="text-gray-400 mb-6">Review, approve, or reject pending PI account requests</p>
+      {/* UPDATED: px padding changed for mobile screens */}
+      <div className="px-4 sm:px-8 py-8 pb-24 max-w-full">
+        {/* UPDATED: text sizes responsive */}
+        <h1 className="text-xl sm:text-2xl font-bold text-gray-900 mb-1">Program Incharge Registration Approvals</h1>
+        <p className="text-sm sm:text-base text-gray-400 mb-6">Review, approve, or reject pending PI account requests</p>
 
-        <div className="inline-flex bg-gray-100 rounded-full p-1 mb-6">
-          {tabs.map((tab) => (
-            <button
-              key={tab.key}
-              onClick={() => setActiveTab(tab.key)}
-              className={`flex items-center gap-2 px-5 py-2 rounded-full text-sm font-medium transition-colors ${
-                activeTab === tab.key ? "bg-white text-gray-900 shadow-sm" : "text-gray-500 hover:text-gray-700"
-              }`}
-            >
-              {tab.label}
-            </button>
-          ))}
+        {/* UPDATED: Wrapped tabs in overflow container for horizontal scroll on mobile */}
+        <div className="overflow-x-auto hide-scrollbar -mx-4 px-4 sm:mx-0 sm:px-0 mb-6">
+          <div className="inline-flex bg-gray-100 rounded-full p-1 whitespace-nowrap min-w-max">
+            {tabs.map((tab) => (
+              <button
+                key={tab.key}
+                onClick={() => setActiveTab(tab.key)}
+                className={`flex items-center gap-2 px-4 sm:px-5 py-2 rounded-full text-sm font-medium transition-colors ${
+                  activeTab === tab.key ? "bg-white text-gray-900 shadow-sm" : "text-gray-500 hover:text-gray-700"
+                }`}
+              >
+                {tab.label}
+              </button>
+            ))}
+          </div>
         </div>
 
-        <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-6">
-          <div className="flex items-center justify-between mb-6 gap-4 flex-wrap">
-            <div className="flex items-center flex-1 min-w-[260px] border border-gray-200 rounded-full px-4 py-2.5 gap-2">
-              <Search className="w-4 h-4 text-gray-400" />
+        {/* UPDATED: padding adjusted for mobile */}
+        <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-4 sm:p-6">
+          {/* UPDATED: flex-col on mobile, full width search bar */}
+          <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between mb-6 gap-4">
+            <div className="flex items-center w-full sm:flex-1 sm:max-w-md border border-gray-200 rounded-full px-4 py-2.5 gap-2">
+              <Search className="w-4 h-4 text-gray-400 shrink-0" />
               <input 
                 type="text" 
                 placeholder="Search by name, email or Employee ID..." 
@@ -319,13 +273,13 @@ export default function PendingApprovalsPage() {
               <table className="w-full text-left">
                 <thead>
                   <tr className="text-xs font-semibold text-gray-400 border-b border-gray-100">
-                    <th className="py-3 pr-4 font-semibold uppercase">Registration ID</th>
-                    <th className="py-3 pr-4 font-semibold uppercase">Program Incharge Name</th>
-                    <th className="py-3 pr-4 font-semibold uppercase">Designation</th>
-                    <th className="py-3 pr-4 font-semibold uppercase">Employee ID</th>
-                    <th className="py-3 pr-4 font-semibold uppercase">Submitted</th>
-                    <th className="py-3 pr-4 font-semibold uppercase">Status</th>
-                    <th className="py-3 pr-4 font-semibold uppercase">Actions</th>
+                    {/* UPDATED: added whitespace-nowrap to prevent squishing */}
+                    <th className="py-3 pr-4 font-semibold uppercase whitespace-nowrap">Program Incharge Name</th>
+                    <th className="py-3 pr-4 font-semibold uppercase whitespace-nowrap">Designation</th>
+                    <th className="py-3 pr-4 font-semibold uppercase whitespace-nowrap">Employee ID</th>
+                    <th className="py-3 pr-4 font-semibold uppercase whitespace-nowrap">Submitted</th>
+                    <th className="py-3 pr-4 font-semibold uppercase whitespace-nowrap">Status</th>
+                    <th className="py-3 pr-4 font-semibold uppercase whitespace-nowrap">Actions</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -334,8 +288,7 @@ export default function PendingApprovalsPage() {
                     
                     return (
                       <tr key={index} className="border-b border-gray-50 last:border-0 align-middle hover:bg-gray-50 transition-colors">
-                        <td className="py-4 pr-4 text-gray-700 text-sm font-medium">{r.user_id || `AR00${indexOfFirstRecord + index + 1}`}</td>
-                        <td className="py-4 pr-4">
+                        <td className="py-4 pr-4 min-w-[200px]">
                           <div className="flex items-center gap-3">
                             <div className="w-9 h-9 rounded-full bg-purple-100 text-purple-600 flex items-center justify-center font-semibold text-sm shrink-0 uppercase">
                               {r.full_name ? r.full_name[0] : 'U'}
@@ -346,14 +299,14 @@ export default function PendingApprovalsPage() {
                             </div>
                           </div>
                         </td>
-                        <td className="py-4 pr-4 text-sm">
+                        <td className="py-4 pr-4 text-sm whitespace-nowrap">
                           <div className="text-gray-800 font-medium">Program Incharge</div>
                           <div className="text-gray-400 text-xs">{r.department || "N/A"}</div>
                         </td>
-                        <td className="py-4 pr-4 text-gray-700 text-sm">{r.employee_id || "Unassigned"}</td>
-                        <td className="py-4 pr-4 text-gray-700 text-sm">{formatDate(r.created_at || r.submitted_date)}</td>
-                        <td className="py-4 pr-4">
-                          <span className={`text-xs font-semibold px-3 py-1.5 rounded-full capitalize border ${
+                        <td className="py-4 pr-4 text-gray-700 text-sm whitespace-nowrap">{r.employee_id || "Unassigned"}</td>
+                        <td className="py-4 pr-4 text-gray-700 text-sm whitespace-nowrap">{formatDate(r.created_at || r.submitted_date)}</td>
+                        <td className="py-4 pr-4 whitespace-nowrap">
+                          <span className={`text-xs font-semibold px-3 py-1.5 rounded-full capitalize border inline-block ${
                             currentStatus === 'approved' ? 'bg-green-50 text-green-600 border-green-200' :
                             currentStatus === 'rejected' ? 'bg-red-50 text-red-600 border-red-200' :
                             'bg-amber-50 text-amber-600 border-amber-200'
@@ -361,7 +314,7 @@ export default function PendingApprovalsPage() {
                             {currentStatus}
                           </span>
                         </td>
-                        <td className="py-4 pr-4">
+                        <td className="py-4 pr-4 whitespace-nowrap">
                           <div className="flex items-center gap-3">
                             <button 
                               onClick={() => openModal(r, currentStatus === 'pending' ? 'approve' : 'details')}
@@ -396,19 +349,19 @@ export default function PendingApprovalsPage() {
             )}
           </div>
           
-          {/* Functional Pagination Bar */}
+          {/* UPDATED: Mobile responsive flex layout for Pagination */}
           {!isLoading && admins.length > 0 && (
-            <div className="mt-6 border-t border-gray-100 pt-4 flex items-center justify-between">
-              <div className="text-sm text-gray-400">
+            <div className="mt-6 border-t border-gray-100 pt-4 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+              <div className="text-sm text-gray-400 text-center sm:text-left">
                 Showing {indexOfFirstRecord + 1} to {Math.min(indexOfLastRecord, admins.length)} of {admins.length} records
               </div>
-              <div className="flex items-center gap-2">
+              <div className="flex items-center justify-center gap-2">
                 <button onClick={() => setCurrentPage(prev => Math.max(1, prev - 1))} disabled={currentPage === 1} className="p-1 text-gray-400 hover:text-gray-600 disabled:opacity-30 disabled:cursor-not-allowed transition-colors">
                   <ChevronLeft className="w-5 h-5" />
                 </button>
-                <div className="flex gap-1">
+                <div className="flex gap-1 overflow-x-auto hide-scrollbar max-w-[150px] sm:max-w-none">
                   {[...Array(totalPages)].map((_, i) => (
-                    <button key={i} onClick={() => setCurrentPage(i + 1)} className={`w-7 h-7 rounded-full text-xs font-bold transition-colors ${ currentPage === i + 1 ? "bg-[#004DD2] text-white" : "text-gray-500 hover:bg-gray-100" }`}>
+                    <button key={i} onClick={() => setCurrentPage(i + 1)} className={`shrink-0 w-7 h-7 rounded-full text-xs font-bold transition-colors ${ currentPage === i + 1 ? "bg-[#004DD2] text-white" : "text-gray-500 hover:bg-gray-100" }`}>
                       {i + 1}
                     </button>
                   ))}
@@ -427,19 +380,20 @@ export default function PendingApprovalsPage() {
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm p-4">
           <div className="bg-white rounded-2xl w-full max-w-2xl shadow-xl overflow-hidden flex flex-col max-h-[90vh]">
             
-            <div className="flex items-start justify-between p-6 border-b border-gray-100">
+            {/* UPDATED: Adjusted modal padding */}
+            <div className="flex items-start justify-between p-4 sm:p-6 border-b border-gray-100">
               <div>
-                <h2 className="text-xl font-bold text-gray-900">
+                <h2 className="text-lg sm:text-xl font-bold text-gray-900">
                   {modalType === 'details' ? 'Program Incharge Application Details' : modalType === 'approve' ? 'Review Program Incharge Application' : 'Reject Program Incharge Application'}
                 </h2>
-                <p className="text-sm text-gray-500 mt-1">Ref: {selectedAdmin.user_id || 'AR00X'} - Submitted {formatDate(selectedAdmin.created_at || selectedAdmin.submitted_date)}</p>
+                <p className="text-xs sm:text-sm text-gray-500 mt-1">Submitted: {formatDate(selectedAdmin.created_at || selectedAdmin.submitted_date)}</p>
               </div>
-              <button onClick={closeModal} disabled={isUpdating} className="p-2 text-gray-400 hover:bg-gray-100 rounded-full transition-colors disabled:opacity-50">
+              <button onClick={closeModal} disabled={isUpdating} className="p-2 text-gray-400 hover:bg-gray-100 rounded-full transition-colors disabled:opacity-50 shrink-0">
                 <X className="w-5 h-5" />
               </button>
             </div>
 
-            <div className="p-6 overflow-y-auto flex-1">
+            <div className="p-4 sm:p-6 overflow-y-auto flex-1">
               {updateError && (
                 <div className="mb-6 p-4 bg-red-50 border border-red-200 text-red-600 rounded-xl text-sm font-medium">
                   {updateError}
@@ -458,14 +412,14 @@ export default function PendingApprovalsPage() {
               )}
 
               {(modalType === 'approve' || modalType === 'details') && (
-                <div className="grid grid-cols-2 gap-4 mb-6">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-6">
                   <div className="bg-gray-50 p-4 rounded-xl border border-gray-100">
                     <p className="text-xs text-gray-400 mb-1">Full Name</p>
                     <p className="text-sm font-semibold text-gray-900">{selectedAdmin.full_name || 'Unknown'}</p>
                   </div>
-                  <div className="bg-gray-50 p-4 rounded-xl border border-gray-100">
+                  <div className="bg-gray-50 p-4 rounded-xl border border-gray-100 overflow-hidden">
                     <p className="text-xs text-gray-400 mb-1">Email Address</p>
-                    <p className="text-sm font-semibold text-gray-900">{selectedAdmin.email || 'Unknown'}</p>
+                    <p className="text-sm font-semibold text-gray-900 truncate">{selectedAdmin.email || 'Unknown'}</p>
                   </div>
                   <div className="bg-gray-50 p-4 rounded-xl border border-gray-100">
                     <p className="text-xs text-gray-400 mb-1">Mobile</p>
@@ -505,16 +459,16 @@ export default function PendingApprovalsPage() {
 
              {/* Email Preview */}
               <div className="border border-gray-200 rounded-xl overflow-hidden mt-2">
-                <div className="bg-gray-50 px-4 py-2 border-b border-gray-200 flex items-center gap-2 text-xs font-medium text-gray-600">
-                  <Mail className="w-4 h-4" />
+                <div className="bg-gray-50 px-4 py-3 sm:py-2 border-b border-gray-200 flex items-center gap-2 text-xs font-medium text-gray-600 leading-snug">
+                  <Mail className="w-4 h-4 shrink-0" />
                   Email Preview — {getPreviewMode() === 'approve' ? 'Approval' : 'Rejection'} Notification
                 </div>
-                <div className="p-4 text-sm text-gray-600 space-y-4 opacity-90">
-                  <div className="grid grid-cols-[40px_1fr] gap-2 text-xs border-b border-gray-100 pb-3">
+                <div className="p-4 text-sm text-gray-600 space-y-4 opacity-90 overflow-x-auto">
+                  <div className="grid grid-cols-[40px_1fr] gap-2 text-xs border-b border-gray-100 pb-3 min-w-[300px]">
                     <span className="text-gray-400">To:</span>
-                    <span className="font-medium text-gray-900">{selectedAdmin.email}</span>
+                    <span className="font-medium text-gray-900 truncate">{selectedAdmin.email}</span>
                     <span className="text-gray-400">Subj:</span>
-                    <span className="font-medium text-gray-900">DAVV VFM System — Program Incharge Registration Update</span>
+                    <span className="font-medium text-gray-900 whitespace-normal">DAVV VFM System — Program Incharge Registration Update</span>
                   </div>
                   <p>Dear {selectedAdmin.full_name},</p>
                   
@@ -524,12 +478,12 @@ export default function PendingApprovalsPage() {
                       <p>Your login credentials are as follows:</p>
                       
                       {/* UPDATED: Removed User ID, showing Email instead */}
-                      <div className="bg-gray-50 p-4 rounded-xl font-mono text-xs text-gray-800 space-y-2 border border-gray-100">
-                        <div>
+                      <div className="bg-gray-50 p-4 rounded-xl font-mono text-xs text-gray-800 space-y-2 border border-gray-100 overflow-x-auto">
+                        <div className="whitespace-nowrap">
                           <span className="text-gray-500 font-sans font-semibold w-16 inline-block">Email:</span> 
                           {selectedAdmin.email}
                         </div>
-                        <div>
+                        <div className="whitespace-nowrap">
                           <span className="text-gray-500 font-sans font-semibold w-16 inline-block">Portal:</span> 
                           https://vfm.davv.ac.in
                         </div>
@@ -541,7 +495,7 @@ export default function PendingApprovalsPage() {
                     <>
                       <p>After review, your Program Incharge registration for the DAVV VFM System has not been approved at this time.</p>
                       {(rejectReason || getAdminRejectionReason(selectedAdmin)) && (
-                        <div className="p-3 bg-red-50 border-l-4 border-red-500 text-red-700 my-2 italic">
+                        <div className="p-3 bg-red-50 border-l-4 border-red-500 text-red-700 my-2 italic break-words">
                           "{rejectReason || getAdminRejectionReason(selectedAdmin)}"
                         </div>
                       )}
@@ -553,11 +507,12 @@ export default function PendingApprovalsPage() {
               </div>
             </div>
 
-            <div className="p-4 border-t border-gray-100 bg-gray-50 flex items-center justify-end gap-3">
+            {/* UPDATED: Modal Footer flex-wrap for mobile */}
+            <div className="p-4 sm:p-6 border-t border-gray-100 bg-gray-50 flex flex-wrap items-center justify-end gap-3">
               <button 
                 onClick={closeModal}
                 disabled={isUpdating}
-                className="px-5 py-2.5 text-sm font-semibold text-gray-600 hover:bg-gray-200 rounded-full transition-colors disabled:opacity-50"
+                className="w-full sm:w-auto px-5 py-2.5 text-sm font-semibold text-gray-600 hover:bg-gray-200 rounded-full transition-colors disabled:opacity-50"
               >
                 {modalType === 'details' ? 'Close' : 'Cancel'}
               </button>
@@ -567,17 +522,17 @@ export default function PendingApprovalsPage() {
                   <button 
                     onClick={() => setModalType('reject')}
                     disabled={isUpdating}
-                    className="px-5 py-2.5 text-sm font-semibold text-red-500 border border-red-200 bg-white hover:bg-red-50 rounded-full transition-colors flex items-center gap-2 disabled:opacity-50"
+                    className="w-full sm:w-auto px-5 py-2.5 text-sm font-semibold text-red-500 border border-red-200 bg-white hover:bg-red-50 rounded-full transition-colors flex items-center justify-center gap-2 disabled:opacity-50"
                   >
                     <XCircle className="w-4 h-4" /> Reject Instead
                   </button>
                   <button 
                     onClick={() => handleStatusUpdate('approved')} 
                     disabled={isUpdating}
-                    className="px-5 py-2.5 text-sm font-semibold text-white bg-[#10B981] hover:bg-[#059669] rounded-full transition-colors flex items-center gap-2 shadow-sm disabled:opacity-70"
+                    className="w-full sm:w-auto px-5 py-2.5 text-sm font-semibold text-white bg-[#10B981] hover:bg-[#059669] rounded-full transition-colors flex items-center justify-center gap-2 shadow-sm disabled:opacity-70"
                   >
                     {isUpdating ? <Loader2 className="w-4 h-4 animate-spin" /> : <CheckCircle className="w-4 h-4" />}
-                    Confirm Approval & Send Email
+                    Confirm Approval
                   </button>
                 </>
               )}
@@ -586,10 +541,10 @@ export default function PendingApprovalsPage() {
                 <button 
                   onClick={() => handleStatusUpdate('rejected')}
                   disabled={isUpdating}
-                  className="px-5 py-2.5 text-sm font-semibold text-white bg-red-500 hover:bg-red-600 rounded-full transition-colors flex items-center gap-2 shadow-sm disabled:opacity-70"
+                  className="w-full sm:w-auto px-5 py-2.5 text-sm font-semibold text-white bg-red-500 hover:bg-red-600 rounded-full transition-colors flex items-center justify-center gap-2 shadow-sm disabled:opacity-70"
                 >
                   {isUpdating ? <Loader2 className="w-4 h-4 animate-spin" /> : <XCircle className="w-4 h-4" />}
-                  Confirm Rejection & Notify
+                  Confirm Rejection
                 </button>
               )}
             </div>

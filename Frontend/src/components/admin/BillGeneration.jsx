@@ -60,6 +60,9 @@ export default function BillGeneration() {
   const [bill, setBill] = useState(null);
   const [generating, setGenerating] = useState(false);
   
+  // STATE HOISTED: Moved billPage here so mobile buttons can control it
+  const [billPage, setBillPage] = useState(1);
+  
   const [isDeleting, setIsDeleting] = useState(false);
   const [billToDelete, setBillToDelete] = useState(null);
   const [error, setError] = useState("");
@@ -82,6 +85,17 @@ export default function BillGeneration() {
     };
     document.addEventListener("mousedown", handleClickOutside);
     return () => document.removeEventListener("mousedown", handleClickOutside);
+  }, []);
+
+  // NEW: Listen for global refresh events to auto-update data
+  useEffect(() => {
+    const handleRefresh = () => {
+      loadHistory();
+      loadAllFaculties();
+    };
+
+    window.addEventListener('refresh-dashboard', handleRefresh);
+    return () => window.removeEventListener('refresh-dashboard', handleRefresh);
   }, []);
 
   const loadAllFaculties = async () => {
@@ -185,7 +199,8 @@ export default function BillGeneration() {
       };
 
       setBill(dynamicBill);
-      
+      setBillPage(1); // Reset page to 1 on generate
+      window.dispatchEvent(new Event('refresh-dashboard'));
       await loadHistory();
       
     } catch (err) {
@@ -246,6 +261,7 @@ export default function BillGeneration() {
       }
       
       setBillToDelete(null);
+      window.dispatchEvent(new Event('refresh-dashboard'));
     } catch (err) {
       alert(err?.response?.data?.message || "Failed to delete bill.");
     } finally {
@@ -295,6 +311,7 @@ export default function BillGeneration() {
       };
 
       setBill(historyBill);
+      setBillPage(1); // Reset page to 1 on view
       window.scrollTo({ top: 0, behavior: 'smooth' });
 
     } catch (err) {
@@ -319,7 +336,7 @@ export default function BillGeneration() {
   useEffect(() => setPage(1), [historySearch]);
 
   return (
-    <main className="p-4 sm:p-6 space-y-6 w-full print:p-0 print:m-0 print:bg-white">
+    <main className="p-4 sm:p-6 space-y-6 w-full print:p-0 print:m-0 print:bg-white max-w-full overflow-hidden">
       
       <style>
         {`
@@ -337,6 +354,8 @@ export default function BillGeneration() {
               box-shadow: none !important;
               background: white !important;
             }
+            /* NEW: Force body to collapse so hidden elements don't create blank pages */
+            html, body { height: auto !important; min-height: auto !important; overflow: visible !important; }
 
             body { background: white !important; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
             .print-hide { display: none !important; }
@@ -348,12 +367,13 @@ export default function BillGeneration() {
       <div className="print-hide">
         <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 mb-6">
           <div>
-            <h1 className="text-2xl font-bold text-slate-800">Bill Generation</h1>
+            <h1 className="text-xl sm:text-2xl font-bold text-slate-800">Bill Generation</h1>
             <p className="text-sm text-slate-400">Official DAVV remuneration bill</p>
           </div>
         </div>
 
-        <div className="bg-white rounded-xl border border-slate-200 p-4 flex flex-col md:flex-row gap-3 items-stretch md:items-end shadow-sm mb-6">
+        {/* UPDATED for Responsiveness */}
+        <div className="bg-white rounded-xl border border-slate-200 p-4 flex flex-col md:flex-row gap-3 items-stretch md:items-end shadow-sm mb-6 w-full">
           <div className="flex-1 relative" ref={dropdownRef}>
             <label className="text-sm font-medium text-slate-700 mb-1 block">Faculty Search</label>
             <div className="relative">
@@ -390,12 +410,12 @@ export default function BillGeneration() {
             )}
           </div>
 
-          <div>
+          <div className="w-full md:w-auto">
             <label className="text-sm font-medium text-slate-700 mb-1 block">Month</label>
             <select
               value={month}
               onChange={(e) => setMonth(e.target.value)}
-              className="px-3 py-2.5 rounded-lg border border-slate-200 text-sm bg-white focus:outline-none focus:border-[#004DD2]"
+              className="w-full md:w-auto px-3 py-2.5 rounded-lg border border-slate-200 text-sm bg-white focus:outline-none focus:border-[#004DD2]"
             >
               {MONTHS.map((m) => (
                 <option key={m} value={m}>{m}</option>
@@ -403,12 +423,12 @@ export default function BillGeneration() {
             </select>
           </div>
 
-          <div>
+          <div className="w-full md:w-auto">
             <label className="text-sm font-medium text-slate-700 mb-1 block">Session</label>
             <select
               value={sessionYear}
               onChange={(e) => setSessionYear(e.target.value)}
-              className="px-3 py-2.5 rounded-lg border border-slate-200 text-sm bg-white focus:outline-none focus:border-[#004DD2]"
+              className="w-full md:w-auto px-3 py-2.5 rounded-lg border border-slate-200 text-sm bg-white focus:outline-none focus:border-[#004DD2]"
             >
               <option value="2026-27">2026-27</option>
               <option value="2027-28">2027-28</option>
@@ -419,13 +439,13 @@ export default function BillGeneration() {
           <button
             onClick={handleGenerate}
             disabled={generating}
-            className="flex items-center justify-center gap-2 px-5 py-2.5 rounded-lg bg-[#004DD2] text-white text-sm font-medium hover:bg-blue-800 disabled:opacity-60 transition-colors"
+            className="w-full md:w-auto flex items-center justify-center gap-2 px-5 py-2.5 rounded-lg bg-[#004DD2] text-white text-sm font-medium hover:bg-blue-800 disabled:opacity-60 transition-colors"
           >
             <Search size={16} /> {generating ? "Generating..." : "Generate"}
           </button>
         </div>
 
-        <div className="bg-white rounded-xl border border-slate-200 p-5 shadow-sm mb-6">
+        <div className="bg-white rounded-xl border border-slate-200 p-4 sm:p-5 shadow-sm mb-6 w-full">
           <h2 className="text-sm font-semibold text-slate-800 mb-4 flex items-center gap-2">
             <Users size={16} className="text-[#004DD2]" /> Quick Select Faculty
           </h2>
@@ -435,7 +455,7 @@ export default function BillGeneration() {
           ) : allFaculties.length === 0 ? (
             <div className="text-sm text-slate-400 py-2">No faculty members found.</div>
           ) : (
-            <ul className="max-h-56 overflow-y-auto pr-3 space-y-2">
+            <ul className="max-h-56 overflow-y-auto pr-2 space-y-2 hide-scrollbar">
               {allFaculties.map((f) => (
                 <li key={f.user_id}>
                   <button
@@ -449,11 +469,11 @@ export default function BillGeneration() {
                         : "bg-white border-slate-200 hover:bg-slate-50 hover:border-slate-300"
                     }`}
                   >
-                    <div className="flex items-center justify-between">
-                      <span className={`text-sm font-medium ${selectedFacultyId === f.user_id ? 'text-[#004DD2]' : 'text-slate-700'}`}>
+                    <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-1 sm:gap-0">
+                      <span className={`text-sm font-medium truncate ${selectedFacultyId === f.user_id ? 'text-[#004DD2]' : 'text-slate-700'}`}>
                         {f.full_name}
                       </span>
-                      <span className={`text-xs ${selectedFacultyId === f.user_id ? 'text-blue-600' : 'text-slate-400'}`}>
+                      <span className={`text-xs truncate ${selectedFacultyId === f.user_id ? 'text-blue-600' : 'text-slate-400'}`}>
                         {f.email}
                       </span>
                     </div>
@@ -464,6 +484,38 @@ export default function BillGeneration() {
           )}
         </div>
 
+        {/* MOBILE PREVIEW & PRINT TOOLBAR (Appears below quick select ONLY when a bill is active) */}
+        {!generating && bill && (
+          <div className="flex lg:hidden items-center justify-center gap-2 mb-6 bg-white p-3 rounded-xl border border-slate-200 shadow-sm">
+            <button 
+              onClick={() => window.print()}
+              className="flex-1 flex items-center justify-center gap-1.5 py-2.5 rounded-lg bg-slate-900 text-white text-xs font-semibold shadow-sm hover:bg-slate-800 transition-all"
+            >
+              <Download className="h-4 w-4" /> Print
+            </button>
+            <button 
+              onClick={() => setBillPage(1)}
+              className={`flex-1 flex items-center justify-center gap-1.5 py-2.5 rounded-lg border text-xs font-semibold transition-all ${
+                billPage === 1 
+                  ? "border-[#004DD2] bg-blue-50 text-[#004DD2] shadow-sm" 
+                  : "border-slate-200 bg-white text-slate-500 hover:bg-slate-50"
+              }`}
+            >
+              <FileText className="h-4 w-4" /> Page 1
+            </button>
+            <button 
+              onClick={() => setBillPage(2)}
+              className={`flex-1 flex items-center justify-center gap-1.5 py-2.5 rounded-lg border text-xs font-semibold transition-all ${
+                billPage === 2 
+                  ? "border-[#004DD2] bg-blue-50 text-[#004DD2] shadow-sm" 
+                  : "border-slate-200 bg-white text-slate-500 hover:bg-slate-50"
+              }`}
+            >
+              <TableProperties className="h-4 w-4" /> Page 2
+            </button>
+          </div>
+        )}
+
         {error && (
           <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between bg-red-50 p-4 rounded-lg border border-red-100 mb-6 gap-4">
             <div className="flex items-center gap-2">
@@ -471,12 +523,11 @@ export default function BillGeneration() {
               <p className="text-sm text-red-700 font-medium">{error}</p>
             </div>
             
-            {/* Show the Regenerate button only if the error is about an existing bill */}
             {(error.toLowerCase().includes("already") || error.toLowerCase().includes("exists")) && (
               <button 
                 onClick={handleForceRegenerate}
                 disabled={generating}
-                className="shrink-0 px-4 py-2 bg-red-600 text-white text-xs font-bold rounded-lg hover:bg-red-700 transition-all shadow-sm disabled:opacity-50 flex items-center gap-2"
+                className="shrink-0 w-full sm:w-auto px-4 py-2 bg-red-600 text-white text-xs font-bold rounded-lg hover:bg-red-700 transition-all shadow-sm disabled:opacity-50 flex items-center justify-center gap-2"
               >
                 {generating ? "Regenerating..." : "Delete Old & Regenerate"}
               </button>
@@ -488,18 +539,18 @@ export default function BillGeneration() {
 
       {!generating && bill && (
         <div className="mb-8">
-          <BillPreview bill={bill} onDownload={() => window.print()} />
+          <BillPreview bill={bill} onDownload={() => window.print()} billPage={billPage} setBillPage={setBillPage} />
         </div>
       )}
 
-      {/* History Section */}
-      <div className="bg-white rounded-xl border border-slate-200 overflow-hidden shadow-sm flex flex-col print-hide">
-        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 px-6 py-4 border-b border-slate-100">
+      {/* History Section UPDATED for Responsiveness */}
+      <div className="bg-white rounded-xl border border-slate-200 overflow-hidden shadow-sm flex flex-col print-hide w-full">
+        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 px-4 sm:px-6 py-4 border-b border-slate-100">
           <div className="flex items-center gap-2">
             <FileText size={18} className="text-[#004DD2]" />
             <h2 className="font-semibold text-slate-800">Bill History</h2>
           </div>
-          <div className="relative">
+          <div className="relative w-full sm:w-auto">
             <Search size={15} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
             <input
               value={historySearch}
@@ -510,16 +561,16 @@ export default function BillGeneration() {
           </div>
         </div>
 
-        <div className="overflow-x-auto">
-          <table className="w-full text-sm">
+        <div className="overflow-x-auto hide-scrollbar w-full">
+          <table className="w-full text-sm min-w-[650px]">
             <thead>
               <tr className="text-left text-xs font-medium text-slate-400 border-b border-slate-100 bg-slate-50/50">
-                <th className="px-6 py-3">S.No.</th>
-                <th className="px-6 py-3">Faculty</th>
-                <th className="px-6 py-3">Month</th>
-                <th className="px-6 py-3">Amount</th>
-                <th className="px-6 py-3">Status</th>
-                <th className="px-6 py-3 text-right">Action</th>
+                <th className="px-4 sm:px-6 py-3 whitespace-nowrap">S.No.</th>
+                <th className="px-4 sm:px-6 py-3 whitespace-nowrap">Faculty</th>
+                <th className="px-4 sm:px-6 py-3 whitespace-nowrap">Month</th>
+                <th className="px-4 sm:px-6 py-3 whitespace-nowrap">Amount</th>
+                <th className="px-4 sm:px-6 py-3 whitespace-nowrap">Status</th>
+                <th className="px-4 sm:px-6 py-3 text-right whitespace-nowrap">Action</th>
               </tr>
             </thead>
             <tbody>
@@ -542,25 +593,25 @@ export default function BillGeneration() {
               {!historyLoading &&
                 paginated.map((b, idx) => (
                   <tr key={b.id || idx} className="border-b border-slate-50 hover:bg-slate-50/50 transition-colors last:border-0">
-                    <td className="px-6 py-4 font-medium text-slate-700">{(page - 1) * PAGE_SIZE + idx + 1}</td>
-                    <td className="px-6 py-4 text-slate-700">{b.facultyName || b.User?.full_name}</td>
-                    <td className="px-6 py-4 text-slate-500">
+                    <td className="px-4 sm:px-6 py-4 font-medium text-slate-700 whitespace-nowrap">{(page - 1) * PAGE_SIZE + idx + 1}</td>
+                    <td className="px-4 sm:px-6 py-4 text-slate-700 whitespace-nowrap">{b.facultyName || b.User?.full_name}</td>
+                    <td className="px-4 sm:px-6 py-4 text-slate-500 whitespace-nowrap">
                       {typeof b.month === "number" ? MONTHS[b.month - 1] : b.month} {b.year}
                     </td>
-                    <td className="px-6 py-4 font-semibold text-blue-600">₹{b.amount || b.total_amount}</td>
-                    <td className="px-6 py-4">
-                      <span className="px-2.5 py-1 rounded-full text-xs font-semibold uppercase tracking-wider border border-green-500/30 bg-green-50 text-green-600">
+                    <td className="px-4 sm:px-6 py-4 font-semibold text-blue-600 whitespace-nowrap">₹{b.amount || b.total_amount}</td>
+                    <td className="px-4 sm:px-6 py-4 whitespace-nowrap">
+                      <span className="px-2.5 py-1 rounded-full text-xs font-semibold uppercase tracking-wider border border-green-500/30 bg-green-50 text-green-600 inline-block">
                         Generated
                       </span>
                     </td>
                     
-                    <td className="px-6 py-4 text-right flex items-center justify-end gap-2">
-                    <button 
-                      onClick={() => handleViewBill(b.id || b.bill_id || b.billNo)}
-                      className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded bg-indigo-50 text-indigo-600 text-xs font-medium hover:bg-indigo-100 transition-colors"
-                    >
-                      <Eye size={13} /> Preview
-                    </button>
+                    <td className="px-4 sm:px-6 py-4 text-right flex items-center justify-end gap-2 whitespace-nowrap">
+                      <button 
+                        onClick={() => handleViewBill(b.id || b.bill_id || b.billNo)}
+                        className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded bg-indigo-50 text-indigo-600 text-xs font-medium hover:bg-indigo-100 transition-colors"
+                      >
+                        <Eye size={13} /> Preview
+                      </button>
                       <button 
                         onClick={() => handleDeleteClick(b.id || b.bill_id || b.billNo)}
                         disabled={isDeleting}
@@ -575,15 +626,15 @@ export default function BillGeneration() {
           </table>
         </div>
 
-        <div className="flex items-center justify-between px-6 py-4 border-t border-slate-100 text-sm">
-          <span className="text-slate-400">
+        <div className="flex flex-col sm:flex-row items-center justify-between gap-4 px-4 sm:px-6 py-4 border-t border-slate-100 text-sm">
+          <span className="text-slate-400 text-center sm:text-left">
             Showing {paginated.length} of {filteredHistory.length} bills
           </span>
-          <div className="flex items-center gap-1">
+          <div className="flex flex-wrap items-center justify-center gap-1">
             <button
               disabled={page === 1}
               onClick={() => setPage((p) => Math.max(1, p - 1))}
-              className="h-8 w-8 flex items-center justify-center rounded-lg border border-slate-200 disabled:opacity-40 hover:bg-slate-50"
+              className="h-8 w-8 flex items-center justify-center rounded-lg border border-slate-200 disabled:opacity-40 hover:bg-slate-50 shrink-0 text-slate-600"
             >
               ‹
             </button>
@@ -591,7 +642,7 @@ export default function BillGeneration() {
               <button
                 key={p}
                 onClick={() => setPage(p)}
-                className={`h-8 w-8 flex items-center justify-center rounded-lg text-sm font-medium transition-colors ${
+                className={`h-8 w-8 flex items-center justify-center rounded-lg text-sm font-medium transition-colors shrink-0 ${
                   p === page ? "bg-[#004DD2] text-white" : "border border-slate-200 text-slate-600 hover:bg-slate-50"
                 }`}
               >
@@ -601,7 +652,7 @@ export default function BillGeneration() {
             <button
               disabled={page === totalPages}
               onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
-              className="h-8 w-8 flex items-center justify-center rounded-lg border border-slate-200 disabled:opacity-40 hover:bg-slate-50"
+              className="h-8 w-8 flex items-center justify-center rounded-lg border border-slate-200 disabled:opacity-40 hover:bg-slate-50 shrink-0 text-slate-600"
             >
               ›
             </button>
@@ -624,18 +675,18 @@ export default function BillGeneration() {
                 </p>
               </div>
             </div>
-            <div className="flex items-center justify-end gap-3 mt-6">
+            <div className="flex flex-col sm:flex-row items-center justify-end gap-3 mt-6">
               <button
                 onClick={() => setBillToDelete(null)}
                 disabled={isDeleting}
-                className="px-4 py-2.5 rounded-lg text-sm font-medium text-slate-600 hover:bg-slate-50 border border-transparent hover:border-slate-200 transition-all disabled:opacity-50"
+                className="w-full sm:w-auto px-4 py-2.5 rounded-lg text-sm font-medium text-slate-600 hover:bg-slate-50 border border-transparent hover:border-slate-200 transition-all disabled:opacity-50"
               >
                 Cancel
               </button>
               <button
                 onClick={confirmDeleteBill}
                 disabled={isDeleting}
-                className="px-4 py-2.5 rounded-lg text-sm font-medium bg-red-600 text-white hover:bg-red-700 shadow-sm hover:shadow transition-all disabled:opacity-50 flex items-center gap-2"
+                className="w-full sm:w-auto px-4 py-2.5 rounded-lg text-sm font-medium bg-red-600 text-white hover:bg-red-700 shadow-sm hover:shadow transition-all disabled:opacity-50 flex items-center justify-center gap-2"
               >
                 {isDeleting ? "Deleting..." : "Yes, Delete it"}
               </button>
@@ -650,18 +701,15 @@ export default function BillGeneration() {
 // -------------------------------------------------------------
 // The Official Annexure IV & Attendance Layout
 // -------------------------------------------------------------
-function BillPreview({ bill, onDownload }) {
-  const [billPage, setBillPage] = useState(1);
+function BillPreview({ bill, onDownload, billPage, setBillPage }) {
   const items = bill.items || [];
 
-  // 1. Filter out records that exceeded the 30k limit
   const billableRecords = useMemo(() => {
     return items.filter(r => r.is_billable !== false && r.is_billable !== 0);
   }, [items]);
 
   const aggregatedRecords = useMemo(() => {
     const grouped = {};
-    // 2. Iterate over billableRecords ONLY
     billableRecords.forEach(r => {
       const key = `${r.course_name}_${r.semester_number}_${r.subject_code}_${r.rate_per_hour}`;
       if (!grouped[key]) {
@@ -696,8 +744,6 @@ function BillPreview({ bill, onDownload }) {
   }, [aggregatedRecords]);
 
   const amountInWords = convertAmountToWords(totalAmount);
-
-  // 3. Define submission date to fix the crash
   const submissionDate = bill.submittedOn || new Date().toLocaleDateString('en-GB', { day: '2-digit', month: '2-digit', year: 'numeric' });
 
   const formatDate = (dateStr) => {
@@ -707,12 +753,14 @@ function BillPreview({ bill, onDownload }) {
   };
 
   return (
-    <div className="flex flex-col gap-6 lg:flex-row print:block">
-      <div id="printable-bill" className="flex-1 overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm print:overflow-visible mx-auto max-w-[210mm]">
-        <div className="p-4 sm:p-8 print:p-0">
+    <div className="flex flex-col gap-6 lg:flex-row print:block w-full">
+      {/* UPDATED: Changed overflow-hidden to overflow-x-auto hide-scrollbar to allow horizontal swiping */}
+      <div id="printable-bill" className="flex-1 overflow-x-auto hide-scrollbar rounded-2xl border border-slate-200 bg-white shadow-sm print:overflow-visible mx-auto max-w-[210mm] w-full">
+        {/* UPDATED: Added min-w-[750px] to preserve the A4 layout shape on phones and trigger the horizontal swipe */}
+        <div className="p-4 sm:p-8 print:p-0 min-w-[750px] lg:min-w-0">
           
           {/* --- PAGE 1: ANNEXURE IV --- */}
-          <div className={`mx-auto w-full min-h-[297mm] bg-white text-black print:block ${billPage === 1 ? 'block' : 'hidden'}`}>
+          <div className={`mx-auto w-full min-h-[297mm] print:min-h-0 bg-white text-black print:block ${billPage === 1 ? 'block' : 'hidden'}`}>
             <div className="text-[13px] leading-relaxed p-6">
               
               <div className="relative mb-6 flex items-center justify-center min-h-[5rem]">
@@ -791,7 +839,7 @@ function BillPreview({ bill, onDownload }) {
                 </div>
               </div>
 
-              <table className="mb-4 w-full border-collapse border border-black text-center text-sm">
+<table className="mb-2 w-full border-collapse border border-black text-center text-sm">
                 <thead>
                   <tr>
                     <th className="border border-black p-2 w-[12%]">Program</th>
@@ -806,10 +854,10 @@ function BillPreview({ bill, onDownload }) {
                 <tbody>
                   {aggregatedRecords.map((r, index) => (
                     <tr key={index}>
-                      <td className="border border-black p-3 font-medium">{r.program}</td>
-                      <td className="border border-black p-3 font-medium">{r.semester}</td>
-                      <td className="border border-black p-3 font-medium">{r.subject}</td>
-                      <td className="border border-black p-2 text-xs leading-relaxed text-slate-700">
+                      <td className="border border-black py-[1mm] px-2 text-xs font-medium">{r.program}</td>
+                      <td className="border border-black py-[1mm] px-2 text-xs font-medium">{r.semester}</td>
+                      <td className="border border-black py-[1mm] px-2 text-xs font-medium">{r.subject}</td>
+                      <td className="border border-black py-[1mm] px-2 text-[10px] leading-tight text-slate-700">
                         {r.dates.map((dateStr, i) => (
                           <React.Fragment key={i}>
                             {dateStr}
@@ -817,17 +865,17 @@ function BillPreview({ bill, onDownload }) {
                           </React.Fragment>
                         ))}
                       </td>
-                      <td className="border border-black p-3 font-medium">{r.totalHrs}</td>
-                      <td className="border border-black p-3 font-medium">{r.rate}</td>
-                      <td className="border border-black p-3 font-medium">{r.amount.toLocaleString('en-IN', { maximumFractionDigits: 2 })}</td>
+                      <td className="border border-black py-[1mm] px-2 text-xs font-medium">{r.totalHrs}</td>
+                      <td className="border border-black py-[1mm] px-2 text-xs font-medium">{r.rate}</td>
+                      <td className="border border-black py-[1mm] px-2 text-xs font-medium">{r.amount.toLocaleString('en-IN', { maximumFractionDigits: 2 })}</td>
                     </tr>
                   ))}
                 </tbody>
               </table>
 
-              <p className="mb-4 text-[11px] font-medium">*Total amount should not exceed the maximum limit of remuneration for a month.</p>
+              <p className="mb-3 text-[11px] font-medium">*Total amount should not exceed the maximum limit of remuneration for a month.</p>
               
-              <div className="mb-8 flex items-end font-bold text-[14px]">
+              <div className="mb-4 flex items-end font-bold text-[14px]">
                 <span>Total Hours</span>
                 <span className="mx-2 w-16 border-b border-black text-center">{totalHours}</span>
                 <span className="ml-4">Total Amount</span>
@@ -837,7 +885,7 @@ function BillPreview({ bill, onDownload }) {
                 <span className="font-normal">)</span>
               </div>
 
-              <div className="mb-8 text-[12px] font-medium leading-relaxed">
+              <div className="mb-4 text-[12px] font-medium leading-relaxed">
                 <p className="font-bold underline text-[14px] mb-1">Note:</p>
                 <ol className="list-[upper-alpha] pl-6 space-y-0.5">
                   <li>Rate of Remuneration will be as per university rules.</li>
@@ -849,13 +897,15 @@ function BillPreview({ bill, onDownload }) {
                 </ol>
               </div>
 
-              <div className="mb-12 text-center text-[12px]" style={{ pageBreakInside: 'avoid', breakInside: 'avoid' }}>
-                <p className="mb-2 font-bold underline text-[15px]">UNDERTAKING</p>
-                <p className="text-justify mb-6 font-medium leading-relaxed">
+              {/* REMOVED aggressive pageBreakInside from this outer div so it doesn't jump to Page 2 */}
+              <div className="mb-4 text-center text-[12px]">
+                <p className="mb-1 font-bold underline text-[15px]">UNDERTAKING</p>
+                <p className="text-justify mb-4 font-medium leading-relaxed">
                   I was directed and permitted by the Head to engage the above Classes. For this I have submitted this bill. I therefore, request you to deduct _______% against Income Tax Returns from my payment. Further, I certify that total amount received per month doesn't exceed the maximum permissible limit of remuneration of any amount paid by D.A.V.V. which is Rs. 30,000/- at present.
                 </p>
                 
-                <div className="flex justify-between mt-8" style={{ pageBreakInside: 'avoid', breakInside: 'avoid' }}>
+                {/* Kept pageBreakInside here so the signatures/bank details never split in half */}
+                <div className="flex justify-between mt-4" style={{ pageBreakInside: 'avoid', breakInside: 'avoid' }}>
                         
                   {/* LEFT COLUMN: Bank Details & Payment Info */}
                   <div className="flex flex-col justify-between">
@@ -900,7 +950,7 @@ function BillPreview({ bill, onDownload }) {
           </div>
 
           {/* --- PAGE 2: ATTENDANCE REGISTER --- */}
-          <div className={`mx-auto w-full min-h-[297mm] bg-white text-black print:block print-force-break ${billPage === 2 ? 'block' : 'hidden'}`}>
+          <div className={`mx-auto w-full min-h-[297mm] print:min-h-0 bg-white text-black print:block print-force-break ${billPage === 2 ? 'block' : 'hidden'}`}>
             <div className="text-[13px] leading-relaxed p-6 pt-12">
               <div className="mb-8 flex items-center justify-end gap-2">
                 <span className="font-bold text-sm">UVFIN</span>
@@ -932,49 +982,49 @@ function BillPreview({ bill, onDownload }) {
                   </tr>
                   <tr>
                     <td className="border border-black p-2.5">Month and Year : {bill.month} {bill.year}</td>
-                    <td className="border border-black p-2.5">Semester and Session : {bill.semester} ({bill.session})</td>
+                    <td className="border border-black p-2.5">Session : {bill.session}</td>
                   </tr>
                 </tbody>
               </table>
 
-              <table className="mb-24 w-full border-collapse border-2 border-t-0 border-black text-center text-sm">
+              <table className="mb-8 w-full border-collapse border-2 border-t-0 border-black text-center text-sm">
                 <thead>
                   <tr>
-                    <th className="border border-black p-2.5 w-[15%]">Date</th>
-                    <th className="border border-black p-2.5 w-[20%]">Subject Code</th>
-                    <th className="border border-black p-2.5 text-left pl-4 w-[35%]">Subject Name</th>
-                    <th className="border border-black p-2.5 w-[15%]">Theory / Practice</th>
-                    <th className="border border-black p-2.5 w-[15%]">Hours</th>
+                    <th className="border border-black py-1.5 px-2 w-[15%]">Date</th>
+                    <th className="border border-black py-1.5 px-2 w-[20%]">Subject Code</th>
+                    <th className="border border-black py-1.5 px-2 text-left pl-4 w-[35%]">Subject Name</th>
+                    <th className="border border-black py-1.5 px-2 w-[15%]">Theory / Practice</th>
+                    <th className="border border-black py-1.5 px-2 w-[15%]">Hours</th>
                   </tr>
                 </thead>
                 <tbody>
                   {billableRecords.map((r, i) => (
                     <tr key={i}>
-                      <td className="border border-black p-2.5">{formatDate(r.attendance_date)}</td>
-                      <td className="border border-black p-2.5 font-semibold">{r.subject_code}</td>
-                      <td className="border border-black p-2.5 text-left pl-4 font-semibold">{r.subject_name}</td>
-                      <td className="border border-black p-2.5">{r.session_type || 'Theory'}</td>
-                      <td className="border border-black p-2.5 font-bold">{parseFloat(r.hours)}</td>
-                    </tr>
-                  ))}
-                  {/* FIX: Ensure a minimum of 15 rows so the page is fully structured regardless of record count */}
-                  {[...Array(Math.max(0, 15 - billableRecords.length))].map((_, i) => (
-                    <tr key={`empty-att-${i}`}>
-                      <td className="border border-black p-3.5"></td><td className="border border-black p-3.5"></td>
-                      <td className="border border-black p-3.5"></td><td className="border border-black p-3.5"></td><td className="border border-black p-3.5"></td>
+                      {/* Minimal 1mm padding top/bottom to maximize rows per page */}
+                      <td className="border border-black py-[1mm] px-2 text-[12px]">{formatDate(r.attendance_date)}</td>
+                      <td className="border border-black py-[1mm] px-2 text-[12px] font-semibold">{r.subject_code}</td>
+                      
+                      {/* Subject Name is 2 sizes smaller (10px) with tight line-spacing for wrapping */}
+                      <td className="border border-black py-[1mm] px-2 text-left pl-4 font-semibold text-[10px] leading-tight">
+                        {r.subject_name}
+                      </td>
+                      
+                      <td className="border border-black py-[1mm] px-2 text-[12px]">{r.session_type || 'Theory'}</td>
+                      <td className="border border-black py-[1mm] px-2 text-[12px] font-bold">{parseFloat(r.hours)}</td>
                     </tr>
                   ))}
                 </tbody>
               </table>
 
-              <div className="grid grid-cols-3 gap-4 font-bold text-[12px] whitespace-nowrap mt-20 px-4" style={{ pageBreakInside: 'avoid', breakInside: 'avoid' }}>
+              {/* UPDATED: Reduced top margin and completely rebuilt the vertical gap to fit perfectly on Page 2 */}
+              <div className="grid grid-cols-3 gap-4 font-bold text-[12px] whitespace-nowrap mt-4 px-4" style={{ pageBreakInside: 'avoid', breakInside: 'avoid' }}>
                 <div className="text-left">
                   <p>Name & Sign. of Visiting Faculty</p>
                 </div>
                 <div className="text-center">
                   <p>Name & Sign. of Program Incharge</p>
                 </div>
-                <div className="text-right flex flex-col gap-24">
+                <div className="text-right flex flex-col gap-10">
                   <p>Name & Sign. of Batch Mentor</p>
                   <p>Name & Sign. of Director</p>
                 </div>
@@ -985,7 +1035,8 @@ function BillPreview({ bill, onDownload }) {
         </div>
       </div>
 
-      <div className="flex flex-row lg:flex-col gap-2 shrink-0 justify-center print-hide">
+      {/* DESKTOP PRINT & PAGE CONTROLS */}
+      <div className="hidden lg:flex flex-col gap-2 shrink-0 justify-center print-hide">
         <button 
           onClick={onDownload}
           className="flex flex-col items-center justify-center gap-1 w-20 h-20 rounded-xl border border-slate-900 bg-slate-900 text-white shadow-sm hover:bg-slate-800 transition-all mb-4"
