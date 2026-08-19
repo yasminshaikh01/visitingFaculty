@@ -79,7 +79,7 @@ export default function MonthlySummary({ onMenuClick }) {
   const [allCoursesData, setAllCoursesData] = useState(null);
   const [loading, setLoading] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
-  const [showCourseDropdown, setShowCourseDropdown] = useState(false);
+  const [showSuggestions, setShowSuggestions] = useState(false);
   const [isDownloading, setIsDownloading] = useState(false);
   const [isDownloadingInstitute, setIsDownloadingInstitute] = useState(false);
   const [isTriggering, setIsTriggering] = useState(false);
@@ -98,7 +98,7 @@ export default function MonthlySummary({ onMenuClick }) {
   useEffect(() => {
     const handler = (e) => {
       if (dropdownRef.current && !dropdownRef.current.contains(e.target)) {
-        setShowCourseDropdown(false);
+        setShowSuggestions(false);
       }
     };
     document.addEventListener("mousedown", handler);
@@ -169,10 +169,10 @@ export default function MonthlySummary({ onMenuClick }) {
     return () => window.removeEventListener('refresh-dashboard', handleRefresh);
   }, [selectedMonth, selectedYear, selectedCourseId, hasApplied]);
 
-  // ── When course selection changes, refetch ───────────────
   const handleCourseSelect = (courseId) => {
     setSelectedCourseId(courseId);
-    setShowCourseDropdown(false);
+    setSearchQuery(""); // Clear search when selecting a program
+    setShowSuggestions(false);
     fetchSummary(selectedMonth, selectedYear, courseId);
   };
 
@@ -291,20 +291,54 @@ export default function MonthlySummary({ onMenuClick }) {
 
     const rows = [];
     facultyMap.forEach((val) => rows.push(val));
-
-    // Apply search filter
-    if (searchQuery.trim()) {
-      const q = searchQuery.toLowerCase();
-      return rows.filter(
-        (r) =>
-          (r.name && r.name.toLowerCase().includes(q)) ||
-          (r.uvfin && String(r.uvfin).toLowerCase().includes(q))
-      );
-    }
     return rows;
   };
 
-  const facultyRows = buildFacultyRows();
+  const allBuiltFacultyRows = buildFacultyRows();
+
+  // Apply search filter
+  const facultyRows = searchQuery.trim() 
+    ? allBuiltFacultyRows.filter(r => 
+        (r.name && r.name.toLowerCase().includes(searchQuery.toLowerCase())) ||
+        (r.uvfin && String(r.uvfin).toLowerCase().includes(searchQuery.toLowerCase()))
+      )
+    : allBuiltFacultyRows;
+
+  // Generate suggestions
+  const getSuggestions = () => {
+    if (!searchQuery.trim()) return { programs: [], faculties: [] };
+    const q = searchQuery.toLowerCase();
+    
+    const programSuggestions = courses
+      .filter((c) => {
+        const name = c.courseName || c.course_name;
+        return name && name.toLowerCase().includes(q);
+      })
+      .map(c => ({
+        id: c.courseId || c.course_id,
+        name: c.courseName || c.course_name
+      }));
+
+    // Deduplicate faculties by name
+    const uniqueFaculties = [];
+    const seen = new Set();
+    for (const f of allBuiltFacultyRows) {
+      if (!seen.has(f.name)) {
+        seen.add(f.name);
+        uniqueFaculties.push(f);
+      }
+    }
+
+    const facultySuggestions = uniqueFaculties
+      .filter((f) => 
+        (f.name && f.name.toLowerCase().includes(q)) || 
+        (f.uvfin && String(f.uvfin).toLowerCase().includes(q))
+      );
+
+    return { programs: programSuggestions, faculties: facultySuggestions };
+  };
+
+  const { programs: suggestedPrograms, faculties: suggestedFaculties } = getSuggestions();
   const grandTotal = summaryData?.grandTotal ?? summaryData?.grand_total ?? facultyRows.reduce((s, r) => s + r.totalAmount, 0);
 
   // ── Determine selected course name ───────────────────────
@@ -407,8 +441,8 @@ export default function MonthlySummary({ onMenuClick }) {
         {/* ── Filter Bar ──────────────────────────────────── */}
         <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-4 md:p-5 mb-6">
           <div className="flex flex-col lg:flex-row lg:items-end gap-4">
-            {/* Search */}
-            <div className="flex-1 min-w-0 w-full">
+            {/* Search with Autocomplete */}
+            <div className="flex-1 min-w-0 w-full relative" ref={dropdownRef}>
               <label className="block text-xs font-semibold text-gray-500 mb-1.5 tracking-wide">
                 Search Report Data
               </label>
@@ -418,10 +452,68 @@ export default function MonthlySummary({ onMenuClick }) {
                   type="text"
                   placeholder="Search by faculty or program..."
                   value={searchQuery}
-                  onChange={(e) => setSearchQuery(e.target.value)}
+                  onChange={(e) => {
+                    setSearchQuery(e.target.value);
+                    setShowSuggestions(true);
+                  }}
+                  onFocus={() => setShowSuggestions(true)}
                   className="bg-transparent outline-none text-sm text-gray-700 w-full placeholder:text-gray-400"
                 />
+                {searchQuery && (
+                  <button 
+                    onClick={() => {
+                      setSearchQuery("");
+                      setShowSuggestions(false);
+                      if (selectedCourseId) handleCourseSelect(null);
+                    }}
+                    className="p-0.5 hover:bg-gray-200 rounded-full transition-colors"
+                  >
+                    <X className="w-4 h-4 text-gray-500" />
+                  </button>
+                )}
               </div>
+
+              {/* Suggestions Dropdown */}
+              {showSuggestions && searchQuery.trim() && (suggestedPrograms.length > 0 || suggestedFaculties.length > 0) && (
+                <div className="absolute top-full left-0 right-0 mt-2 bg-white border border-gray-200 rounded-xl shadow-xl z-50 max-h-80 overflow-y-auto animate-fade-in divide-y divide-gray-100">
+                  {suggestedPrograms.length > 0 && (
+                    <div className="py-2">
+                      <div className="px-4 py-1 text-xs font-bold text-gray-400 uppercase tracking-wider">Programs</div>
+                      {suggestedPrograms.map((p) => (
+                        <button
+                          key={p.id}
+                          onClick={() => {
+                            handleCourseSelect(p.id);
+                          }}
+                          className="w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-purple-50 hover:text-purple-700 transition-colors flex items-center gap-2"
+                        >
+                          <Building2 className="w-4 h-4 text-purple-400" />
+                          <span className="truncate">{p.name}</span>
+                        </button>
+                      ))}
+                    </div>
+                  )}
+                  {suggestedFaculties.length > 0 && (
+                    <div className="py-2">
+                      <div className="px-4 py-1 text-xs font-bold text-gray-400 uppercase tracking-wider">Faculties</div>
+                      {suggestedFaculties.map((f, idx) => (
+                        <button
+                          key={idx}
+                          onClick={() => {
+                            setSearchQuery(f.name);
+                            setShowSuggestions(false);
+                          }}
+                          className="w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-purple-50 hover:text-purple-700 transition-colors flex items-center gap-2"
+                        >
+                          <FileText className="w-4 h-4 text-purple-400" />
+                          <span className="truncate">{f.name}</span>
+                          {f.uvfin && <span className="text-xs text-gray-400 ml-auto font-mono">{f.uvfin}</span>}
+                        </button>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              )}
             </div>
 
             {/* Month Picker */}
@@ -435,60 +527,6 @@ export default function MonthlySummary({ onMenuClick }) {
                 onChange={handleMonthInputChange}
                 className="w-full bg-gray-50 border border-gray-200 rounded-xl px-4 py-2.5 text-sm text-gray-700 focus:border-purple-400 focus:ring-2 focus:ring-purple-100 outline-none transition-all cursor-pointer"
               />
-            </div>
-
-            {/* Course Dropdown */}
-            <div className="w-full lg:w-64 relative shrink-0" ref={dropdownRef}>
-              <label className="block text-xs font-semibold text-gray-500 mb-1.5 tracking-wide">
-                Select Program
-              </label>
-              <button
-                onClick={() => setShowCourseDropdown(!showCourseDropdown)}
-                className="w-full flex items-center justify-between bg-gray-50 border border-gray-200 rounded-xl px-4 py-2.5 text-sm text-gray-700 hover:border-purple-400 focus:border-purple-400 focus:ring-2 focus:ring-purple-100 outline-none transition-all"
-              >
-                <span className="truncate pr-2">
-                  {selectedCourseId
-                    ? selectedCourseName
-                    : "All Programs (Institute)"}
-                </span>
-                <ChevronDown
-                  className={`w-4 h-4 text-gray-400 shrink-0 transition-transform ${
-                    showCourseDropdown ? "rotate-180" : ""
-                  }`}
-                />
-              </button>
-
-              {showCourseDropdown && (
-                <div className="absolute top-full left-0 right-0 mt-1 bg-white border border-gray-200 rounded-xl shadow-xl z-50 max-h-60 overflow-y-auto animate-fade-in">
-                  <button
-                    onClick={() => handleCourseSelect(null)}
-                    className={`w-full text-left px-4 py-3 text-sm hover:bg-purple-50 transition-colors ${
-                      !selectedCourseId
-                        ? "bg-purple-50 text-purple-700 font-semibold"
-                        : "text-gray-700"
-                    }`}
-                  >
-                    All Programs (Institute)
-                  </button>
-                  {courses.map((c) => {
-                    const id = c.courseId || c.course_id;
-                    const name = c.courseName || c.course_name;
-                    return (
-                      <button
-                        key={id}
-                        onClick={() => handleCourseSelect(id)}
-                        className={`w-full text-left px-4 py-3 text-sm hover:bg-purple-50 transition-colors border-t border-gray-50 ${
-                          selectedCourseId === id
-                            ? "bg-purple-50 text-purple-700 font-semibold"
-                            : "text-gray-700"
-                        }`}
-                      >
-                        {name}
-                      </button>
-                    );
-                  })}
-                </div>
-              )}
             </div>
 
             {/* Apply Button */}

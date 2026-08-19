@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useState, useRef } from "react";
-import { Download, Plus, Search, Filter, Eye, BookOpen, UserX, Users } from "lucide-react";
+import { Download, Plus, Search, Filter, Eye, BookOpen, UserX, Users, ClipboardList } from "lucide-react";
 import LoadingSpinner from "./LoadingSpinner";
 import FacultyModal from "./FacultyModal";
 import adminApi from "../../api/adminApi";
@@ -192,7 +192,7 @@ export default function FacultyManagement({ setActiveTab, onAllocateSubject }) {
             onClick={() => setActiveTab("dashboard")}
             className="flex-1 sm:flex-none flex items-center justify-center gap-2 px-4 py-2.5 rounded-lg bg-[#2563eb] text-white text-sm font-medium hover:bg-blue-700 transition-colors shadow-sm whitespace-nowrap"
           >
-            <Plus size={16} /> Register New
+            <ClipboardList size={16} /> Review Pending Approvals
           </button>
         </div>
       </div>

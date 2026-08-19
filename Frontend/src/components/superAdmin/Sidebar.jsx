@@ -37,7 +37,7 @@ export default function Sidebar({
   // UPDATED: Listen for global auto-refresh to update the admin name instantly if changed in Settings
   useEffect(() => {
     const fetchAdminData = () => {
-      const session = JSON.parse(localStorage.getItem("iipsCurrentSession") || "{}");
+      const session = JSON.parse(sessionStorage.getItem("iipsCurrentSession") || "{}");
       if (session.name || session.full_name) {
         setAdminName(session.name || session.full_name);
       }
@@ -58,7 +58,7 @@ export default function Sidebar({
   const handleLogout = async () => {
     try {
       const session = JSON.parse(
-        localStorage.getItem("iipsCurrentSession") || "{}"
+        sessionStorage.getItem("iipsCurrentSession") || "{}"
       );
       if (session.token) {
         await api.post("/auth/logout", {});

@@ -52,12 +52,15 @@ export default function MarkAttendanceList() {
   const [endTime, setEndTime] = useState("10:00");
   const [remarks, setRemarks] = useState("");
   const [userId, setUserId] = useState(null);
+  
+  // NEW STATE: Toggle for 30-minute intervals
+  const [isHalfHourStep, setIsHalfHourStep] = useState(false);
 
   // 1. Fetch User & Allocations on Mount
   useEffect(() => {
     const fetchInitialData = async () => {
       try {
-        const session = JSON.parse(localStorage.getItem('iipsCurrentSession') || '{}');
+        const session = JSON.parse(sessionStorage.getItem('iipsCurrentSession') || '{}');
         const targetId = session.userId;
         
         if (!targetId) return;
@@ -83,7 +86,7 @@ export default function MarkAttendanceList() {
       if (!userId || !date) return;
       
       try {
-        const session = JSON.parse(localStorage.getItem('iipsCurrentSession') || '{}');
+        const session = JSON.parse(sessionStorage.getItem('iipsCurrentSession') || '{}');
         const headers = { 'Authorization': `Bearer ${session.token}` };
         
         const d = new Date(date);
@@ -103,18 +106,26 @@ export default function MarkAttendanceList() {
     fetchMonthlyData();
   }, [date, userId]);
 
-  // --- CUSTOM WHOLE-HOUR TIME HANDLER ---
+  // --- CUSTOM TIME HANDLER (Now supports 30 or 60 minute steps) ---
   const handleTimeChange = (type, direction) => {
     const currentTime = type === 'start' ? startTime : endTime;
-    let hour = parseInt(currentTime.split(':')[0], 10);
+    const [h, m] = currentTime.split(':').map(Number);
+    
+    let totalMinutes = h * 60 + m;
+    const step = isHalfHourStep ? 30 : 60; // DYNAMIC STEP
     
     if (direction === 'up') {
-      hour = hour === 23 ? 0 : hour + 1;
+      totalMinutes += step;
+      if (totalMinutes >= 24 * 60) totalMinutes = 0;
     } else if (direction === 'down') {
-      hour = hour === 0 ? 23 : hour - 1;
+      totalMinutes -= step;
+      if (totalMinutes < 0) totalMinutes = (24 * 60) - step;
     }
     
-    const newTime = `${String(hour).padStart(2, '0')}:00`;
+    const newHour = Math.floor(totalMinutes / 60);
+    const newMin = totalMinutes % 60;
+    const newTime = `${String(newHour).padStart(2, '0')}:${String(newMin).padStart(2, '0')}`;
+    
     if (type === 'start') setStartTime(newTime);
     if (type === 'end') setEndTime(newTime);
   };
@@ -128,7 +139,9 @@ export default function MarkAttendanceList() {
     const end = new Date(0, 0, 0, eHours, eMinutes, 0);
     
     let diff = (end.getTime() - start.getTime()) / 1000 / 60 / 60;
-    return diff > 0 ? diff.toFixed(2) : 0;
+    
+    // Return exact decimal, do NOT round it.
+    return diff > 0 ? diff : 0; 
   };
 
   const hours = calculateHours();
@@ -139,7 +152,7 @@ export default function MarkAttendanceList() {
     setIsSubmitting(true);
     setCapWarning({ isOpen: false, payload: null, details: null });
     try {
-      const session = JSON.parse(localStorage.getItem('iipsCurrentSession') || '{}');
+      const session = JSON.parse(sessionStorage.getItem('iipsCurrentSession') || '{}');
       const response = await api.post("/attendance/", payload);
 
       if (response.data.success) {
@@ -158,6 +171,15 @@ export default function MarkAttendanceList() {
   const handleSubmit = async () => {
     if (!selectedAllocationId || hours <= 0 || !date) {
       return showModal("error", "Missing Information", "Please ensure all fields are filled correctly and End Time is after Start Time.");
+    }
+
+    // NEW STRICT VALIDATION: Block non-whole hour submissions
+    if (!Number.isInteger(hours)) {
+      return showModal(
+        "error", 
+        "Invalid Time Gap", 
+        `Total hours must be a whole number. Your selected duration is ${hours} hours. Please adjust Start and End times to create a full hour gap (e.g., 09:30 to 10:30).`
+      );
     }
 
     const selectedDateObj = new Date(date);
@@ -271,7 +293,7 @@ export default function MarkAttendanceList() {
             </select>
           </div>
 
-          {/* CUSTOM Time Pickers (Whole Hours Only) */}
+          {/* CUSTOM Time Pickers (Dynamic Interval) */}
           <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
             <div>
               <label className="mb-1.5 block text-sm font-medium text-slate-700">Start Time</label>
@@ -328,9 +350,32 @@ export default function MarkAttendanceList() {
                 </div>
               </div>
             </div>
+            
+            {/* NEW: 30-Minute Interval Checkbox */}
+            <div className="sm:col-span-2 flex items-center gap-2 mt-1">
+              <input
+                type="checkbox"
+                id="halfHourToggle"
+                checked={isHalfHourStep}
+                onChange={(e) => {
+                  const isChecked = e.target.checked;
+                  setIsHalfHourStep(isChecked);
+                  
+                  // If turning off the 30-min interval, force both times to snap back to :00
+                  if (!isChecked) {
+                    setStartTime(prev => `${prev.split(':')[0]}:00`);
+                    setEndTime(prev => `${prev.split(':')[0]}:00`);
+                  }
+                }}
+                className="h-4 w-4 rounded border-slate-300 text-[#004DD2] focus:ring-[#004DD2]"
+              />
+              <label htmlFor="halfHourToggle" className="text-sm font-medium text-slate-600 cursor-pointer select-none">
+                Enable 30-minute intervals (Total hours must still be whole numbers)
+              </label>
+            </div>
           </div>
 
-          {/* Auto-Calculated Hours */}
+          {/* Auto-Calculated Hours (Now forces whole numbers) */}
           <div className="flex items-center justify-between rounded-lg bg-blue-50 px-4 py-3 text-sm border border-blue-100">
             <span className="font-medium text-[#004DD2]">Total Hours (Auto Calculated)</span>
             <span className="font-bold text-[#004DD2]">{hours} hrs</span>

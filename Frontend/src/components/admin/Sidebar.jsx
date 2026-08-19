@@ -462,7 +462,7 @@ export default function Sidebar({ activeTab, setActiveTab, onSignOut, isOpen, on
   const [sessionData, setSessionData] = useState(null);
 
   useEffect(() => {
-    const sessionStr = localStorage.getItem("iipsCurrentSession");
+    const sessionStr = sessionStorage.getItem("iipsCurrentSession");
     if (sessionStr) {
       try {
         const session = JSON.parse(sessionStr);
@@ -485,7 +485,7 @@ export default function Sidebar({ activeTab, setActiveTab, onSignOut, isOpen, on
                 
                 // Optional: Update local storage so it's there instantly next time
                 const updatedSession = { ...session, full_name: res.data.data.full_name };
-                localStorage.setItem("iipsCurrentSession", JSON.stringify(updatedSession));
+                sessionStorage.setItem("iipsCurrentSession", JSON.stringify(updatedSession));
               } else {
                 setAdminName("Program Incharge User"); // Ultimate fallback
               }

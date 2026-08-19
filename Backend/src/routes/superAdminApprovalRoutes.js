@@ -14,12 +14,12 @@ SuperAdminApprovalRouter.get('/courseDashboard', authMiddleware(['super_admin'])
 SuperAdminApprovalRouter.get('/courseDashboard/:course_id', authMiddleware(['super_admin']), showDashboardOfCourseController);
 SuperAdminApprovalRouter.post('/addSection/:course_id', authMiddleware(['super_admin']), addSectionsController);
 SuperAdminApprovalRouter.put('/updateIncharge/:course_id', authMiddleware(['super_admin']), updateInchargeController);
-SuperAdminApprovalRouter.get('/subjects/:course_id/:semester_id', authMiddleware(['super_admin']), showSubjectController);
-SuperAdminApprovalRouter.delete('/deleteSubject/:course_id/:semester_id/:subject_id', authMiddleware(['super_admin']), deleteSubjectController);
-SuperAdminApprovalRouter.post('/addSubject/:course_id/:semester_id', authMiddleware(['super_admin']), addSubjectController);
+SuperAdminApprovalRouter.get('/subjects/:course_id/:semester_number', authMiddleware(['super_admin']), showSubjectController);
+SuperAdminApprovalRouter.delete('/deleteSubject/:course_id/:semester_number/:subject_id', authMiddleware(['super_admin']), deleteSubjectController);
+SuperAdminApprovalRouter.post('/addSubject/:course_id/:semester_number', authMiddleware(['super_admin']), addSubjectController);
 SuperAdminApprovalRouter.delete('/deleteSection/:course_id/:section_id', authMiddleware(['super_admin']), deleteSectionController);
 SuperAdminApprovalRouter.delete('/deleteCourse/:course_id', authMiddleware(['super_admin']), deleteCourseController);
-SuperAdminApprovalRouter.delete('/deleteSemester/:course_id/:semester_id', authMiddleware(['super_admin']), deleteSemesterController);
+SuperAdminApprovalRouter.delete('/deleteSemester/:course_id/:semester_number', authMiddleware(['super_admin']), deleteSemesterController);
 SuperAdminApprovalRouter.post('/addSemester/:course_id', authMiddleware(['super_admin']), addSemesterController);
 SuperAdminApprovalRouter.post('/addCourse', authMiddleware(['super_admin']), addCourseController);
 SuperAdminApprovalRouter.get('/dashboardStats', authMiddleware(['super_admin']), getDashboardStatsController);

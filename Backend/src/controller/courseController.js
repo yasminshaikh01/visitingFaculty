@@ -70,7 +70,7 @@ async function updateInchargeController(req, res) {
 
 async function showSubjectController(req, res) {
     try {
-        const result = await semesterSubjectShow(req.params.course_id, req.params.semester_id);
+        const result = await semesterSubjectShow(req.params.course_id, req.params.semester_number);
         return res.json({
             success: true,
             message: 'subjects',
@@ -87,7 +87,7 @@ async function showSubjectController(req, res) {
 
 async function deleteSubjectController(req, res) {
     try {
-        const result = await deleteSubjects(req.params.course_id, req.params.semester_id, req.params.subject_id);
+        const result = await deleteSubjects(req.params.course_id, req.params.semester_number, req.params.subject_id);
         return res.json({
             success: true,
             message: 'subject deleted',
@@ -103,7 +103,7 @@ async function deleteSubjectController(req, res) {
 }
 async function addSubjectController(req, res) {
     try {
-        const result = await addSubjects(req.params.course_id, req.params.semester_id, req.body);
+        const result = await addSubjects(req.params.course_id, req.params.semester_number, req.body);
         return res.json({
             success: true,
             message: 'subject added',
@@ -137,7 +137,7 @@ async function deleteCourseController(req, res) {
 
 async function deleteSemesterController(req, res) {
     try {
-        const result = await deleteSemester(req.params.course_id, req.params.semester_id);
+        const result = await deleteSemester(req.params.course_id, req.params.semester_number);
         return res.json({
             success: true,
             message: 'semester deleted',
@@ -154,7 +154,7 @@ async function deleteSemesterController(req, res) {
 
 async function addSemesterController(req, res) {
     try {
-        const result = await addSemester(req.params.course_id, req.body.semester_id);
+        const result = await addSemester(req.params.course_id, req.body.semester_number);
         return res.json({
             success: true,
             message: 'semester added',

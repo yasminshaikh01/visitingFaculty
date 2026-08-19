@@ -10,7 +10,7 @@ import MonthlySummary from "./MonthlySummary";
 export default function SuperAdminDashboard({ onSignOut }) {
   // 1. Bulletproof State Initialization
   const [activeTab, setActiveTab] = useState(() => {
-    const savedTab = localStorage.getItem("superAdminActiveTab");
+    const savedTab = sessionStorage.getItem("superAdminActiveTab");
     console.log("On refresh, found saved main tab:", savedTab); // For debugging
     return savedTab || "pending"; 
   });
@@ -19,9 +19,9 @@ export default function SuperAdminDashboard({ onSignOut }) {
   // NEW: State to control mobile sidebar drawer
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
 
-  // 2. Save to localStorage whenever the tab changes
+  // 2. Save to sessionStorage whenever the tab changes
   useEffect(() => {
-    localStorage.setItem("superAdminActiveTab", activeTab);
+    sessionStorage.setItem("superAdminActiveTab", activeTab);
   }, [activeTab]);
 
   // 3. UPDATED: Fetch pending count and listen for global refreshes
@@ -45,24 +45,25 @@ export default function SuperAdminDashboard({ onSignOut }) {
     return () => window.removeEventListener('refresh-dashboard', fetchPendingCount);
   }, [activeTab]);
 
-  const handleSignOut = async () => {
-    try {
-      // CLEANED: Manual headers removed for your future logout logic!
-      /*
-      await api.post("/auth/logout", {});
-      */
+const handleSignOut = async (e) => {
+    // 1. Prevent any default button/link behavior just in case
+    if (e) e.preventDefault(); 
 
-      // Clear all local storage on sign out
-      localStorage.removeItem('iipsCurrentSession');
-      localStorage.removeItem('superAdminActiveTab'); 
+    try {
+      // 2. Wipe all storage
+      sessionStorage.clear(); 
       
+      // 3. Update React state if needed
       if (onSignOut) onSignOut();
+
+      // 4. FORCE ROUTE TO LOGIN PAGE (Change "/" if your login page is somewhere else)
+      window.location.href = "/"; 
       
     } catch (err) {
       console.error("Error signing out", err);
-      localStorage.removeItem('iipsCurrentSession');
-      localStorage.removeItem('superAdminActiveTab'); 
+      sessionStorage.clear(); 
       if (onSignOut) onSignOut();
+      window.location.href = "/";
     }
   };
 

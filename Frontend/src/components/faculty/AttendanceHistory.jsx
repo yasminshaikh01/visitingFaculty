@@ -70,7 +70,7 @@ export default function AttendanceHistory() {
   const fetchData = async () => {
     setIsLoading(true);
     try {
-      const session = JSON.parse(localStorage.getItem('iipsCurrentSession') || '{}');
+      const session = JSON.parse(sessionStorage.getItem('iipsCurrentSession') || '{}');
       setFacultyName(session.name || "Faculty Member");
       const targetId = session.userId;
       const headers = { 'Authorization': `Bearer ${session.token}` };
@@ -110,7 +110,7 @@ export default function AttendanceHistory() {
     setDeleteError("");
 
     try {
-      const session = JSON.parse(localStorage.getItem('iipsCurrentSession') || '{}');
+      const session = JSON.parse(sessionStorage.getItem('iipsCurrentSession') || '{}');
       
       const response = await api.delete(`/attendance/record/${recordToDelete.attendance_id}`);
 
@@ -142,7 +142,7 @@ export default function AttendanceHistory() {
     setBulkDeleteError("");
 
     try {
-      const session = JSON.parse(localStorage.getItem('iipsCurrentSession') || '{}');
+      const session = JSON.parse(sessionStorage.getItem('iipsCurrentSession') || '{}');
       const targetId = session.userId;
       
      let url = `/attendance/faculty/${targetId}`;
@@ -154,12 +154,9 @@ export default function AttendanceHistory() {
         url += `?attendance_date=${dStr}`;
       } else if (selectedTimeRange === "This Week") {
         url += `?attendance_period=weekly`;
-      } else if (selectedTimeRange === "This Month") {
-        const monthName = today.toLocaleString('default', { month: 'long' });
-        url += `?month=${monthName}&year=${today.getFullYear()}`;
       }
 
-      const response = await axios.delete(url, {
+      const response = await api.delete(url, {
         headers: { 'Authorization': `Bearer ${session.token}` }
       });
 
@@ -433,7 +430,7 @@ export default function AttendanceHistory() {
                 {sortOrder === 'desc' ? 'Newest First' : 'Oldest First'}
               </button>
 
-              {history.length > 0 && (
+              {history.length > 0 && selectedTimeRange !== "This Month" && (
                 <button
                   onClick={promptBulkDelete}
                   className="flex items-center gap-2 rounded-lg border border-red-200 bg-white px-3 py-2 text-sm font-medium text-red-600 hover:bg-red-50 transition-colors shadow-sm"

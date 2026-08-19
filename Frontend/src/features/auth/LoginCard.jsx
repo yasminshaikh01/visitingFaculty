@@ -40,11 +40,16 @@ const LoginCard = ({ onNavigate, initialEmail = "" }) => {
       setSuccessRole(formattedRole);
 
       // 3. CRITICAL: Save the token exactly where axiosInstance.js is looking for it!
-      localStorage.setItem("token", userData.token);
+      // UPDATED: Now using sessionStorage to prevent multi-tab conflicts
+      sessionStorage.setItem("token", userData.token);
+
+      // ADD THIS CHECK:
+      console.log("Token right after saving:", sessionStorage.getItem("token"));
+      console.log("Full Response Data:", response.data);
 
       // Save the rest of the session data AND THE TOKEN for your UI routing
-      // Note: We still save userId here if the backend returns it, as other pages might need it!
-      localStorage.setItem(
+      // UPDATED: Now using sessionStorage
+      sessionStorage.setItem(
         "iipsCurrentSession",
         JSON.stringify({
           role: userData.role,
@@ -64,7 +69,7 @@ const LoginCard = ({ onNavigate, initialEmail = "" }) => {
       if (fullErrorString.includes("pending approval")) {
         setErrorMessage("Your account is currently not approved. Please wait for the confirmation mail.");
       } 
-      // 2. Check for Deactivated Account (from your teammate's code)
+      // 2. Check for Deactivated Account
       else if (fullErrorString.includes("deactivated")) {
         setErrorMessage("Your account has been deactivated. Please contact the Program Incharge for assistance.");
       } 
@@ -116,6 +121,8 @@ const LoginCard = ({ onNavigate, initialEmail = "" }) => {
                 setPassword("");
                 // Navigate to dashboard and pass the role so the router knows where to send them
                 onNavigate("dashboard");
+                // FORCE A RELOAD to wipe React's old memory and read the new session
+                window.location.reload();
               }}
               className="w-full rounded-lg bg-[#004DD2] py-3 font-medium text-white shadow-md transition hover:bg-[#003bb3] focus:outline-none focus:ring-4 focus:ring-[#004DD2]/30"
             >

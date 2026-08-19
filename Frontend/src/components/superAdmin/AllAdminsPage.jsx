@@ -30,7 +30,7 @@ export default function AllAdminsPage({ onNavigate, onMenuClick }) {
 
   const fetchAllAdmins = async () => {
     try {
-      const session = JSON.parse(localStorage.getItem('iipsCurrentSession') || '{}');
+      const session = JSON.parse(sessionStorage.getItem('iipsCurrentSession') || '{}');
       const response = await api.get("/super_admin/approvedAdmin");
       setAdmins(response.data.data || []);
     } catch (err) {
@@ -46,7 +46,7 @@ export default function AllAdminsPage({ onNavigate, onMenuClick }) {
     setIsTogglingStatus(true);
     
     try {
-      const session = JSON.parse(localStorage.getItem('iipsCurrentSession') || '{}');
+      const session = JSON.parse(sessionStorage.getItem('iipsCurrentSession') || '{}');
       // Default to true if is_active is undefined in your DB schema
       const currentlyActive = selectedAdmin.is_active !== false; 
       const action = currentlyActive ? 'deactivate' : 'activate';

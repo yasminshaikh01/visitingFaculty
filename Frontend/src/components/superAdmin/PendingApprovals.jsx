@@ -39,7 +39,7 @@ export default function PendingApprovalsPage({ onNavigate, onMenuClick }) {
     setIsLoading(true);
     setError("");
     try {
-      const session = JSON.parse(localStorage.getItem('iipsCurrentSession') || '{}');
+      const session = JSON.parse(sessionStorage.getItem('iipsCurrentSession') || '{}');
       const response = await api.get(`/super_admin/${endpointKey}`);
       setAdmins(response.data.data || []); 
     } catch (err) {
@@ -89,7 +89,7 @@ export default function PendingApprovalsPage({ onNavigate, onMenuClick }) {
     setUpdateError("");
 
     try {
-      const session = JSON.parse(localStorage.getItem('iipsCurrentSession') || '{}');
+      const session = JSON.parse(sessionStorage.getItem('iipsCurrentSession') || '{}');
       const targetUserId = selectedAdmin.user_id || selectedAdmin.id || selectedAdmin.userId;
 
       if (!targetUserId) {
