@@ -123,7 +123,7 @@ export default function AttendanceRecords() {
       const selected = facultyOptions.find(f => f.user_id === targetId) || allFaculties.find(f => f.user_id === targetId);
       setActiveFaculty({
         name: selected?.full_name || facultySearch || "Selected Faculty",
-        session: "2024-25" 
+        session: "2026-27" 
       });
       
     } catch (err) {
