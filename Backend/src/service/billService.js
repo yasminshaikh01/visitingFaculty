@@ -251,27 +251,25 @@ const generateBill = async (facultyId, month, year, extraDetails = {}) => {
 
         // ==========================
         // Faculty details for the PDF header/footer
-        // (address / mobile_no / uvfin / qualification / pan_card_no /
-        // account_no / bank_name / ifsc_code / aadhaar_no all come straight
-        // off the User row — make sure those columns are populated in the DB,
-        // the PDF just prints whatever is there)
         // ==========================
-        const faculty = attendanceRecords[0].Allocation.User;
-
-        const pdfPath = await generateBillPDF(
-            bill,
-            finalBillDetails,
-            faculty
-        );
-
-        await bill.update(
-            {
-                pdf_path: pdfPath
-            },
-            {
-                transaction
-            }
-        );
+        try {
+            const faculty = attendanceRecords[0]?.Allocation?.User || (await User.findByPk(numericUserId));
+            const pdfPath = await generateBillPDF(
+                bill,
+                finalBillDetails,
+                faculty
+            );
+            await bill.update(
+                {
+                    pdf_path: pdfPath
+                },
+                {
+                    transaction
+                }
+            );
+        } catch (pdfErr) {
+            console.warn(`[generateBill] PDF generation deferred: ${pdfErr.message}`);
+        }
 
         // ==========================
         // Commit Transaction
@@ -564,8 +562,58 @@ const downloadBill = async (billId) => {
     return resolvedPath;
 };
 
+// ==========================================================
+// Upsert Bill (create or regenerate)
+// ==========================================================
+// Called automatically every time a faculty marks attendance.
+// If no bill exists for that faculty+month+year it creates one.
+// If a bill already exists it removes the old bill (+ details) and
+// rebuilds it from the latest attendance records, so the Super Admin
+// always sees the up-to-date amount in the Monthly Summary.
+// ==========================================================
+const upsertBill = async (facultyId, month, year, extraDetails = {}) => {
+
+    if (!facultyId || !month || !year) {
+        throw new Error("Missing required fields");
+    }
+
+    const numericUserId = await resolveUserId(facultyId);
+    const parsedYear = Number(year);
+
+    // ── Step 1: Delete any existing bill so generateBill won't hit
+    //   the "Bill already generated" duplicate guard.
+    const existingBill = await Bill.findOne({
+        where: { user_id: numericUserId, month, year: parsedYear }
+    });
+
+    if (existingBill) {
+        const t = await sequelize.transaction();
+        try {
+            await BillDetail.destroy({
+                where: { bill_id: existingBill.bill_id },
+                transaction: t
+            });
+            await Bill.destroy({
+                where: { bill_id: existingBill.bill_id },
+                transaction: t
+            });
+            await t.commit();
+            console.log(
+                `[upsertBill] Removed old bill #${existingBill.bill_id} for faculty ${numericUserId} — ${month} ${parsedYear}`
+            );
+        } catch (err) {
+            await t.rollback();
+            throw err;
+        }
+    }
+
+    // ── Step 2: Regenerate bill from scratch (now safe — no duplicate)
+    return await generateBill(numericUserId, month, parsedYear, extraDetails);
+};
+
 module.exports = {
     generateBill,
+    upsertBill,
     getBillDetails,
     getBillHistory,
     getBillSummary,

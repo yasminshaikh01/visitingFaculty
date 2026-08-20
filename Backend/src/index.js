@@ -29,7 +29,7 @@ app.use((req, res, next) => {
 app.use(express.json({ limit: '10mb' }));
 app.use(express.urlencoded({ extended: true, limit: '10mb' }));
 
-app.use(cors({ origin: true, credentials: true }));
+app.use(cors({ origin: true, credentials: true, maxAge: 86400 }));
 app.use(helmet());
 app.use(morgan('dev'));
 app.use(compression());

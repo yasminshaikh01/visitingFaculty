@@ -15,6 +15,44 @@ const {
     deleteAttendanceByFaculty
 } = require("../service/attendanceService");
 
+const { generateBill, upsertBill } = require("../service/billService");
+
+// ============================================================
+// ■  HELPER: Fire-and-forget bill generation
+//    Called after every successful attendance insert.
+//    Runs asynchronously so it NEVER blocks the API response.
+//    "Bill already generated" errors are silently ignored;
+//    all other errors are logged for debugging.
+// ============================================================
+const triggerBillGeneration = (userId, month, year) => {
+    // Skip bill generation during unit tests to avoid pending async tasks and connection timeouts
+    if (process.env.NODE_ENV === 'test') return;
+
+    // Convert year to the number type expected by generateBill
+    const yearStr = String(year);
+
+    // Use setImmediate so the HTTP response is sent first,
+    // then bill generation runs in the next event-loop tick.
+    setImmediate(async () => {
+        try {
+            // upsertBill: creates the bill if it doesn't exist yet;
+            // if a bill already exists for this faculty+month+year it
+            // deletes the old one and regenerates it from all current
+            // attendance records — so the Super Admin always sees the
+            // latest, accurate amount in the Monthly Summary.
+            await upsertBill(userId, month, yearStr);
+            console.log(
+                `[AutoBill] Bill upserted for faculty ${userId} — ${month} ${yearStr}`
+            );
+        } catch (err) {
+            // Log any unexpected errors without crashing the server.
+            console.error(
+                `[AutoBill] Failed to upsert bill for faculty ${userId} — ${month} ${yearStr}: ${err.message}`
+            );
+        }
+    });
+};
+
 // ============================================================
 // ■  HELPERS
 // ============================================================
@@ -59,6 +97,20 @@ const markAttendanceController = async (req, res) => {
         for (const item of items) {
             const attendance = await markAttendance(item);
             results.push(attendance);
+        }
+
+        // 3. Auto-generate bill for each unique faculty+month+year combination
+        const seen = new Set();
+        for (let i = 0; i < results.length; i++) {
+            const rec = results[i];
+            const uid = items[i].user_id;   // user_id is always in the request body
+            const key = `${uid}|${rec.month}|${rec.year}`;
+            if (!seen.has(key)) {
+                seen.add(key);
+                if (uid && rec.month && rec.year) {
+                    triggerBillGeneration(uid, rec.month, rec.year);
+                }
+            }
         }
 
         return res.status(201).json({
@@ -125,6 +177,20 @@ const markDailyAttendanceController = async (req, res) => {
         const results = [];
         for (const item of items) {
             results.push(await markDailyAttendance(item));
+        }
+
+        // Auto-generate bill for each unique faculty+month+year
+        const seen = new Set();
+        for (let i = 0; i < results.length; i++) {
+            const rec = results[i];
+            const uid = items[i].user_id;
+            const key = `${uid}|${rec.month}|${rec.year}`;
+            if (!seen.has(key)) {
+                seen.add(key);
+                if (uid && rec.month && rec.year) {
+                    triggerBillGeneration(uid, rec.month, rec.year);
+                }
+            }
         }
 
         return res.status(201).json({
@@ -194,6 +260,20 @@ const markWeeklyAttendanceController = async (req, res) => {
             results.push(await markWeeklyAttendance(item));
         }
 
+        // Auto-generate bill for each unique faculty+month+year
+        const seen = new Set();
+        for (let i = 0; i < results.length; i++) {
+            const rec = results[i];
+            const uid = items[i].user_id;
+            const key = `${uid}|${rec.month}|${rec.year}`;
+            if (!seen.has(key)) {
+                seen.add(key);
+                if (uid && rec.month && rec.year) {
+                    triggerBillGeneration(uid, rec.month, rec.year);
+                }
+            }
+        }
+
         return res.status(201).json({
             success:           true,
             attendance_period: 'weekly',
@@ -259,6 +339,20 @@ const markMonthlyAttendanceController = async (req, res) => {
         const results = [];
         for (const item of items) {
             results.push(await markMonthlyAttendance(item));
+        }
+
+        // Auto-generate bill for each unique faculty+month+year
+        const seen = new Set();
+        for (let i = 0; i < results.length; i++) {
+            const rec = results[i];
+            const uid = items[i].user_id;
+            const key = `${uid}|${rec.month}|${rec.year}`;
+            if (!seen.has(key)) {
+                seen.add(key);
+                if (uid && rec.month && rec.year) {
+                    triggerBillGeneration(uid, rec.month, rec.year);
+                }
+            }
         }
 
         return res.status(201).json({
