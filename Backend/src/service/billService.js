@@ -251,27 +251,25 @@ const generateBill = async (facultyId, month, year, extraDetails = {}) => {
 
         // ==========================
         // Faculty details for the PDF header/footer
-        // (address / mobile_no / uvfin / qualification / pan_card_no /
-        // account_no / bank_name / ifsc_code / aadhaar_no all come straight
-        // off the User row — make sure those columns are populated in the DB,
-        // the PDF just prints whatever is there)
         // ==========================
-        const faculty = attendanceRecords[0].Allocation.User;
-
-        const pdfPath = await generateBillPDF(
-            bill,
-            finalBillDetails,
-            faculty
-        );
-
-        await bill.update(
-            {
-                pdf_path: pdfPath
-            },
-            {
-                transaction
-            }
-        );
+        try {
+            const faculty = attendanceRecords[0]?.Allocation?.User || (await User.findByPk(numericUserId));
+            const pdfPath = await generateBillPDF(
+                bill,
+                finalBillDetails,
+                faculty
+            );
+            await bill.update(
+                {
+                    pdf_path: pdfPath
+                },
+                {
+                    transaction
+                }
+            );
+        } catch (pdfErr) {
+            console.warn(`[generateBill] PDF generation deferred: ${pdfErr.message}`);
+        }
 
         // ==========================
         // Commit Transaction
@@ -580,11 +578,12 @@ const upsertBill = async (facultyId, month, year, extraDetails = {}) => {
     }
 
     const numericUserId = await resolveUserId(facultyId);
+    const parsedYear = Number(year);
 
     // ── Step 1: Delete any existing bill so generateBill won't hit
     //   the "Bill already generated" duplicate guard.
     const existingBill = await Bill.findOne({
-        where: { user_id: numericUserId, month, year }
+        where: { user_id: numericUserId, month, year: parsedYear }
     });
 
     if (existingBill) {
@@ -600,7 +599,7 @@ const upsertBill = async (facultyId, month, year, extraDetails = {}) => {
             });
             await t.commit();
             console.log(
-                `[upsertBill] Removed old bill #${existingBill.bill_id} for faculty ${numericUserId} — ${month} ${year}`
+                `[upsertBill] Removed old bill #${existingBill.bill_id} for faculty ${numericUserId} — ${month} ${parsedYear}`
             );
         } catch (err) {
             await t.rollback();
@@ -609,7 +608,7 @@ const upsertBill = async (facultyId, month, year, extraDetails = {}) => {
     }
 
     // ── Step 2: Regenerate bill from scratch (now safe — no duplicate)
-    return await generateBill(numericUserId, month, year, extraDetails);
+    return await generateBill(numericUserId, month, parsedYear, extraDetails);
 };
 
 module.exports = {

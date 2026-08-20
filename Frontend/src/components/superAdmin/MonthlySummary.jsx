@@ -231,22 +231,16 @@ export default function MonthlySummary({ onMenuClick }) {
     }
   };
 
-  // ── Trigger cron job ─────────────────────────────────────
+  // ── Refresh Data Button ──────────────────────────────────
   const handleTriggerNow = async () => {
     setIsTriggering(true);
     try {
-      const { data } = await api.post(`${API_BASE}/trigger-now`);
-      if (data.success) {
-        showToast(data.message || "Monthly summary job triggered successfully!");
-        // Refresh data after a short delay to allow the backend to process
-        setTimeout(() => {
-          handleApplyFilters();
-          window.dispatchEvent(new Event('refresh-dashboard')); // Tell others to refresh too
-        }, 2000);
-      }
+      await fetchAllCourses(selectedMonth, selectedYear);
+      await fetchSummary(selectedMonth, selectedYear, selectedCourseId);
+      showToast("Data refreshed with latest attendance!");
     } catch (err) {
-      console.error("Trigger error:", err);
-      showToast("Failed to trigger monthly summary job.", "error");
+      console.error("Refresh error:", err);
+      showToast("Failed to refresh data.", "error");
     } finally {
       setIsTriggering(false);
     }

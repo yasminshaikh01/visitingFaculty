@@ -40,12 +40,19 @@ const aggregateSummary = async ({ month, year, courseId }) => {
         courseWhere = { course_id: course.course_id };
     }
 
+    const { Op } = require("sequelize");
+
     // Query all attendance records for this month + year
     const attendanceRecords = await Attendance.findAll({
         where: {
-            month,
-            year: Number(year),
-            status: { [require("sequelize").Op.ne]: "Cancelled" }
+            [Op.and]: [
+                sequelize.where(
+                    sequelize.fn('LOWER', sequelize.col('Attendance.month')),
+                    String(month).trim().toLowerCase()
+                ),
+                { year: Number(year) },
+                { status: { [Op.ne]: "Cancelled" } }
+            ]
         },
         include: [
             {
@@ -195,12 +202,19 @@ const generateMonthlySummaryPDF = async (month, year) => {
         try {
             if (!month || !year) throw new Error("month and year are required.");
 
+            const { Op } = require("sequelize");
+
             // 1. Fetch live attendance records for the month
             const attendanceRecords = await Attendance.findAll({
                 where: {
-                    month,
-                    year: Number(year),
-                    status: { [require("sequelize").Op.ne]: "Cancelled" }
+                    [Op.and]: [
+                        sequelize.where(
+                            sequelize.fn('LOWER', sequelize.col('Attendance.month')),
+                            String(month).trim().toLowerCase()
+                        ),
+                        { year: Number(year) },
+                        { status: { [Op.ne]: "Cancelled" } }
+                    ]
                 },
                 include: [
                     { model: User, attributes: ["user_id", "full_name", "uvfin"] },
