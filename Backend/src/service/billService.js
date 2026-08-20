@@ -564,8 +564,57 @@ const downloadBill = async (billId) => {
     return resolvedPath;
 };
 
+// ==========================================================
+// Upsert Bill (create or regenerate)
+// ==========================================================
+// Called automatically every time a faculty marks attendance.
+// If no bill exists for that faculty+month+year it creates one.
+// If a bill already exists it removes the old bill (+ details) and
+// rebuilds it from the latest attendance records, so the Super Admin
+// always sees the up-to-date amount in the Monthly Summary.
+// ==========================================================
+const upsertBill = async (facultyId, month, year, extraDetails = {}) => {
+
+    if (!facultyId || !month || !year) {
+        throw new Error("Missing required fields");
+    }
+
+    const numericUserId = await resolveUserId(facultyId);
+
+    // ── Step 1: Delete any existing bill so generateBill won't hit
+    //   the "Bill already generated" duplicate guard.
+    const existingBill = await Bill.findOne({
+        where: { user_id: numericUserId, month, year }
+    });
+
+    if (existingBill) {
+        const t = await sequelize.transaction();
+        try {
+            await BillDetail.destroy({
+                where: { bill_id: existingBill.bill_id },
+                transaction: t
+            });
+            await Bill.destroy({
+                where: { bill_id: existingBill.bill_id },
+                transaction: t
+            });
+            await t.commit();
+            console.log(
+                `[upsertBill] Removed old bill #${existingBill.bill_id} for faculty ${numericUserId} — ${month} ${year}`
+            );
+        } catch (err) {
+            await t.rollback();
+            throw err;
+        }
+    }
+
+    // ── Step 2: Regenerate bill from scratch (now safe — no duplicate)
+    return await generateBill(numericUserId, month, year, extraDetails);
+};
+
 module.exports = {
     generateBill,
+    upsertBill,
     getBillDetails,
     getBillHistory,
     getBillSummary,
