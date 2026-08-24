@@ -68,48 +68,16 @@ export default function Settings({ onMenuClick }) {
   });
   const [isUpdatingProfile, setIsUpdatingProfile] = useState(false);
 
-  // UPDATED: Advanced Optimistic UI Fetch Logic
-  const loadProfileData = async () => {
-    // 1. INSTANT LOAD: Grab from session so the UI never flashes blank
+  // 1. INSTANT LOAD: Grab from session so the UI never flashes blank
+  const loadProfileData = () => {
     const session = JSON.parse(sessionStorage.getItem("iipsCurrentSession") || "{}");
     const userData = session.user || session; 
-    const currentUserId = userData.userId || userData.user_id || userData.id;
     
     if (userData && Object.keys(userData).length > 0) {
       setProfileData({
         full_name: userData.full_name || userData.name || userData.displayName || "",
         email: userData.email || userData.emailAddress || "",
       });
-    }
-
-    // 2. BACKGROUND SYNC: Fetch the absolute newest data from the API
-    if (currentUserId && session.token) {
-      try {
-        const response = await api.get(`/super_admin/${currentUserId}`); 
-        
-        if (response.data && response.data.success) {
-          const freshData = response.data.data;
-          
-          // Silently update the UI with the exact truth from the database
-          setProfileData({
-            full_name: freshData.full_name || freshData.name || userData.full_name || "",
-            email: freshData.email || userData.email || "",
-          });
-
-          // Update the local session storage so the rest of the app has the newest data
-          if (session.user) {
-            session.user.full_name = freshData.full_name || freshData.name;
-            session.user.email = freshData.email;
-          } else {
-            session.name = freshData.full_name || freshData.name;
-            session.full_name = freshData.full_name || freshData.name;
-            session.email = freshData.email;
-          }
-          sessionStorage.setItem("iipsCurrentSession", JSON.stringify(session));
-        }
-      } catch (err) {
-        console.error("Background sync failed: Could not fetch fresh profile data", err);
-      }
     }
   };
 
