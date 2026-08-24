@@ -41,7 +41,7 @@ export default function Settings({ onMenuClick }) {
   const [auditFilter, setAuditFilter] = useState("Select...");
   const [logs, setLogs] = useState([]);
 
-  // Dynamic System Stats State
+  // NEW: Dynamic System Stats State
   const [sysStats, setSysStats] = useState([
     { label: "System Version", value: "VFM 1.0" },
     { label: "Total Program Incharge Requests", value: "..." },
@@ -61,29 +61,22 @@ export default function Settings({ onMenuClick }) {
   });
   const [isUpdatingPassword, setIsUpdatingPassword] = useState(false);
 
-  // UPDATED: Removed phone_number from state completely
   const [profileData, setProfileData] = useState({
     full_name: "",
     email: "",
   });
   const [isUpdatingProfile, setIsUpdatingProfile] = useState(false);
 
-  // 1. INSTANT LOAD: Grab from session so the UI never flashes blank
-  const loadProfileData = () => {
-    const session = JSON.parse(sessionStorage.getItem("iipsCurrentSession") || "{}");
-    const userData = session.user || session; 
-    
-    if (userData && Object.keys(userData).length > 0) {
+  useEffect(() => {
+    const session = JSON.parse(
+      sessionStorage.getItem("iipsCurrentSession") || "{}",
+    );
+    if (session && Object.keys(session).length > 0) {
       setProfileData({
-        full_name: userData.full_name || userData.name || userData.displayName || "",
-        email: userData.email || userData.emailAddress || "",
+        full_name: session.name || session.full_name || "",
+        email: session.email || "",
       });
     }
-  };
-
-  useEffect(() => {
-    loadProfileData();
-  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   const handleProfileUpdate = async () => {
@@ -106,19 +99,10 @@ export default function Settings({ onMenuClick }) {
 
       if (response.data.success) {
         showToast("Profile updated successfully!", "success");
-        
-        // Safely update the session storage so autofill stays correct
-        if (session.user) {
-          session.user.full_name = profileData.full_name;
-          session.user.email = profileData.email;
-        } else {
-          session.name = profileData.full_name;
-          session.full_name = profileData.full_name;
-          session.email = profileData.email;
-        }
+        session.name = profileData.full_name;
         sessionStorage.setItem("iipsCurrentSession", JSON.stringify(session));
         
-        // Dispatch event so sidebar and settings instantly update
+        // Dispatch event so sidebar instantly updates your name
         window.dispatchEvent(new Event('refresh-dashboard'));
       }
     } catch (err) {
@@ -208,6 +192,7 @@ export default function Settings({ onMenuClick }) {
     }
   };
 
+  // NEW: Fetch dynamic system stats from API
   const fetchSystemStats = async () => {
     try {
       const session = JSON.parse(sessionStorage.getItem('iipsCurrentSession') || '{}');
@@ -246,16 +231,14 @@ export default function Settings({ onMenuClick }) {
     if (activeTab === "General") fetchSystemStats();
   }, [activeTab]);
 
-  // Listen for global refresh events to auto-update the audit logs, system stats, AND profile data
+  // Listen for global refresh events to auto-update the audit logs AND system stats
   useEffect(() => {
     const handleRefresh = () => {
-      loadProfileData(); // Automatically refill profile data on refresh
       if (activeTab === "Audit Log") fetchAuditLogs();
       if (activeTab === "General") fetchSystemStats();
     };
     window.addEventListener('refresh-dashboard', handleRefresh);
     return () => window.removeEventListener('refresh-dashboard', handleRefresh);
-  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [activeTab]);
 
   // Bulletproofed status logic
@@ -295,6 +278,7 @@ export default function Settings({ onMenuClick }) {
     const csvContent = [
       headers.join(","),
       ...filteredLogs.map((l, i) => {
+        // Used a shorter DD/MM/YYYY format so it fits in Excel without the "########" issue
         const dateStr = l.updated_at
           ? new Date(l.updated_at).toLocaleDateString("en-GB")
           : "-";
@@ -342,7 +326,7 @@ export default function Settings({ onMenuClick }) {
             box-shadow: none !important; 
           }
 
-          /* Force overflow visible so table isn't cut off on the right */
+          /* Force overflow visible so table isnt cut off on the right */
           .print-table-wrapper {
             overflow: visible !important;
           }
@@ -489,6 +473,7 @@ export default function Settings({ onMenuClick }) {
                 System Information
               </h3>
               <div className="flex flex-col divide-y divide-gray-100">
+                {/* UPDATED: Dynamic System Stats mapping */}
                 {sysStats.map((item) => (
                   <div
                     key={item.label}
