@@ -39,6 +39,14 @@ export default function ProgramsPage({ onMenuClick }) {
 
   useEffect(() => {
     fetchPrograms();
+
+    // NEW: Listen for global refresh events to auto-update the programs list
+    const handleRefresh = () => {
+      fetchPrograms();
+    };
+
+    window.addEventListener('refresh-dashboard', handleRefresh);
+    return () => window.removeEventListener('refresh-dashboard', handleRefresh);
   }, []);
 
   const handleProgramUpdate = (updatedCourse) => {

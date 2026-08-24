@@ -41,7 +41,7 @@ export default function Settings({ onMenuClick }) {
   const [auditFilter, setAuditFilter] = useState("Select...");
   const [logs, setLogs] = useState([]);
 
-  // NEW: Dynamic System Stats State
+  // Dynamic System Stats State
   const [sysStats, setSysStats] = useState([
     { label: "System Version", value: "VFM 1.0" },
     { label: "Total Program Incharge Requests", value: "..." },
@@ -61,24 +61,61 @@ export default function Settings({ onMenuClick }) {
   });
   const [isUpdatingPassword, setIsUpdatingPassword] = useState(false);
 
+  // UPDATED: Removed phone_number from state completely
   const [profileData, setProfileData] = useState({
     full_name: "",
     email: "",
-    phone_number: "",
   });
   const [isUpdatingProfile, setIsUpdatingProfile] = useState(false);
 
-  useEffect(() => {
-    const session = JSON.parse(
-      sessionStorage.getItem("iipsCurrentSession") || "{}",
-    );
-    if (session && Object.keys(session).length > 0) {
+  // UPDATED: Advanced Optimistic UI Fetch Logic
+  const loadProfileData = async () => {
+    // 1. INSTANT LOAD: Grab from session so the UI never flashes blank
+    const session = JSON.parse(sessionStorage.getItem("iipsCurrentSession") || "{}");
+    const userData = session.user || session; 
+    const currentUserId = userData.userId || userData.user_id || userData.id;
+    
+    if (userData && Object.keys(userData).length > 0) {
       setProfileData({
-        full_name: session.name || session.full_name || "",
-        email: session.email || "",
-        phone_number: session.phone_number || "",
+        full_name: userData.full_name || userData.name || userData.displayName || "",
+        email: userData.email || userData.emailAddress || "",
       });
     }
+
+    // 2. BACKGROUND SYNC: Fetch the absolute newest data from the API
+    if (currentUserId && session.token) {
+      try {
+        const response = await api.get(`/super_admin/${currentUserId}`); 
+        
+        if (response.data && response.data.success) {
+          const freshData = response.data.data;
+          
+          // Silently update the UI with the exact truth from the database
+          setProfileData({
+            full_name: freshData.full_name || freshData.name || userData.full_name || "",
+            email: freshData.email || userData.email || "",
+          });
+
+          // Update the local session storage so the rest of the app has the newest data
+          if (session.user) {
+            session.user.full_name = freshData.full_name || freshData.name;
+            session.user.email = freshData.email;
+          } else {
+            session.name = freshData.full_name || freshData.name;
+            session.full_name = freshData.full_name || freshData.name;
+            session.email = freshData.email;
+          }
+          sessionStorage.setItem("iipsCurrentSession", JSON.stringify(session));
+        }
+      } catch (err) {
+        console.error("Background sync failed: Could not fetch fresh profile data", err);
+      }
+    }
+  };
+
+  useEffect(() => {
+    loadProfileData();
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   const handleProfileUpdate = async () => {
@@ -101,10 +138,19 @@ export default function Settings({ onMenuClick }) {
 
       if (response.data.success) {
         showToast("Profile updated successfully!", "success");
-        session.name = profileData.full_name;
+        
+        // Safely update the session storage so autofill stays correct
+        if (session.user) {
+          session.user.full_name = profileData.full_name;
+          session.user.email = profileData.email;
+        } else {
+          session.name = profileData.full_name;
+          session.full_name = profileData.full_name;
+          session.email = profileData.email;
+        }
         sessionStorage.setItem("iipsCurrentSession", JSON.stringify(session));
         
-        // Dispatch event so sidebar instantly updates your name
+        // Dispatch event so sidebar and settings instantly update
         window.dispatchEvent(new Event('refresh-dashboard'));
       }
     } catch (err) {
@@ -194,7 +240,6 @@ export default function Settings({ onMenuClick }) {
     }
   };
 
-  // NEW: Fetch dynamic system stats from API
   const fetchSystemStats = async () => {
     try {
       const session = JSON.parse(sessionStorage.getItem('iipsCurrentSession') || '{}');
@@ -233,14 +278,16 @@ export default function Settings({ onMenuClick }) {
     if (activeTab === "General") fetchSystemStats();
   }, [activeTab]);
 
-  // Listen for global refresh events to auto-update the audit logs AND system stats
+  // Listen for global refresh events to auto-update the audit logs, system stats, AND profile data
   useEffect(() => {
     const handleRefresh = () => {
+      loadProfileData(); // Automatically refill profile data on refresh
       if (activeTab === "Audit Log") fetchAuditLogs();
       if (activeTab === "General") fetchSystemStats();
     };
     window.addEventListener('refresh-dashboard', handleRefresh);
     return () => window.removeEventListener('refresh-dashboard', handleRefresh);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [activeTab]);
 
   // Bulletproofed status logic
@@ -280,7 +327,6 @@ export default function Settings({ onMenuClick }) {
     const csvContent = [
       headers.join(","),
       ...filteredLogs.map((l, i) => {
-        // Used a shorter DD/MM/YYYY format so it fits in Excel without the "########" issue
         const dateStr = l.updated_at
           ? new Date(l.updated_at).toLocaleDateString("en-GB")
           : "-";
@@ -460,23 +506,6 @@ export default function Settings({ onMenuClick }) {
                   />
                 </div>
 
-                <div>
-                  <label className="text-sm font-semibold text-gray-700 mb-2 block">
-                    Mobile
-                  </label>
-                  <input
-                    value={profileData.phone_number}
-                    onChange={(e) =>
-                      setProfileData({
-                        ...profileData,
-                        phone_number: e.target.value,
-                      })
-                    }
-                    placeholder="Enter mobile number"
-                    className="w-full border border-gray-200 rounded-xl px-4 py-3 text-gray-800 outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-all placeholder:text-gray-400"
-                  />
-                </div>
-
                 <button
                   onClick={handleProfileUpdate}
                   disabled={isUpdatingProfile}
@@ -492,7 +521,6 @@ export default function Settings({ onMenuClick }) {
                 System Information
               </h3>
               <div className="flex flex-col divide-y divide-gray-100">
-                {/* UPDATED: Dynamic System Stats mapping */}
                 {sysStats.map((item) => (
                   <div
                     key={item.label}
