@@ -450,12 +450,14 @@ const handleSubmit = async (event) => {
                         <option value="Ph.D. (Computer Science)">Ph.D. (Computer Science)</option>
                         <option value="Ph.D. (Management)">Ph.D. (Management)</option>
                         <option value="Ph.D. (Information Technology)">Ph.D. (Information Technology)</option>
+                        <option value="Ph.D. (Plain)">Ph.D. (Plain)</option>
                       </optgroup>
                       <optgroup label="Master's Degrees">
                         <option value="M.Tech (Computer Science/IT)">M.Tech (CS / IT)</option>
                         <option value="MCA (Master of Computer Applications)">MCA</option>
                         <option value="MBA (Master of Business Administration)">MBA</option>
                         <option value="M.Sc. (Computer Science/Electronics)">M.Sc. (CS / Electronics)</option>
+                        <option value="Post Graduation(Plain)">Post Graduation (Plain)</option>
                       </optgroup>
                       <optgroup label="Bachelor's / Graduation Degrees">
                         <option value="B.Tech / B.E. (Computer Science/IT)">B.Tech / B.E. (CS / IT)</option>
