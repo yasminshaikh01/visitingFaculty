@@ -6,10 +6,9 @@ import {
   Trash2,
   Check,
   AlertTriangle,
-  X,
 } from "lucide-react";
 import LoadingSpinner from "./LoadingSpinner";
-import api from "../../api/axiosInstance"; // Adjust the ../ as needed based on folder depth
+import api from "../../api/axiosInstance";
 
 const PAGE_SIZE = 6;
 const TYPES = ["Theory", "Practical"];
@@ -69,7 +68,6 @@ export default function SubjectAllocation({ prefilledFaculty }) {
     return () => document.removeEventListener("mousedown", handleClickOutside);
   }, []);
 
-  // Listen for the global refresh event to instantly update allocations
   useEffect(() => {
     const handleRefresh = () => fetchAllocations();
     window.addEventListener('refresh-dashboard', handleRefresh);
@@ -98,6 +96,9 @@ export default function SubjectAllocation({ prefilledFaculty }) {
 
       setForm((prev) => ({ ...prev, user_id: targetId }));
       setFacultySearch(`${targetName} (${targetEmail})`);
+      
+      // NEW: Automatically fill the search bar to show their allocations
+      setSearch(targetName);
     }
   }, [prefilledFaculty]);
 
@@ -160,8 +161,8 @@ export default function SubjectAllocation({ prefilledFaculty }) {
         .then((res) => setSemesters(res.data.data || []))
         .catch(() => setSemesters([]));
     } else {
-      setSections([]);
-      setSemesters([]);
+      sections.length > 0 && setSections([]);
+      semesters.length > 0 && setSemesters([]);
     }
     setForm((prev) => ({
       ...prev,
@@ -179,7 +180,7 @@ export default function SubjectAllocation({ prefilledFaculty }) {
         .then((res) => setSubjects(res.data.data || []))
         .catch(() => setSubjects([]));
     } else {
-      setSubjects([]);
+      subjects.length > 0 && setSubjects([]);
     }
     setForm((prev) => ({ ...prev, subject_id: "" }));
   }, [form.semester_id, form.course_id]);
@@ -207,12 +208,10 @@ export default function SubjectAllocation({ prefilledFaculty }) {
       return;
     }
 
-    // --- NEW: FRONTEND DUPLICATE ALLOCATION PREVENTION ---
     const isDuplicate = allocations.find((a) => {
       const matchCourse = String(a.course_id) === String(form.course_id);
       const matchSemester = String(a.semester_id) === String(form.semester_id);
       const matchSubject = String(a.subject_id) === String(form.subject_id);
-      // Section can be empty/null, so we fallback to empty strings for comparison
       const matchSection = String(a.section_id || "") === String(form.section_id || "");
       const matchType = String(a.session_type).toLowerCase() === String(form.session_type).toLowerCase();
       
@@ -224,9 +223,8 @@ export default function SubjectAllocation({ prefilledFaculty }) {
       setErrorModal(
         `This ${form.session_type} subject is already allocated to ${assignedTo} for this specific section. Please remove the existing allocation first if you need to reassign it.`
       );
-      return; // Stop execution here
+      return; 
     }
-    // -----------------------------------------------------
 
     setSubmitting(true);
     try {
@@ -236,9 +234,9 @@ export default function SubjectAllocation({ prefilledFaculty }) {
       setSuccessModal(true); 
       setForm(emptyForm);
       setFacultySearch("");
+      setSearch(""); // Reset search on successful assign
       fetchAllocations();
       
-      // Tell the rest of the app to refresh globally
       window.dispatchEvent(new Event('refresh-dashboard'));
     } catch (err) {
       setFormError(err?.response?.data?.message || "Failed to assign subject.");
@@ -259,7 +257,6 @@ export default function SubjectAllocation({ prefilledFaculty }) {
       setDeleteConfirmId(null);
       fetchAllocations();
       
-      // Tell the rest of the app to refresh globally
       window.dispatchEvent(new Event('refresh-dashboard'));
     } catch (err) {
       setDeleteConfirmId(null);
@@ -270,8 +267,18 @@ export default function SubjectAllocation({ prefilledFaculty }) {
   };
 
   // ==========================================
-  // 5. TABLE FILTERING
+  // 5. TABLE FILTERING & TOGGLE LOGIC
   // ==========================================
+  
+  // NEW: Derived state to manage the toggle button cleanly
+  const selectedFacultyName = facultySearch ? facultySearch.split(" (")[0] : "";
+  const isShowingSelected = Boolean(
+    form.user_id &&
+    search &&
+    selectedFacultyName &&
+    search.toLowerCase() === selectedFacultyName.toLowerCase()
+  );
+
   const filteredAllocations = useMemo(() => {
     if (!search.trim()) return allocations;
     const q = search.toLowerCase();
@@ -349,6 +356,8 @@ export default function SubjectAllocation({ prefilledFaculty }) {
                             }));
                             setFacultySearch(`${f.full_name} (${f.email})`);
                             setShowFacultyDropdown(false);
+                            // NEW: Autofill search when selected from dropdown
+                            setSearch(f.full_name);
                           }}
                           className="px-4 py-2.5 text-sm text-slate-700 hover:bg-slate-50 cursor-pointer border-b border-slate-50 last:border-0"
                         >
@@ -503,20 +512,41 @@ export default function SubjectAllocation({ prefilledFaculty }) {
 
         {/* ALLOCATIONS HISTORY TABLE */}
         <div className="bg-white rounded-xl border border-slate-200 shadow-sm flex flex-col h-full w-full overflow-hidden">
-          <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between px-4 sm:px-6 py-4 border-b border-slate-100 gap-3">
+          <div className="flex flex-col xl:flex-row items-start xl:items-center justify-between px-4 sm:px-6 py-4 border-b border-slate-100 gap-4">
             <div className="flex items-center gap-2">
               <ListChecks size={18} className="text-blue-600 shrink-0" />
               <h2 className="font-semibold text-slate-800">
                 Current Allocations ({filteredAllocations.length})
               </h2>
             </div>
-            <input
-              type="text"
-              placeholder="Search allocations..."
-              value={search}
-              onChange={(e) => setSearch(e.target.value)}
-              className="w-full sm:w-48 px-3 py-1.5 text-sm border border-slate-200 rounded-md focus:outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500 transition-all"
-            />
+            
+            {/* NEW: Filter Toggle & Search Bar */}
+            <div className="flex flex-col sm:flex-row items-center gap-3 w-full xl:w-auto">
+              {form.user_id && selectedFacultyName && (
+                <button
+                  type="button"
+                  onClick={() => setSearch(isShowingSelected ? "" : selectedFacultyName)}
+                  className={`flex items-center gap-2 px-3 py-1.5 rounded-full text-xs font-semibold border transition-all duration-200 whitespace-nowrap shrink-0 w-full sm:w-auto justify-center ${
+                    isShowingSelected
+                      ? "bg-blue-50 text-blue-700 border-blue-200 hover:bg-blue-100"
+                      : "bg-white text-slate-600 border-slate-200 hover:bg-slate-50"
+                  }`}
+                  title={isShowingSelected ? "Click to show all allocations" : "Click to view only this faculty's allocations"}
+                >
+                  <div className={`relative inline-flex h-3.5 w-6 items-center rounded-full transition-colors ${isShowingSelected ? 'bg-blue-600' : 'bg-slate-300'}`}>
+                    <span className={`inline-block h-2.5 w-2.5 transform rounded-full bg-white transition-transform ${isShowingSelected ? 'translate-x-3' : 'translate-x-0.5'}`} />
+                  </div>
+                  {isShowingSelected ? "Showing Selected Faculty" : "Show All Allocations"}
+                </button>
+              )}
+              <input
+                type="text"
+                placeholder="Search allocations..."
+                value={search}
+                onChange={(e) => setSearch(e.target.value)}
+                className="w-full sm:w-48 px-3 py-1.5 text-sm border border-slate-200 rounded-md focus:outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500 transition-all"
+              />
+            </div>
           </div>
 
           <div className="overflow-x-auto flex-1 hide-scrollbar w-full">
@@ -715,7 +745,7 @@ export default function SubjectAllocation({ prefilledFaculty }) {
         </div>
       )}
 
-{/* Error Modal */}
+      {/* Error Modal */}
       {errorModal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/60 backdrop-blur-sm p-4 animate-in fade-in duration-200">
           <div className="bg-white rounded-2xl shadow-2xl w-full max-w-md overflow-hidden scale-100 animate-in zoom-in-95 duration-200">
