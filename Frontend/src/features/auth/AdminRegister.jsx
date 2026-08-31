@@ -58,10 +58,10 @@ export default function AdminRegister({ onNavigate }) {
 
     try {
       await api.post('/auth/register/admin', {
-    full_name: formData.fullName.trim(),
-    email: formData.email.trim(),
-    phone_number: formData.mobile.trim(),
-    password: formData.password
+        full_name: formData.fullName.trim(),
+        email: formData.email.trim().toLowerCase(),
+        phone_number: formData.mobile.trim(),
+        password: formData.password
       });
 
       setIsSuccess(true);

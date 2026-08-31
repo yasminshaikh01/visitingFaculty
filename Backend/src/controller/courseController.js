@@ -154,7 +154,7 @@ async function deleteSemesterController(req, res) {
 
 async function addSemesterController(req, res) {
     try {
-        const result = await addSemester(req.params.course_id, req.body.semester_number);
+        const result = await addSemester(req.params.course_id, req.body.semester_number || req.body.semester_id);
         return res.json({
             success: true,
             message: 'semester added',

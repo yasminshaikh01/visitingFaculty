@@ -5,7 +5,7 @@ const {
     generateMonthlySummaryPDF
 } = require("../service/monthlySummaryService");
 
-// const { runMonthlySummaryJob } = require("../scheduler/monthlySummaryScheduler");
+const { runMonthlySummaryJob } = require("../scheduler/monthlySummaryScheduler");
 
 // =================================================================
 // GET /api/monthly-summary?month=July&year=2026&courseId=1

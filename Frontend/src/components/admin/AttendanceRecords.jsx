@@ -4,6 +4,7 @@ import LoadingSpinner from "./LoadingSpinner";
 import api from "../../api/axiosInstance"; // Adjust the ../ as needed based on folder depth
 
 const PAGE_SIZE = 7;
+const MONTHS = ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"];
 
 export default function AttendanceRecords() {
   // --- STATE: Faculty Search ---
@@ -27,9 +28,12 @@ export default function AttendanceRecords() {
   
   // Filters & Sort
   const [subjectFilter, setSubjectFilter] = useState("");
-  const [timelineFilter, setTimelineFilter] = useState("month"); // "", "day", "week", "month"
+  const [timelineFilter, setTimelineFilter] = useState("Select Month"); // "", "day", "week", "month"
   const [sortOrder, setSortOrder] = useState("newest"); // "newest", "oldest"
   const [filterMenuOpen, setFilterMenuOpen] = useState(false);
+  // NEW: Specific Month/Year State
+  const [selectedSpecificMonth, setSelectedSpecificMonth] = useState(MONTHS[new Date().getMonth()]);
+  const [selectedSpecificYear, setSelectedSpecificYear] = useState(new Date().getFullYear());
   
   const [page, setPage] = useState(1);
 
@@ -119,7 +123,7 @@ export default function AttendanceRecords() {
       const selected = facultyOptions.find(f => f.user_id === targetId) || allFaculties.find(f => f.user_id === targetId);
       setActiveFaculty({
         name: selected?.full_name || facultySearch || "Selected Faculty",
-        session: "2024-25" 
+        session: "2026-27" 
       });
       
     } catch (err) {
@@ -139,7 +143,7 @@ export default function AttendanceRecords() {
     [records]
   );
 
-  const filteredAndSorted = useMemo(() => {
+const filteredAndSorted = useMemo(() => {
     let result = records.filter((r) => {
       const matchesSubject = !subjectFilter || r.subject_name === subjectFilter;
       
@@ -153,8 +157,10 @@ export default function AttendanceRecords() {
         } else if (timelineFilter === "week") {
           const oneWeekAgo = new Date(today.getTime() - 7 * 24 * 60 * 60 * 1000);
           matchesTimeline = recordDate >= oneWeekAgo && recordDate <= today;
-        } else if (timelineFilter === "month") {
-          matchesTimeline = recordDate.getMonth() === today.getMonth() && recordDate.getFullYear() === today.getFullYear();
+        } else if (timelineFilter === "Select Month") {
+          // NEW: Filter by specific dropdown values
+          const targetMonthIndex = MONTHS.indexOf(selectedSpecificMonth);
+          matchesTimeline = recordDate.getMonth() === targetMonthIndex && recordDate.getFullYear() === selectedSpecificYear;
         }
       }
       
@@ -168,7 +174,8 @@ export default function AttendanceRecords() {
     });
 
     return result;
-  }, [records, subjectFilter, timelineFilter, sortOrder]);
+  // NOTE: Added selectedSpecificMonth and selectedSpecificYear to dependencies!
+  }, [records, subjectFilter, timelineFilter, sortOrder, selectedSpecificMonth, selectedSpecificYear]);
 
   const totalPages = Math.max(1, Math.ceil(filteredAndSorted.length / PAGE_SIZE));
   const paginated = filteredAndSorted.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE);
@@ -376,11 +383,31 @@ export default function AttendanceRecords() {
                   onChange={(e) => setTimelineFilter(e.target.value)}
                   className="w-full sm:w-auto px-3 py-2.5 rounded-lg border border-slate-200 text-sm bg-white focus:outline-none focus:border-blue-500 min-w-[140px]"
                 >
-                  <option value="">Current Session</option>
-                  <option value="day">Day</option>
-                  <option value="week">Week</option>
-                  <option value="month">Month</option>
+                  <option value="">All Time</option>
+                  <option value="day">Today</option>
+                  <option value="week">This Week</option>
+                  <option value="Select Month">Select Month</option>
                 </select>
+
+                {/* NEW: Specific Month/Year Selectors */}
+                {timelineFilter === "Select Month" && (
+                  <div className="flex w-full sm:w-auto gap-2 animate-in fade-in slide-in-from-left-2 duration-200">
+                    <select
+                      value={selectedSpecificMonth}
+                      onChange={(e) => { setSelectedSpecificMonth(e.target.value); setPage(1); }}
+                      className="flex-1 sm:flex-none px-3 py-2.5 rounded-lg border border-slate-200 text-sm bg-white focus:outline-none focus:border-blue-500 min-w-[120px]"
+                    >
+                      {MONTHS.map(m => <option key={m} value={m}>{m}</option>)}
+                    </select>
+                    <select
+                      value={selectedSpecificYear}
+                      onChange={(e) => { setSelectedSpecificYear(Number(e.target.value)); setPage(1); }}
+                      className="flex-1 sm:flex-none px-3 py-2.5 rounded-lg border border-slate-200 text-sm bg-white focus:outline-none focus:border-blue-500 min-w-[100px]"
+                    >
+                      {[2026, 2027, 2028].map(y => <option key={y} value={y}>{y}</option>)}
+                    </select>
+                  </div>
+                )}
               </div>
 
               <div className="relative w-full sm:w-auto flex justify-end" ref={filterRef}>

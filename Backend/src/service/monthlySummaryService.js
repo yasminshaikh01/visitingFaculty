@@ -6,6 +6,11 @@ const {
     sequelize,
     User,
     Course,
+    Semester,
+    Section,
+    Subject,
+    Allocation,
+    Attendance,
     Bill,
     BillDetail
 } = require("../Schema");
@@ -20,59 +25,97 @@ const resolveCourse = async (courseId) => {
 };
 
 // =================================================================
-// Core aggregation logic (used by existing JSON APIs)
+// Core aggregation logic — DIRECTLY FROM LIVE ATTENDANCE RECORDS
+// Live calculations ensure Super Admin immediately sees every faculty's
+// updated bill/earnings as soon as attendance is submitted, without needing
+// any manual action from Program Incharge.
 // =================================================================
 const aggregateSummary = async ({ month, year, courseId }) => {
 
     let course = null;
-    let courseNameFilter = {};
+    let courseWhere = {};
 
     if (courseId) {
         course = await resolveCourse(courseId);
-        courseNameFilter = { where: { course_name: course.course_name } };
+        courseWhere = { course_id: course.course_id };
     }
 
-    const bills = await Bill.findAll({
-        where: { month, year: Number(year) },
+    const { Op } = require("sequelize");
+
+    // Query all attendance records for this month + year
+    const attendanceRecords = await Attendance.findAll({
+        where: {
+            [Op.and]: [
+                sequelize.where(
+                    sequelize.fn('LOWER', sequelize.col('Attendance.month')),
+                    String(month).trim().toLowerCase()
+                ),
+                { year: Number(year) },
+                { status: { [Op.ne]: "Cancelled" } }
+            ]
+        },
         include: [
-            { model: User, attributes: ["user_id", "full_name", "uvfin"] },
-            { model: BillDetail, ...courseNameFilter }
-        ]
+            {
+                model: User,
+                attributes: ["user_id", "full_name", "uvfin"]
+            },
+            {
+                model: Allocation,
+                where: Object.keys(courseWhere).length > 0 ? courseWhere : undefined,
+                include: [
+                    { model: Course, attributes: ["course_id", "course_name", "course_code"] },
+                    { model: Semester, attributes: ["semester_id", "semester_number"] },
+                    { model: Section, attributes: ["section_id", "section_name"] },
+                    { model: Subject, attributes: ["subject_id", "subject_code", "subject_name"] }
+                ]
+            }
+        ],
+        order: [["attendance_date", "ASC"], ["start_time", "ASC"]]
     });
 
     const semesterMap = {};
+    const facultySet = new Set();
     let grandTotal = 0;
     let grandTotalHours = 0;
     const courseName = course ? course.course_name : null;
 
-    for (const bill of bills) {
-        const facultyName = bill.User ? bill.User.full_name : "Unknown";
-        const facultyId   = bill.user_id;
+    for (const record of attendanceRecords) {
+        const user = record.User;
+        const alloc = record.Allocation;
+        if (!alloc) continue;
 
-        for (const detail of bill.BillDetails) {
-            const detailCourseName = detail.course_name;
-            const semKey = detail.semester_number;
-            const amount = Number(detail.amount);
-            const hours  = Number(detail.hours);
+        const facultyId   = record.user_id;
+        const facultyName = user ? user.full_name : "Unknown";
+        const uvfin       = user ? (user.uvfin || "") : "";
+        facultySet.add(facultyId);
 
-            if (!semesterMap[semKey]) semesterMap[semKey] = {};
+        const detailCourseName = alloc.Course?.course_name || (course ? course.course_name : "General");
+        const semKey           = alloc.Semester?.semester_number || 1;
+        const hours            = Number(record.hours || 0);
+        const rate             = alloc.rate_per_hour != null ? Number(alloc.rate_per_hour) : 0;
+        
+        // If is_billable is false (exceeded 30k cap), billable amount is 0
+        const isBillable       = record.is_billable !== false;
+        const amount           = isBillable ? Number((hours * rate).toFixed(2)) : 0;
 
-            const facKey = `${facultyId}__${detailCourseName}`;
-            if (!semesterMap[semKey][facKey]) {
-                semesterMap[semKey][facKey] = {
-                    faculty_id:   facultyId,
-                    faculty_name: facultyName,
-                    course_name:  detailCourseName,
-                    total_amount: 0,
-                    total_hours:  0
-                };
-            }
+        if (!semesterMap[semKey]) semesterMap[semKey] = {};
 
-            semesterMap[semKey][facKey].total_amount += amount;
-            semesterMap[semKey][facKey].total_hours  += hours;
-            grandTotal      += amount;
-            grandTotalHours += hours;
+        const facKey = `${facultyId}__${detailCourseName}`;
+        if (!semesterMap[semKey][facKey]) {
+            semesterMap[semKey][facKey] = {
+                faculty_id:   facultyId,
+                faculty_name: facultyName,
+                uvfin:        uvfin,
+                course_name:  detailCourseName,
+                total_amount: 0,
+                total_hours:  0
+            };
         }
+
+        semesterMap[semKey][facKey].total_amount += amount;
+        semesterMap[semKey][facKey].total_hours  += hours;
+        grandTotal      += amount;
+        grandTotalHours += hours;
     }
 
     const semesters = Object.keys(semesterMap)
@@ -100,7 +143,7 @@ const aggregateSummary = async ({ month, year, courseId }) => {
         semesters,
         grandTotal:      Number(grandTotal.toFixed(2)),
         grandTotalHours: Number(grandTotalHours.toFixed(2)),
-        totalFaculties:  bills.length
+        totalFaculties:  facultySet.size
     };
 };
 
@@ -159,22 +202,55 @@ const generateMonthlySummaryPDF = async (month, year) => {
         try {
             if (!month || !year) throw new Error("month and year are required.");
 
-            // 1. Fetch all bills for the month (one row per faculty)
-            const bills = await Bill.findAll({
-                where: { month, year: Number(year) },
+            const { Op } = require("sequelize");
+
+            // 1. Fetch live attendance records for the month
+            const attendanceRecords = await Attendance.findAll({
+                where: {
+                    [Op.and]: [
+                        sequelize.where(
+                            sequelize.fn('LOWER', sequelize.col('Attendance.month')),
+                            String(month).trim().toLowerCase()
+                        ),
+                        { year: Number(year) },
+                        { status: { [Op.ne]: "Cancelled" } }
+                    ]
+                },
                 include: [
-                    { model: User, attributes: ["user_id", "full_name", "uvfin"] }
+                    { model: User, attributes: ["user_id", "full_name", "uvfin"] },
+                    { model: Allocation, attributes: ["rate_per_hour"] }
                 ],
-                order: [["total_amount", "DESC"]]
+                order: [["attendance_date", "ASC"]]
             });
 
-            // 2. Build rows
-            const rows = bills.map((bill, idx) => ({
-                sno:          idx + 1,
-                uvfin:        bill.User ? (bill.User.uvfin || "") : "",
-                faculty_name: bill.User ? bill.User.full_name   : "Unknown",
-                total_amount: Number(bill.total_amount)
-            }));
+            // Group by faculty
+            const facultyMap = new Map();
+            for (const record of attendanceRecords) {
+                const uid = record.user_id;
+                const hours = Number(record.hours || 0);
+                const rate = record.Allocation?.rate_per_hour ? Number(record.Allocation.rate_per_hour) : 0;
+                const isBillable = record.is_billable !== false;
+                const amount = isBillable ? Number((hours * rate).toFixed(2)) : 0;
+
+                if (!facultyMap.has(uid)) {
+                    facultyMap.set(uid, {
+                        uvfin: record.User?.uvfin || "",
+                        faculty_name: record.User?.full_name || "Unknown",
+                        total_amount: 0
+                    });
+                }
+                facultyMap.get(uid).total_amount += amount;
+            }
+
+            // 2. Build sorted rows
+            const rows = Array.from(facultyMap.values())
+                .sort((a, b) => b.total_amount - a.total_amount)
+                .map((fac, idx) => ({
+                    sno:          idx + 1,
+                    uvfin:        fac.uvfin,
+                    faculty_name: fac.faculty_name,
+                    total_amount: Number(fac.total_amount.toFixed(2))
+                }));
 
             const grandTotal = rows.reduce((s, r) => s + r.total_amount, 0);
 

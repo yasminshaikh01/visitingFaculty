@@ -64,7 +64,6 @@ export default function Settings({ onMenuClick }) {
   const [profileData, setProfileData] = useState({
     full_name: "",
     email: "",
-    phone_number: "",
   });
   const [isUpdatingProfile, setIsUpdatingProfile] = useState(false);
 
@@ -76,7 +75,6 @@ export default function Settings({ onMenuClick }) {
       setProfileData({
         full_name: session.name || session.full_name || "",
         email: session.email || "",
-        phone_number: session.phone_number || "",
       });
     }
   }, []);
@@ -328,7 +326,7 @@ export default function Settings({ onMenuClick }) {
             box-shadow: none !important; 
           }
 
-          /* Force overflow visible so table isn't cut off on the right */
+          /* Force overflow visible so table isnt cut off on the right */
           .print-table-wrapper {
             overflow: visible !important;
           }
@@ -456,23 +454,6 @@ export default function Settings({ onMenuClick }) {
                       setProfileData({ ...profileData, email: e.target.value })
                     }
                     placeholder="Enter email address"
-                    className="w-full border border-gray-200 rounded-xl px-4 py-3 text-gray-800 outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-all placeholder:text-gray-400"
-                  />
-                </div>
-
-                <div>
-                  <label className="text-sm font-semibold text-gray-700 mb-2 block">
-                    Mobile
-                  </label>
-                  <input
-                    value={profileData.phone_number}
-                    onChange={(e) =>
-                      setProfileData({
-                        ...profileData,
-                        phone_number: e.target.value,
-                      })
-                    }
-                    placeholder="Enter mobile number"
                     className="w-full border border-gray-200 rounded-xl px-4 py-3 text-gray-800 outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-all placeholder:text-gray-400"
                   />
                 </div>

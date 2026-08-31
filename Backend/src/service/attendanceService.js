@@ -72,7 +72,7 @@ const getWeekBounds = (dateStr) => {
     sunday.setDate(monday.getDate() + 6);
     return {
         weekStart: monday.toISOString().split("T")[0],
-        weekEnd:   sunday.toISOString().split("T")[0],
+        weekEnd: sunday.toISOString().split("T")[0],
         weekNumber: getISOWeekNumber(monday)
     };
 };
@@ -119,8 +119,8 @@ const syncMonthlyBillableStatus = async (userId, month, year, transaction = null
 // ==========================
 const flattenAttendance = (item) => {
     const alloc = item.Allocation || {};
-    const user  = item.User  || null;
-    const rate  = alloc.rate_per_hour != null ? Number(alloc.rate_per_hour) : null;
+    const user = item.User || null;
+    const rate = alloc.rate_per_hour != null ? Number(alloc.rate_per_hour) : null;
     const hours = Number(item.hours);
     const is_billable = item.is_billable ?? true;
 
@@ -129,53 +129,53 @@ const flattenAttendance = (item) => {
 
     return {
         // --- Core attendance fields ---
-        attendance_id:     item.attendance_id,
-        attendance_date:   item.attendance_date,
-        start_time:        item.start_time,
-        end_time:          item.end_time,
-        hours:             hours,
-        status:            item.status,
-        remarks:           item.remarks,
-        month:             item.month,
-        year:              item.year,
+        attendance_id: item.attendance_id,
+        attendance_date: item.attendance_date,
+        start_time: item.start_time,
+        end_time: item.end_time,
+        hours: hours,
+        status: item.status,
+        remarks: item.remarks,
+        month: item.month,
+        year: item.year,
         attendance_period: item.attendance_period,
-        week_number:       item.week_number,
-        is_billable:       is_billable,
-        billable_amount:   billable_amount,
-        uncapped_amount:   uncapped_amount,
-        amount:            billable_amount,
+        week_number: item.week_number,
+        is_billable: is_billable,
+        billable_amount: billable_amount,
+        uncapped_amount: uncapped_amount,
+        amount: billable_amount,
 
         // --- Faculty (only present in admin queries) ---
         ...(user ? {
-            user_id:   user.user_id,
+            user_id: user.user_id,
             full_name: user.full_name,
-            email:     user.email,
-            uvfin:     user.uvfin
+            email: user.email,
+            uvfin: user.uvfin
         } : {}),
 
         // --- Allocation ---
-        allocation_id:   alloc.allocation_id   ?? null,
-        session_type:    alloc.session_type    ?? null,
+        allocation_id: alloc.allocation_id ?? null,
+        session_type: alloc.session_type ?? null,
         // rate_per_hour is ENUM('200','400','800') — always return as Number
-        rate_per_hour:   rate,
+        rate_per_hour: rate,
 
         // --- Course ---
-        course_id:       alloc.Course?.course_id       ?? null,
-        course_name:     alloc.Course?.course_name     ?? null,
-        course_code:     alloc.Course?.course_code     ?? null,
+        course_id: alloc.Course?.course_id ?? null,
+        course_name: alloc.Course?.course_name ?? null,
+        course_code: alloc.Course?.course_code ?? null,
 
         // --- Semester ---
-        semester_id:     alloc.Semester?.semester_id   ?? null,
+        semester_id: alloc.Semester?.semester_id ?? null,
         semester_number: alloc.Semester?.semester_number ?? null,
 
         // --- Section ---
-        section_id:      alloc.Section?.section_id     ?? null,
-        section_name:    alloc.Section?.section_name   ?? null,
+        section_id: alloc.Section?.section_id ?? null,
+        section_name: alloc.Section?.section_name ?? null,
 
         // --- Subject ---
-        subject_id:      alloc.Subject?.subject_id     ?? null,
-        subject_code:    alloc.Subject?.subject_code   ?? null,
-        subject_name:    alloc.Subject?.subject_name   ?? null
+        subject_id: alloc.Subject?.subject_id ?? null,
+        subject_code: alloc.Subject?.subject_code ?? null,
+        subject_name: alloc.Subject?.subject_name ?? null
     };
 };
 
@@ -192,10 +192,10 @@ const flattenAttendance = (item) => {
 // ==========================
 const findAllocation = async (numericUserId, { allocation_id, course_id, semester_id, section_id, subject_id }) => {
     const includeBlock = [
-        { model: Subject,  attributes: ["subject_id", "subject_code", "subject_name"] },
-        { model: Course,   attributes: ["course_id", "course_name", "course_code"] },
+        { model: Subject, attributes: ["subject_id", "subject_code", "subject_name"] },
+        { model: Course, attributes: ["course_id", "course_name", "course_code"] },
         { model: Semester, attributes: ["semester_id", "semester_number"] },
-        { model: Section,  attributes: ["section_id", "section_name"] }
+        { model: Section, attributes: ["section_id", "section_name"] }
     ];
 
     // ── Fast path: allocation_id provided directly from the frontend ────────────
@@ -214,10 +214,10 @@ const findAllocation = async (numericUserId, { allocation_id, course_id, semeste
 
     // ── Lookup path: match by course / semester / section / subject ─────────────
     const whereClause = { user_id: numericUserId, is_active: true };
-    if (course_id)   whereClause.course_id   = course_id;
+    if (course_id) whereClause.course_id = course_id;
     if (semester_id) whereClause.semester_id = semester_id;
-    if (section_id)  whereClause.section_id  = section_id;  // Figma: Section A / B toggle
-    if (subject_id)  whereClause.subject_id  = subject_id;
+    if (section_id) whereClause.section_id = section_id;  // Figma: Section A / B toggle
+    if (subject_id) whereClause.subject_id = subject_id;
 
     const allocation = await Allocation.findOne({
         where: whereClause,
@@ -244,46 +244,46 @@ const buildAttendanceResult = (newAttendance, allocation) => {
     const billable_amount = is_billable ? uncapped_amount : 0;
 
     return {
-        attendance_id:     newAttendance.attendance_id,
-        attendance_date:   newAttendance.attendance_date,
-        start_time:        newAttendance.start_time,
-        end_time:          newAttendance.end_time,
-        hours:             hours,
-        status:            newAttendance.status,
-        remarks:           newAttendance.remarks,
-        month:             newAttendance.month,
-        year:              newAttendance.year,
+        attendance_id: newAttendance.attendance_id,
+        attendance_date: newAttendance.attendance_date,
+        start_time: newAttendance.start_time,
+        end_time: newAttendance.end_time,
+        hours: hours,
+        status: newAttendance.status,
+        remarks: newAttendance.remarks,
+        month: newAttendance.month,
+        year: newAttendance.year,
         attendance_period: newAttendance.attendance_period,
-        week_number:       newAttendance.week_number ?? null,
+        week_number: newAttendance.week_number ?? null,
         // ── ₹30k cap flag — true = counted in bill, false = beyond cap ────────
-        is_billable:       is_billable,
-        billable_amount:   billable_amount,
-        uncapped_amount:   uncapped_amount,
-        amount:            billable_amount,
+        is_billable: is_billable,
+        billable_amount: billable_amount,
+        uncapped_amount: uncapped_amount,
+        amount: billable_amount,
 
         // Allocation details — flat for easy frontend use
         // rate_per_hour is ENUM string ('200'/'400'/'800') — cast to Number
-        allocation_id:     allocation.allocation_id,
-        session_type:      allocation.session_type,
-        rate_per_hour:     rate,
+        allocation_id: allocation.allocation_id,
+        session_type: allocation.session_type,
+        rate_per_hour: rate,
 
         // Course
-        course_id:         allocation.Course   ? allocation.Course.course_id       : null,
-        course_name:       allocation.Course   ? allocation.Course.course_name     : null,
-        course_code:       allocation.Course   ? allocation.Course.course_code     : null,
+        course_id: allocation.Course ? allocation.Course.course_id : null,
+        course_name: allocation.Course ? allocation.Course.course_name : null,
+        course_code: allocation.Course ? allocation.Course.course_code : null,
 
         // Semester
-        semester_id:       allocation.Semester ? allocation.Semester.semester_id   : null,
-        semester_number:   allocation.Semester ? allocation.Semester.semester_number : null,
+        semester_id: allocation.Semester ? allocation.Semester.semester_id : null,
+        semester_number: allocation.Semester ? allocation.Semester.semester_number : null,
 
         // Section
-        section_id:        allocation.Section  ? allocation.Section.section_id     : null,
-        section_name:      allocation.Section  ? allocation.Section.section_name   : null,
+        section_id: allocation.Section ? allocation.Section.section_id : null,
+        section_name: allocation.Section ? allocation.Section.section_name : null,
 
         // Subject
-        subject_id:        allocation.Subject  ? allocation.Subject.subject_id     : null,
-        subject_code:      allocation.Subject  ? allocation.Subject.subject_code   : null,
-        subject_name:      allocation.Subject  ? allocation.Subject.subject_name   : null
+        subject_id: allocation.Subject ? allocation.Subject.subject_id : null,
+        subject_code: allocation.Subject ? allocation.Subject.subject_code : null,
+        subject_name: allocation.Subject ? allocation.Subject.subject_name : null
     };
 };
 
@@ -295,10 +295,10 @@ const allocationInclude = [
         model: Allocation,
         attributes: ["allocation_id", "session_type", "rate_per_hour"],
         include: [
-            { model: Subject,  attributes: ["subject_id",  "subject_code",  "subject_name"] },
-            { model: Course,   attributes: ["course_id",   "course_name",   "course_code"] },
+            { model: Subject, attributes: ["subject_id", "subject_code", "subject_name"] },
+            { model: Course, attributes: ["course_id", "course_name", "course_code"] },
             { model: Semester, attributes: ["semester_id", "semester_number"] },
-            { model: Section,  attributes: ["section_id",  "section_name"] }
+            { model: Section, attributes: ["section_id", "section_name"] }
         ]
     }
 ];
@@ -345,18 +345,18 @@ const _insertAttendanceRow = async ({
     const finalStatus = status || 'Marked';
 
     const newAttendance = await Attendance.create({
-        user_id:           numericUserId,
-        allocation_id:     allocation.allocation_id,
+        user_id: numericUserId,
+        allocation_id: allocation.allocation_id,
         attendance_date,
         start_time,
         end_time,
-        hours:             finalHours,
-        remarks:           remarks || null,
-        status:            finalStatus,
+        hours: finalHours,
+        remarks: remarks || null,
+        status: finalStatus,
         month,
         year,
         attendance_period,
-        week_number:       week_number ?? null
+        week_number: week_number ?? null
     });
 
     await syncMonthlyBillableStatus(numericUserId, month, year);
@@ -387,11 +387,11 @@ const markAttendance = async (attendanceData) => {
             month,
             year,
             attendance_period = 'daily',
-            week_number       = null
+            week_number = null
         } = attendanceData;
 
         const numericUserId = await resolveUserId(user_id);
-        const allocation    = await findAllocation(numericUserId, { allocation_id, course_id, semester_id, section_id, subject_id });
+        const allocation = await findAllocation(numericUserId, { allocation_id, course_id, semester_id, section_id, subject_id });
 
         return await _insertAttendanceRow({
             numericUserId,
@@ -444,12 +444,12 @@ const markDailyAttendance = async (attendanceData) => {
         const today = attendanceData.attendance_date
             || new Date().toISOString().split("T")[0];
 
-        const dateObj   = new Date(today);
+        const dateObj = new Date(today);
         const monthName = dateObj.toLocaleString('en-US', { month: 'long' });
-        const year      = attendanceData.year || dateObj.getFullYear();
+        const year = attendanceData.year || dateObj.getFullYear();
 
         const numericUserId = await resolveUserId(user_id);
-        const allocation    = await findAllocation(numericUserId, { allocation_id, course_id, semester_id, section_id, subject_id });
+        const allocation = await findAllocation(numericUserId, { allocation_id, course_id, semester_id, section_id, subject_id });
 
         return await _insertAttendanceRow({
             numericUserId,
@@ -460,10 +460,10 @@ const markDailyAttendance = async (attendanceData) => {
             hours,
             remarks,
             status,
-            month:             attendanceData.month || monthName,
+            month: attendanceData.month || monthName,
             year,
             attendance_period: 'daily',
-            week_number:       null
+            week_number: null
         });
 
     } catch (error) {
@@ -500,14 +500,14 @@ const markWeeklyAttendance = async (attendanceData) => {
             status              // optional — Figma toggle: 'Marked' | 'Cancelled'
         } = attendanceData;
 
-        const dateObj   = new Date(attendance_date);
+        const dateObj = new Date(attendance_date);
         const monthName = dateObj.toLocaleString('en-US', { month: 'long' });
-        const year      = attendanceData.year || dateObj.getFullYear();
+        const year = attendanceData.year || dateObj.getFullYear();
         // Auto-calculate week_number from the clicked date (ISO week)
-        const weekNum   = attendanceData.week_number || getISOWeekNumber(dateObj);
+        const weekNum = attendanceData.week_number || getISOWeekNumber(dateObj);
 
         const numericUserId = await resolveUserId(user_id);
-        const allocation    = await findAllocation(numericUserId, { allocation_id, course_id, semester_id, section_id, subject_id });
+        const allocation = await findAllocation(numericUserId, { allocation_id, course_id, semester_id, section_id, subject_id });
 
         return await _insertAttendanceRow({
             numericUserId,
@@ -518,10 +518,10 @@ const markWeeklyAttendance = async (attendanceData) => {
             hours,
             remarks,
             status,
-            month:             attendanceData.month || monthName,
+            month: attendanceData.month || monthName,
             year,
             attendance_period: 'weekly',
-            week_number:       weekNum
+            week_number: weekNum
         });
 
     } catch (error) {
@@ -560,7 +560,7 @@ const markMonthlyAttendance = async (attendanceData) => {
         } = attendanceData;
 
         const numericUserId = await resolveUserId(user_id);
-        const allocation    = await findAllocation(numericUserId, { allocation_id, course_id, semester_id, section_id, subject_id });
+        const allocation = await findAllocation(numericUserId, { allocation_id, course_id, semester_id, section_id, subject_id });
 
         return await _insertAttendanceRow({
             numericUserId,
@@ -574,7 +574,7 @@ const markMonthlyAttendance = async (attendanceData) => {
             month,
             year,
             attendance_period: 'monthly',
-            week_number:       null
+            week_number: null
         });
 
     } catch (error) {
@@ -599,7 +599,7 @@ const getDailyAttendance = async (facultyId, dateStr) => {
             order: [["start_time", "ASC"]]
         });
 
-        const totalHours   = attendance.reduce((sum, item) => sum + Number(item.hours), 0);
+        const totalHours = attendance.reduce((sum, item) => sum + Number(item.hours), 0);
         const totalClasses = attendance.length;
 
         return {
@@ -635,11 +635,11 @@ const getWeeklyAttendance = async (facultyId, dateStr) => {
             order: [["attendance_date", "ASC"], ["start_time", "ASC"]]
         });
 
-        const totalHours   = attendance.reduce((sum, item) => sum + Number(item.hours), 0);
+        const totalHours = attendance.reduce((sum, item) => sum + Number(item.hours), 0);
         const totalClasses = attendance.length;
-        const daysPresent  = new Set(attendance.map(item => item.attendance_date)).size;
-        const workingDays  = 6; // Mon-Sat
-        const daysAbsent   = Math.max(workingDays - daysPresent, 0);
+        const daysPresent = new Set(attendance.map(item => item.attendance_date)).size;
+        const workingDays = 6; // Mon-Sat
+        const daysAbsent = Math.max(workingDays - daysPresent, 0);
 
         return {
             weekStart,
@@ -674,11 +674,11 @@ const getMonthlyAttendance = async (facultyId, month, year) => {
             order: [["attendance_date", "ASC"], ["start_time", "ASC"]]
         });
 
-        const totalHours   = attendance.reduce((sum, item) => sum + Number(item.hours), 0);
+        const totalHours = attendance.reduce((sum, item) => sum + Number(item.hours), 0);
         const totalClasses = attendance.length;
-        const daysPresent  = new Set(attendance.map(item => item.attendance_date)).size;
-        const workingDays  = 26; // Adjust per college calendar
-        const daysAbsent   = Math.max(workingDays - daysPresent, 0);
+        const daysPresent = new Set(attendance.map(item => item.attendance_date)).size;
+        const workingDays = 26; // Adjust per college calendar
+        const daysAbsent = Math.max(workingDays - daysPresent, 0);
 
         const totalBillableEarnings = attendance.reduce((sum, item) => {
             const isB = item.is_billable ?? true;
@@ -727,9 +727,9 @@ const getAttendanceHistory = async (facultyId) => {
             order: [["attendance_date", "DESC"]]
         });
 
-        const totalHours   = attendance.reduce((sum, item) => sum + Number(item.hours), 0);
+        const totalHours = attendance.reduce((sum, item) => sum + Number(item.hours), 0);
         const totalClasses = attendance.length;
-        const daysPresent  = new Set(attendance.map(item => item.attendance_date)).size;
+        const daysPresent = new Set(attendance.map(item => item.attendance_date)).size;
 
         const totalBillableEarnings = attendance.reduce((sum, item) => {
             const isB = item.is_billable ?? true;
@@ -759,9 +759,9 @@ const getAdminAttendance = async (filters = {}) => {
     try {
         const whereClause = {};
 
-        if (filters.month)             whereClause.month             = filters.month;
-        if (filters.year)              whereClause.year              = filters.year;
-        if (filters.status)            whereClause.status            = filters.status;
+        if (filters.month) whereClause.month = filters.month;
+        if (filters.year) whereClause.year = filters.year;
+        if (filters.status) whereClause.status = filters.status;
         if (filters.attendance_period) whereClause.attendance_period = filters.attendance_period;
 
         if (filters.facultyId) {
@@ -832,35 +832,35 @@ const getFacultyAllocations = async (facultyId) => {
         const allocations = await Allocation.findAll({
             where: { user_id: numericUserId, is_active: true },
             include: [
-                { model: Course,   attributes: ["course_id",   "course_name",   "course_code"] },
+                { model: Course, attributes: ["course_id", "course_name", "course_code"] },
                 { model: Semester, attributes: ["semester_id", "semester_number"] },
-                { model: Section,  attributes: ["section_id",  "section_name"] },
-                { model: Subject,  attributes: ["subject_id",  "subject_code",  "subject_name"] }
+                { model: Section, attributes: ["section_id", "section_name"] },
+                { model: Subject, attributes: ["subject_id", "subject_code", "subject_name"] }
             ],
             order: [["allocation_id", "ASC"]]
         });
 
         const result = allocations.map(a => ({
-            allocation_id:   a.allocation_id,
-            session_type:    a.session_type,
+            allocation_id: a.allocation_id,
+            session_type: a.session_type,
             // rate_per_hour is ENUM string ('200'/'400'/'800') — return as Number
-            rate_per_hour:   Number(a.rate_per_hour),
-            academic_year:   a.academic_year,
-            course_id:       a.Course   ? a.Course.course_id       : null,
-            course_name:     a.Course   ? a.Course.course_name     : null,
-            course_code:     a.Course   ? a.Course.course_code     : null,
-            semester_id:     a.Semester ? a.Semester.semester_id   : null,
+            rate_per_hour: Number(a.rate_per_hour),
+            academic_year: a.academic_year,
+            course_id: a.Course ? a.Course.course_id : null,
+            course_name: a.Course ? a.Course.course_name : null,
+            course_code: a.Course ? a.Course.course_code : null,
+            semester_id: a.Semester ? a.Semester.semester_id : null,
             semester_number: a.Semester ? a.Semester.semester_number : null,
-            section_id:      a.Section  ? a.Section.section_id     : null,
-            section_name:    a.Section  ? a.Section.section_name   : null,
-            subject_id:      a.Subject  ? a.Subject.subject_id     : null,
-            subject_code:    a.Subject  ? a.Subject.subject_code   : null,
-            subject_name:    a.Subject  ? a.Subject.subject_name   : null
+            section_id: a.Section ? a.Section.section_id : null,
+            section_name: a.Section ? a.Section.section_name : null,
+            subject_id: a.Subject ? a.Subject.subject_id : null,
+            subject_code: a.Subject ? a.Subject.subject_code : null,
+            subject_name: a.Subject ? a.Subject.subject_name : null
         }));
 
         return {
             faculty_id: numericUserId,
-            total:      result.length,
+            total: result.length,
             allocations: result
         };
 
@@ -881,10 +881,10 @@ const getAttendanceByIdService = async (attendanceId) => {
                 model: Allocation,
                 attributes: ["allocation_id", "session_type", "rate_per_hour"],
                 include: [
-                    { model: Course,   attributes: ["course_id",   "course_name",   "course_code"] },
+                    { model: Course, attributes: ["course_id", "course_name", "course_code"] },
                     { model: Semester, attributes: ["semester_id", "semester_number"] },
-                    { model: Section,  attributes: ["section_id",  "section_name"] },
-                    { model: Subject,  attributes: ["subject_id",  "subject_code",  "subject_name"] }
+                    { model: Section, attributes: ["section_id", "section_name"] },
+                    { model: Subject, attributes: ["subject_id", "subject_code", "subject_name"] }
                 ]
             }
         ]
@@ -893,47 +893,47 @@ const getAttendanceByIdService = async (attendanceId) => {
     if (!record) return null;
 
     return {
-        attendance_id:     record.attendance_id,
-        attendance_date:   record.attendance_date,
-        start_time:        record.start_time,
-        end_time:          record.end_time,
-        hours:             Number(record.hours),
-        status:            record.status,
-        remarks:           record.remarks,
-        month:             record.month,
-        year:              record.year,
+        attendance_id: record.attendance_id,
+        attendance_date: record.attendance_date,
+        start_time: record.start_time,
+        end_time: record.end_time,
+        hours: Number(record.hours),
+        status: record.status,
+        remarks: record.remarks,
+        month: record.month,
+        year: record.year,
         attendance_period: record.attendance_period,
-        week_number:       record.week_number,
+        week_number: record.week_number,
 
         // User
-        user_id:   record.User ? record.User.user_id  : null,
+        user_id: record.User ? record.User.user_id : null,
         full_name: record.User ? record.User.full_name : null,
-        email:     record.User ? record.User.email     : null,
-        uvfin:     record.User ? record.User.uvfin     : null,
+        email: record.User ? record.User.email : null,
+        uvfin: record.User ? record.User.uvfin : null,
 
         // Allocation
         // rate_per_hour is ENUM string ('200'/'400'/'800') — cast to Number
-        allocation_id:   record.Allocation ? record.Allocation.allocation_id             : null,
-        session_type:    record.Allocation ? record.Allocation.session_type              : null,
-        rate_per_hour:   record.Allocation ? Number(record.Allocation.rate_per_hour)     : null,
+        allocation_id: record.Allocation ? record.Allocation.allocation_id : null,
+        session_type: record.Allocation ? record.Allocation.session_type : null,
+        rate_per_hour: record.Allocation ? Number(record.Allocation.rate_per_hour) : null,
 
         // Course
-        course_id:       record.Allocation?.Course   ? record.Allocation.Course.course_id   : null,
-        course_name:     record.Allocation?.Course   ? record.Allocation.Course.course_name  : null,
-        course_code:     record.Allocation?.Course   ? record.Allocation.Course.course_code  : null,
+        course_id: record.Allocation?.Course ? record.Allocation.Course.course_id : null,
+        course_name: record.Allocation?.Course ? record.Allocation.Course.course_name : null,
+        course_code: record.Allocation?.Course ? record.Allocation.Course.course_code : null,
 
         // Semester
-        semester_id:     record.Allocation?.Semester ? record.Allocation.Semester.semester_id   : null,
+        semester_id: record.Allocation?.Semester ? record.Allocation.Semester.semester_id : null,
         semester_number: record.Allocation?.Semester ? record.Allocation.Semester.semester_number : null,
 
         // Section
-        section_id:      record.Allocation?.Section  ? record.Allocation.Section.section_id  : null,
-        section_name:    record.Allocation?.Section  ? record.Allocation.Section.section_name : null,
+        section_id: record.Allocation?.Section ? record.Allocation.Section.section_id : null,
+        section_name: record.Allocation?.Section ? record.Allocation.Section.section_name : null,
 
         // Subject
-        subject_id:      record.Allocation?.Subject  ? record.Allocation.Subject.subject_id  : null,
-        subject_code:    record.Allocation?.Subject  ? record.Allocation.Subject.subject_code : null,
-        subject_name:    record.Allocation?.Subject  ? record.Allocation.Subject.subject_name : null
+        subject_id: record.Allocation?.Subject ? record.Allocation.Subject.subject_id : null,
+        subject_code: record.Allocation?.Subject ? record.Allocation.Subject.subject_code : null,
+        subject_name: record.Allocation?.Subject ? record.Allocation.Subject.subject_name : null
     };
 };
 
@@ -960,14 +960,14 @@ const deleteAttendanceById = async (attendanceId) => {
 
     // 4. Return the deleted record's key info
     return {
-        attendance_id:   record.attendance_id,
+        attendance_id: record.attendance_id,
         attendance_date: record.attendance_date,
-        user_id:         record.user_id,
-        allocation_id:   record.allocation_id,
-        hours:           Number(record.hours),
-        status:          record.status,
-        month:           record.month,
-        year:            record.year
+        user_id: record.user_id,
+        allocation_id: record.allocation_id,
+        hours: Number(record.hours),
+        status: record.status,
+        month: record.month,
+        year: record.year
     };
 };
 
@@ -1024,8 +1024,8 @@ const deleteAttendanceByFaculty = async (facultyId, filters = {}) => {
     }
 
     return {
-        user_id:      userId,
-        faculty_id:   facultyId,
+        user_id: userId,
+        faculty_id: facultyId,
         deletedCount,
         filters
     };
