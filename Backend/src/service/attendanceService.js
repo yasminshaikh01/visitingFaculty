@@ -1048,5 +1048,6 @@ module.exports = {
     deleteAttendanceByFaculty,  // bulk delete by faculty + optional filters
     // expose helpers for tests
     getISOWeekNumber,
-    getWeekBounds
+    getWeekBounds,
+    syncMonthlyBillableStatus
 };

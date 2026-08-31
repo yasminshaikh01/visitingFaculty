@@ -107,6 +107,18 @@ class AllocationController {
             return res.status(500).json({ success: false, message: error.message });
         }
     }
+
+    // Update Allocation
+    async updateAllocation(req, res) {
+        try {
+            const { id } = req.params;
+            const result = await allocationService.updateAllocation(id, req.body);
+            return res.status(200).json({ success: true, message: 'Allocation updated successfully.', data: result });
+        } catch (error) {
+            console.error('Error updating allocation:', error);
+            return res.status(400).json({ success: false, message: error.message });
+        }
+    }
 }
 
 module.exports = new AllocationController();

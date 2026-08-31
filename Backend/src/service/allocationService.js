@@ -120,7 +120,81 @@ class AllocationService {
         return allocations;
     }
 
-    // 8. Delete Allocation
+    // 8. Update Allocation
+    async updateAllocation(allocationId, data) {
+        const {
+            user_id,
+            course_id,
+            semester_id,
+            section_id,
+            subject_id,
+            session_type,
+            rate_per_hour,
+            academic_year
+        } = data;
+
+        const allocation = await Allocation.findByPk(allocationId);
+        if (!allocation) {
+            throw new Error('Allocation record not found.');
+        }
+
+        // Validate rate_per_hour if provided
+        let rateStr = allocation.rate_per_hour;
+        if (rate_per_hour) {
+            const VALID_RATES = ['200', '400', '800'];
+            rateStr = String(rate_per_hour);
+            if (!VALID_RATES.includes(rateStr)) {
+                throw new Error(`Invalid rate_per_hour: "${rate_per_hour}". Allowed values are: ${VALID_RATES.join(', ')}.`);
+            }
+        }
+
+        const oldUserId = allocation.user_id;
+        const newUserId = user_id || oldUserId;
+
+        // Update the allocation
+        await allocation.update({
+            user_id: newUserId,
+            course_id: course_id || allocation.course_id,
+            semester_id: semester_id || allocation.semester_id,
+            section_id: section_id !== undefined ? section_id : allocation.section_id,
+            subject_id: subject_id || allocation.subject_id,
+            session_type: session_type || allocation.session_type,
+            rate_per_hour: rateStr,
+            academic_year: academic_year || allocation.academic_year
+        });
+
+        const { Attendance } = require('../Schema');
+        const attendanceService = require('./attendanceService');
+
+        // Find all distinct months, years, and user_ids for the attendance records of this allocation
+        const attendanceRecords = await Attendance.findAll({
+            attributes: ['month', 'year', 'user_id'],
+            where: { allocation_id: allocationId },
+            group: ['month', 'year', 'user_id']
+        });
+
+        // Update the user_id in related attendances if it changed
+        if (oldUserId !== newUserId) {
+            await Attendance.update(
+                { user_id: newUserId },
+                { where: { allocation_id: allocationId } }
+            );
+        }
+
+        // Re-sync monthly billable status for all affected months/years/users
+        for (const record of attendanceRecords) {
+            // Sync for the old user (or current user if user_id didn't change)
+            await attendanceService.syncMonthlyBillableStatus(record.user_id, record.month, record.year);
+            // If user_id changed, sync for the new user for the same month/year
+            if (oldUserId !== newUserId) {
+                await attendanceService.syncMonthlyBillableStatus(newUserId, record.month, record.year);
+            }
+        }
+
+        return allocation;
+    }
+
+    // 9. Delete Allocation
     async deleteAllocation(allocationId) {
         const allocation = await Allocation.findByPk(allocationId);
         if (!allocation) {

@@ -25,7 +25,7 @@ AdminApprovalRouter.get('/courses/:courseId/semesters/:semesterId/subjects', aut
 AdminApprovalRouter.post('/allocations', authMiddleware(['admin']), (req, res) => allocationController.createAllocation(req, res));
 AdminApprovalRouter.get('/allocations', authMiddleware(['admin']), (req, res) => allocationController.getAllocations(req, res));
 AdminApprovalRouter.delete('/allocations/:id', authMiddleware(['admin']), (req, res) => allocationController.deleteAllocation(req, res));
-
+AdminApprovalRouter.put('/allocations/:id', authMiddleware(['admin']), (req, res) => allocationController.updateAllocation(req, res));
 // Seed Database Endpoint
 AdminApprovalRouter.post('/seed-subjects', authMiddleware(['admin']), (req, res) => allocationController.seedSubjectsData(req, res));
 
