@@ -9,8 +9,8 @@ const MONTHS = [
   "January", "February", "March", "April", "May", "June",
   "July", "August", "September", "October", "November", "December",
 ];
-const PAGE_SIZE = 6;
 
+// UPDATED: Simplified to only handle Thousands and Hundreds (Max limit ₹30,000)
 function convertAmountToWords(amount) {
   if (!amount || amount === 0) return "Zero Rupees Only";
   
@@ -18,17 +18,15 @@ function convertAmountToWords(amount) {
   const a = ['','One ','Two ','Three ','Four ', 'Five ','Six ','Seven ','Eight ','Nine ','Ten ','Eleven ','Twelve ','Thirteen ','Fourteen ','Fifteen ','Sixteen ','Seventeen ','Eighteen ','Nineteen '];
   const b = ['', '', 'Twenty ','Thirty ','Forty ','Fifty ', 'Sixty ','Seventy ','Eighty ','Ninety '];
   
-  if (num.toString().length > 9) return 'Amount too large';
+  if (num > 99999) return 'Amount out of bounds';
   
-  const n = ('000000000' + num).slice(-9).match(/^(\d{2})(\d{2})(\d{2})(\d{1})(\d{2})$/);
+  const n = ('00000' + num).slice(-5).match(/^(\d{2})(\d{1})(\d{2})$/);
   if (!n) return '';
   
   let str = '';
-  str += (n[1] != 0) ? (a[Number(n[1])] || b[n[1][0]] + a[n[1][1]]) + 'Crore ' : '';
-  str += (n[2] != 0) ? (a[Number(n[2])] || b[n[2][0]] + a[n[2][1]]) + 'Lakh ' : '';
-  str += (n[3] != 0) ? (a[Number(n[3])] || b[n[3][0]] + a[n[3][1]]) + 'Thousand ' : '';
-  str += (n[4] != 0) ? (a[Number(n[4])] || b[n[4][0]] + a[n[4][1]]) + 'Hundred ' : '';
-  str += (n[5] != 0) ? ((str != '') ? 'and ' : '') + (a[Number(n[5])] || b[n[5][0]] + a[n[5][1]]) : '';
+  str += (n[1] != 0) ? (a[Number(n[1])] || b[n[1][0]] + a[n[1][1]]) + 'Thousand ' : '';
+  str += (n[2] != 0) ? (a[Number(n[2])] || b[n[2][0]] + a[n[2][1]]) + 'Hundred ' : '';
+  str += (n[3] != 0) ? ((str != '') ? 'and ' : '') + (a[Number(n[3])] || b[n[3][0]] + a[n[3][1]]) : '';
   
   return str.trim() + " Rupees Only";
 }
@@ -47,6 +45,10 @@ const UVFINBlocks = ({ uvfin }) => {
 };
 
 export default function BillGeneration() {
+  const currentYear = new Date().getFullYear();
+  const nextYear = currentYear + 1;
+  const defaultSession = `${currentYear}-${nextYear.toString().slice(-2)}`;
+
   const [facultySearch, setFacultySearch] = useState("");
   const [selectedFacultyId, setSelectedFacultyId] = useState("");
   const [facultyOptions, setFacultyOptions] = useState([]);
@@ -56,11 +58,10 @@ export default function BillGeneration() {
   const [facultiesLoading, setFacultiesLoading] = useState(true);
 
   const [month, setMonth] = useState(MONTHS[new Date().getMonth()]);
-  const [sessionYear, setSessionYear] = useState("2026-27");
+  const [sessionYear, setSessionYear] = useState(defaultSession);
   const [bill, setBill] = useState(null);
   const [generating, setGenerating] = useState(false);
   
-  // STATE HOISTED: Moved billPage here so mobile buttons can control it
   const [billPage, setBillPage] = useState(1);
   
   const [isDeleting, setIsDeleting] = useState(false);
@@ -69,10 +70,14 @@ export default function BillGeneration() {
 
   const [history, setHistory] = useState([]);
   const [historyLoading, setHistoryLoading] = useState(true);
+  
   const [historySearch, setHistorySearch] = useState("");
-  const [page, setPage] = useState(1);
+  const [historyPeriod, setHistoryPeriod] = useState(""); // UNIFIED STATE
+  const [showHistoryDropdown, setShowHistoryDropdown] = useState(false);
 
   const dropdownRef = useRef(null);
+  const historyDropdownRef = useRef(null);
+  const previewRef = useRef(null); 
 
   useEffect(() => {
     loadHistory();
@@ -82,12 +87,14 @@ export default function BillGeneration() {
       if (dropdownRef.current && !dropdownRef.current.contains(e.target)) {
         setShowFacultyDropdown(false);
       }
+      if (historyDropdownRef.current && !historyDropdownRef.current.contains(e.target)) {
+        setShowHistoryDropdown(false);
+      }
     };
     document.addEventListener("mousedown", handleClickOutside);
     return () => document.removeEventListener("mousedown", handleClickOutside);
   }, []);
 
-  // NEW: Listen for global refresh events to auto-update data
   useEffect(() => {
     const handleRefresh = () => {
       loadHistory();
@@ -139,49 +146,52 @@ export default function BillGeneration() {
     return () => clearTimeout(delayDebounceFn);
   }, [facultySearch]);
 
-  const handleGenerate = async () => {
-    if (!selectedFacultyId) {
+  const handleFacultySelection = (id, name, email) => {
+    setSelectedFacultyId(id);
+    setFacultySearch(`${name} (${email})`);
+    setShowFacultyDropdown(false);
+    
+    const currentM = MONTHS[new Date().getMonth()];
+    setMonth(currentM);
+    
+    fetchAndPreviewBill(id, currentM, sessionYear);
+  };
+
+  const fetchAndPreviewBill = async (facId = selectedFacultyId, m = month, sy = sessionYear) => {
+    if (!facId) {
       setError("Please search and select a faculty member first.");
       return;
     }
     
     setGenerating(true);
-    setError("");
+    setError(""); // Clears old errors immediately
     setBill(null);
     
     try {
-      const yearInt = parseInt(sessionYear.split("-")[0]);
+      const yearInt = parseInt(sy.split("-")[0]);
       
-      const generatePayload = {
-        facultyId: parseInt(selectedFacultyId, 10),
-        month: month, 
-        year: yearInt
-      };
-
-      const generatedDbRes = await api.post("/bills/generate", generatePayload);
-
-      const responseData = generatedDbRes.data?.data || generatedDbRes.data || {};
-      const realDbId = responseData.id || responseData.bill_id || responseData.billId;
-      const displayBillNo = realDbId ? realDbId : `BILL-${Date.now().toString().slice(-6)}`;
-
-      const profileRes = await api.get(`/admin/faculty/${selectedFacultyId}`);
+      // UPDATED: Backend creation logic removed entirely. This is now a pure preview generator.
+      const profileRes = await api.get(`/admin/faculty/${facId}`);
       const facultyData = profileRes.data.data;
 
-      const attendanceRes = await api.get(`/attendance/monthly/${selectedFacultyId}?month=${month}&year=${yearInt}`);
+      const attendanceRes = await api.get(`/attendance/monthly/${facId}?month=${m}&year=${yearInt}`);
       const records = attendanceRes.data.data || [];
 
       if (records.length === 0) {
-        setError(`No attendance records found for ${facultyData.full_name} in ${month} ${yearInt}.`);
+        setError(`No attendance found for this month.`);
         setGenerating(false);
         return;
       }
 
+      // Generate a temporary visual ID for the preview
+      const previewId = `PREVIEW-${Date.now().toString().slice(-6)}`;
+
       const dynamicBill = {
-        id: realDbId,
-        billNo: displayBillNo,
-        month: month,
+        id: previewId,
+        billNo: previewId,
+        month: m,
         year: yearInt,
-        session: sessionYear,
+        session: sy,
         submittedOn: new Date().toLocaleDateString('en-GB', { day: '2-digit', month: '2-digit', year: 'numeric' }),
         facultyName: facultyData.full_name || "Name Missing",
         uvfin: facultyData.uvfin || "",
@@ -199,46 +209,17 @@ export default function BillGeneration() {
       };
 
       setBill(dynamicBill);
-      setBillPage(1); // Reset page to 1 on generate
-      window.dispatchEvent(new Event('refresh-dashboard'));
-      await loadHistory();
+      setBillPage(1); 
       
+      setTimeout(() => {
+        if (window.innerWidth >= 768 && previewRef.current) {
+          previewRef.current.scrollIntoView({ behavior: "smooth", block: "start" });
+        }
+      }, 150);
+
     } catch (err) {
-      setError(err?.response?.data?.message || "Failed to retrieve data for bill generation.");
+      setError(err?.response?.data?.message || "Failed to retrieve data for bill preview.");
     } finally {
-      setGenerating(false);
-    }
-  };
-
-  const handleForceRegenerate = async () => {
-    const yearInt = parseInt(sessionYear.split("-")[0]);
-    
-    // 1. Grab the exact name of the selected faculty
-    const selectedFacultyName = allFaculties.find(f => f.user_id === selectedFacultyId)?.full_name;
-
-    // 2. Find their existing bill in the history state for this specific month/year
-    const existingBill = history.find((b) => {
-      const billMonth = typeof b.month === "number" ? MONTHS[b.month - 1] : b.month;
-      const historyName = b.facultyName || b.User?.full_name;
-      return historyName === selectedFacultyName && billMonth === month && b.year === yearInt;
-    });
-
-    if (!existingBill) {
-      setError("Could not automatically locate the old bill. Please delete it manually from the history table below.");
-      return;
-    }
-
-    // 3. Auto-delete the old bill, then trigger a fresh generation
-    setGenerating(true);
-    setError("");
-    try {
-      const billIdToDelete = existingBill.id || existingBill.bill_id || existingBill.billNo;
-      await api.delete(`/bills/${billIdToDelete}`);
-      
-      // The old bill is gone, instantly generate the new one
-      await handleGenerate();
-    } catch (err) {
-      setError("Failed to delete the existing bill for regeneration.");
       setGenerating(false);
     }
   };
@@ -270,6 +251,7 @@ export default function BillGeneration() {
   };
 
   const handleViewBill = async (billId) => {
+    setError(""); // Wipes out previous lingering errors immediately
     try {
       const res = await api.get(`/bills/details/${billId}`);
       const data = res.data?.data || res.data;
@@ -291,7 +273,7 @@ export default function BillGeneration() {
         billNo: data.billNo || `BILL-${(data.bill_id || billId).toString().padStart(6, '0')}`,
         month: data.month || "Unknown",
         year: data.year || "",
-        session: data.session || "2026-27",
+        session: data.session || defaultSession,
         submittedOn: data.bill_date ? new Date(data.bill_date).toLocaleDateString('en-GB') : new Date().toLocaleDateString('en-GB'),
         
         facultyName: facultyData.full_name || "Name Missing",
@@ -311,8 +293,15 @@ export default function BillGeneration() {
       };
 
       setBill(historyBill);
-      setBillPage(1); // Reset page to 1 on view
-      window.scrollTo({ top: 0, behavior: 'smooth' });
+      setBillPage(1); 
+      
+      setTimeout(() => {
+        if (window.innerWidth >= 768 && previewRef.current) {
+          previewRef.current.scrollIntoView({ behavior: "smooth", block: "start" });
+        } else {
+          window.scrollTo({ top: 0, behavior: 'smooth' });
+        }
+      }, 100);
 
     } catch (err) {
       console.error("View Bill Error:", err);
@@ -320,20 +309,29 @@ export default function BillGeneration() {
     }
   };
 
-  const filteredHistory = useMemo(() => {
-    if (!historySearch.trim()) return history;
-    const q = historySearch.toLowerCase();
-    return history.filter(
-      (b) => 
-        (b.facultyName || b.User?.full_name)?.toLowerCase().includes(q) || 
-        (b.billNo || b.id)?.toString().toLowerCase().includes(q)
-    );
-  }, [history, historySearch]);
+  // NEW: Dynamically grab only the "Month Year" combinations that actually exist in the history
+  const availablePeriods = useMemo(() => {
+    const periods = history.map(b => {
+      const m = typeof b.month === "number" ? MONTHS[b.month - 1] : b.month;
+      return `${m} ${b.year}`;
+    });
+    return [...new Set(periods)]; // Removes duplicates
+  }, [history]);
 
-  const totalPages = Math.max(1, Math.ceil(filteredHistory.length / PAGE_SIZE));
-  const paginated = filteredHistory.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE);
-  
-  useEffect(() => setPage(1), [historySearch]);
+  const filteredHistory = useMemo(() => {
+    return history.filter(b => {
+      const q = historySearch.toLowerCase().trim();
+      const matchesSearch = !q || 
+        (b.facultyName || b.User?.full_name)?.toLowerCase().includes(q) || 
+        (b.billNo || b.id)?.toString().toLowerCase().includes(q);
+      
+      const bMonth = typeof b.month === "number" ? MONTHS[b.month - 1] : b.month;
+      const bPeriod = `${bMonth} ${b.year}`; // Combine month and year
+      const matchesPeriod = !historyPeriod || bPeriod === historyPeriod;
+      
+      return matchesSearch && matchesPeriod;
+    });
+  }, [history, historySearch, historyPeriod]);
 
   return (
     <main className="p-4 sm:p-6 space-y-6 w-full print:p-0 print:m-0 print:bg-white max-w-full overflow-hidden">
@@ -354,9 +352,7 @@ export default function BillGeneration() {
               box-shadow: none !important;
               background: white !important;
             }
-            /* NEW: Force body to collapse so hidden elements don't create blank pages */
             html, body { height: auto !important; min-height: auto !important; overflow: visible !important; }
-
             body { background: white !important; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
             .print-hide { display: none !important; }
             .print-force-break { page-break-before: always; }
@@ -367,12 +363,11 @@ export default function BillGeneration() {
       <div className="print-hide">
         <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 mb-6">
           <div>
-            <h1 className="text-xl sm:text-2xl font-bold text-slate-800">Bill Generation</h1>
+            <h1 className="text-xl sm:text-2xl font-bold text-slate-800">Bill Preview & Generation</h1>
             <p className="text-sm text-slate-400">Official DAVV remuneration bill</p>
           </div>
         </div>
 
-        {/* UPDATED for Responsiveness */}
         <div className="bg-white rounded-xl border border-slate-200 p-4 flex flex-col md:flex-row gap-3 items-stretch md:items-end shadow-sm mb-6 w-full">
           <div className="flex-1 relative" ref={dropdownRef}>
             <label className="text-sm font-medium text-slate-700 mb-1 block">Faculty Search</label>
@@ -392,15 +387,11 @@ export default function BillGeneration() {
             </div>
             
             {showFacultyDropdown && facultyOptions.length > 0 && (
-              <ul className="absolute z-10 w-full mt-1 bg-white border border-slate-200 rounded-lg shadow-lg max-h-48 overflow-y-auto">
+              <ul className="absolute z-50 w-full mt-1 bg-white border border-slate-200 rounded-lg shadow-lg max-h-48 overflow-y-auto">
                 {facultyOptions.map((f) => (
                   <li
                     key={f.user_id}
-                    onClick={() => {
-                      setSelectedFacultyId(f.user_id);
-                      setFacultySearch(`${f.full_name} (${f.email})`);
-                      setShowFacultyDropdown(false);
-                    }}
+                    onClick={() => handleFacultySelection(f.user_id, f.full_name, f.email)}
                     className="px-4 py-2.5 text-sm text-slate-700 hover:bg-slate-50 cursor-pointer border-b border-slate-50 last:border-0"
                   >
                     {f.full_name} ({f.email})
@@ -414,8 +405,15 @@ export default function BillGeneration() {
             <label className="text-sm font-medium text-slate-700 mb-1 block">Month</label>
             <select
               value={month}
-              onChange={(e) => setMonth(e.target.value)}
-              className="w-full md:w-auto px-3 py-2.5 rounded-lg border border-slate-200 text-sm bg-white focus:outline-none focus:border-[#004DD2]"
+              onChange={(e) => {
+                const newMonth = e.target.value;
+                setMonth(newMonth);
+                // NEW: Auto-trigger preview if a faculty member is already selected
+                if (selectedFacultyId) {
+                  fetchAndPreviewBill(selectedFacultyId, newMonth, sessionYear);
+                }
+              }}
+              className="w-full md:w-auto px-3 py-2.5 rounded-lg border border-slate-200 text-sm bg-white focus:outline-none focus:border-[#004DD2] transition-all"
             >
               {MONTHS.map((m) => (
                 <option key={m} value={m}>{m}</option>
@@ -427,21 +425,28 @@ export default function BillGeneration() {
             <label className="text-sm font-medium text-slate-700 mb-1 block">Session</label>
             <select
               value={sessionYear}
-              onChange={(e) => setSessionYear(e.target.value)}
-              className="w-full md:w-auto px-3 py-2.5 rounded-lg border border-slate-200 text-sm bg-white focus:outline-none focus:border-[#004DD2]"
+              onChange={(e) => {
+                const newSession = e.target.value;
+                setSessionYear(newSession);
+                // NEW: Auto-trigger preview if a faculty member is already selected
+                if (selectedFacultyId) {
+                  fetchAndPreviewBill(selectedFacultyId, month, newSession);
+                }
+              }}
+              className="w-full md:w-auto px-3 py-2.5 rounded-lg border border-slate-200 text-sm bg-white focus:outline-none focus:border-[#004DD2] transition-all"
             >
-              <option value="2026-27">2026-27</option>
-              <option value="2027-28">2027-28</option>
-              <option value="2028-29">2028-29</option>
+              <option value={`${currentYear}-${(currentYear+1).toString().slice(-2)}`}>{`${currentYear}-${(currentYear+1).toString().slice(-2)}`}</option>
+              <option value={`${currentYear+1}-${(currentYear+2).toString().slice(-2)}`}>{`${currentYear+1}-${(currentYear+2).toString().slice(-2)}`}</option>
+              <option value={`${currentYear+2}-${(currentYear+3).toString().slice(-2)}`}>{`${currentYear+2}-${(currentYear+3).toString().slice(-2)}`}</option>
             </select>
           </div>
 
           <button
-            onClick={handleGenerate}
+            onClick={() => fetchAndPreviewBill(selectedFacultyId, month, sessionYear)}
             disabled={generating}
             className="w-full md:w-auto flex items-center justify-center gap-2 px-5 py-2.5 rounded-lg bg-[#004DD2] text-white text-sm font-medium hover:bg-blue-800 disabled:opacity-60 transition-colors"
           >
-            <Search size={16} /> {generating ? "Generating..." : "Generate"}
+            <Search size={16} /> {generating ? "Previewing..." : "Preview"}
           </button>
         </div>
 
@@ -459,10 +464,7 @@ export default function BillGeneration() {
               {allFaculties.map((f) => (
                 <li key={f.user_id}>
                   <button
-                    onClick={() => {
-                      setSelectedFacultyId(f.user_id);
-                      setFacultySearch(`${f.full_name} (${f.email})`);
-                    }}
+                    onClick={() => handleFacultySelection(f.user_id, f.full_name, f.email)}
                     className={`w-full text-left px-4 py-3 rounded-lg border transition-all ${
                       selectedFacultyId === f.user_id
                         ? "bg-blue-50 border-blue-200 shadow-sm"
@@ -484,7 +486,6 @@ export default function BillGeneration() {
           )}
         </div>
 
-        {/* MOBILE PREVIEW & PRINT TOOLBAR (Appears below quick select ONLY when a bill is active) */}
         {!generating && bill && (
           <div className="flex lg:hidden items-center justify-center gap-2 mb-6 bg-white p-3 rounded-xl border border-slate-200 shadow-sm">
             <button 
@@ -522,49 +523,90 @@ export default function BillGeneration() {
               <span className="text-red-500 font-bold">⚠️</span>
               <p className="text-sm text-red-700 font-medium">{error}</p>
             </div>
-            
-            {(error.toLowerCase().includes("already") || error.toLowerCase().includes("exists")) && (
-              <button 
-                onClick={handleForceRegenerate}
-                disabled={generating}
-                className="shrink-0 w-full sm:w-auto px-4 py-2 bg-red-600 text-white text-xs font-bold rounded-lg hover:bg-red-700 transition-all shadow-sm disabled:opacity-50 flex items-center justify-center gap-2"
-              >
-                {generating ? "Regenerating..." : "Delete Old & Regenerate"}
-              </button>
-            )}
           </div>
         )}
-        {generating && <div className="py-12 flex justify-center text-slate-500">Generating official document preview...</div>}
+        {generating && <div className="py-12 flex justify-center text-slate-500">Retrieving official document preview...</div>}
       </div>
 
-      {!generating && bill && (
-        <div className="mb-8">
-          <BillPreview bill={bill} onDownload={() => window.print()} billPage={billPage} setBillPage={setBillPage} />
-        </div>
-      )}
+      <div ref={previewRef} className="scroll-mt-6 print:scroll-mt-0">
+        {!generating && bill && (
+          <div className="mb-8">
+            <BillPreview bill={bill} onDownload={() => window.print()} billPage={billPage} setBillPage={setBillPage} />
+          </div>
+        )}
+      </div>
 
-      {/* History Section UPDATED for Responsiveness */}
+      {/* NEW: Updated History Section */}
       <div className="bg-white rounded-xl border border-slate-200 overflow-hidden shadow-sm flex flex-col print-hide w-full">
-        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 px-4 sm:px-6 py-4 border-b border-slate-100">
+        <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4 px-4 sm:px-6 py-4 border-b border-slate-100">
+          
+          {/* Restored Header Title */}
           <div className="flex items-center gap-2">
             <FileText size={18} className="text-[#004DD2]" />
             <h2 className="font-semibold text-slate-800">Bill History</h2>
           </div>
-          <div className="relative w-full sm:w-auto">
-            <Search size={15} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
-            <input
-              value={historySearch}
-              onChange={(e) => setHistorySearch(e.target.value)}
-              placeholder="Search bills..."
-              className="pl-9 pr-3 py-2 rounded-md border border-slate-200 text-sm w-full sm:w-56 focus:outline-none focus:border-[#004DD2]"
-            />
+          
+          <div className="flex flex-col sm:flex-row items-center gap-3 w-full md:w-auto">
+            
+            {/* Unified and Styled Period Filter */}
+            <div className="relative w-full sm:w-auto">
+              <Calendar size={15} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" />
+              <select
+                value={historyPeriod}
+                onChange={(e) => setHistoryPeriod(e.target.value)}
+                className="appearance-none w-full sm:w-auto pl-9 pr-9 py-2 rounded-lg border border-slate-200 text-sm text-slate-600 bg-white focus:outline-none focus:border-[#004DD2] focus:ring-1 focus:ring-[#004DD2] cursor-pointer min-w-[160px] transition-all"
+              >
+                <option value="">All Time</option>
+                {availablePeriods.map(period => (
+                  <option key={period} value={period}>{period}</option>
+                ))}
+              </select>
+              {/* Custom SVG Chevron so you don't need to add a new import at the top of your file */}
+              <svg className="absolute right-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400 pointer-events-none" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+              </svg>
+            </div>
+
+            {/* Styled Search Bar */}
+            <div className="relative w-full sm:w-auto" ref={historyDropdownRef}>
+              <Search size={15} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
+              <input
+                value={historySearch}
+                onChange={(e) => {
+                  setHistorySearch(e.target.value);
+                  setShowHistoryDropdown(true);
+                }}
+                onFocus={() => setShowHistoryDropdown(true)}
+                placeholder="Search generated bills..."
+                className="pl-9 pr-3 py-2 rounded-lg border border-slate-200 text-sm w-full sm:w-64 focus:outline-none focus:border-[#004DD2] focus:ring-1 focus:ring-[#004DD2] transition-all"
+              />
+              
+              {showHistoryDropdown && historySearch.trim() && filteredHistory.length > 0 && (
+                <ul className="absolute z-50 w-full mt-1 bg-white border border-slate-200 rounded-lg shadow-lg max-h-48 overflow-y-auto right-0">
+                  {filteredHistory.map((b, idx) => (
+                    <li 
+                      key={b.id || idx}
+                      onClick={() => {
+                        setHistorySearch(b.facultyName || b.User?.full_name);
+                        setShowHistoryDropdown(false);
+                        handleViewBill(b.id || b.bill_id || b.billNo);
+                      }}
+                      className="px-4 py-2.5 text-sm text-slate-700 hover:bg-slate-50 cursor-pointer border-b border-slate-50 last:border-0"
+                    >
+                      {b.facultyName || b.User?.full_name} - {typeof b.month === "number" ? MONTHS[b.month - 1] : b.month} {b.year}
+                    </li>
+                  ))}
+                </ul>
+              )}
+            </div>
+
           </div>
         </div>
 
-        <div className="overflow-x-auto hide-scrollbar w-full">
+        <div className="max-h-[500px] overflow-y-auto overflow-x-auto hide-scrollbar w-full">
           <table className="w-full text-sm min-w-[650px]">
-            <thead>
-              <tr className="text-left text-xs font-medium text-slate-400 border-b border-slate-100 bg-slate-50/50">
+            <thead className="sticky top-0 bg-slate-50 z-10 shadow-sm">
+              <tr className="text-left text-xs font-medium text-slate-500 border-b border-slate-100">
                 <th className="px-4 sm:px-6 py-3 whitespace-nowrap">S.No.</th>
                 <th className="px-4 sm:px-6 py-3 whitespace-nowrap">Faculty</th>
                 <th className="px-4 sm:px-6 py-3 whitespace-nowrap">Month</th>
@@ -582,18 +624,18 @@ export default function BillGeneration() {
                 </tr>
               )}
               
-              {!historyLoading && paginated.length === 0 && (
+              {!historyLoading && filteredHistory.length === 0 && (
                 <tr>
                   <td colSpan={6} className="py-12 text-center text-slate-400 text-sm">
-                    No bills generated yet.
+                    No generated bills matched your search or filters.
                   </td>
                 </tr>
               )}
               
               {!historyLoading &&
-                paginated.map((b, idx) => (
-                  <tr key={b.id || idx} className="border-b border-slate-50 hover:bg-slate-50/50 transition-colors last:border-0">
-                    <td className="px-4 sm:px-6 py-4 font-medium text-slate-700 whitespace-nowrap">{(page - 1) * PAGE_SIZE + idx + 1}</td>
+                filteredHistory.map((b, idx) => (
+                  <tr key={b.id || idx} className="border-b border-slate-50 hover:bg-slate-50/80 transition-colors last:border-0">
+                    <td className="px-4 sm:px-6 py-4 font-medium text-slate-700 whitespace-nowrap">{idx + 1}</td>
                     <td className="px-4 sm:px-6 py-4 text-slate-700 whitespace-nowrap">{b.facultyName || b.User?.full_name}</td>
                     <td className="px-4 sm:px-6 py-4 text-slate-500 whitespace-nowrap">
                       {typeof b.month === "number" ? MONTHS[b.month - 1] : b.month} {b.year}
@@ -628,41 +670,13 @@ export default function BillGeneration() {
           </table>
         </div>
 
-        <div className="flex flex-col sm:flex-row items-center justify-between gap-4 px-4 sm:px-6 py-4 border-t border-slate-100 text-sm">
-          <span className="text-slate-400 text-center sm:text-left">
-            Showing {paginated.length} of {filteredHistory.length} bills
+        <div className="flex items-center justify-between px-4 sm:px-6 py-4 border-t border-slate-100 text-sm bg-slate-50/30">
+          <span className="text-slate-400">
+            Showing {filteredHistory.length} total bills
           </span>
-          <div className="flex flex-wrap items-center justify-center gap-1">
-            <button
-              disabled={page === 1}
-              onClick={() => setPage((p) => Math.max(1, p - 1))}
-              className="h-8 w-8 flex items-center justify-center rounded-lg border border-slate-200 disabled:opacity-40 hover:bg-slate-50 shrink-0 text-slate-600"
-            >
-              ‹
-            </button>
-            {Array.from({ length: totalPages }, (_, i) => i + 1).map((p) => (
-              <button
-                key={p}
-                onClick={() => setPage(p)}
-                className={`h-8 w-8 flex items-center justify-center rounded-lg text-sm font-medium transition-colors shrink-0 ${
-                  p === page ? "bg-[#004DD2] text-white" : "border border-slate-200 text-slate-600 hover:bg-slate-50"
-                }`}
-              >
-                {p}
-              </button>
-            ))}
-            <button
-              disabled={page === totalPages}
-              onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
-              className="h-8 w-8 flex items-center justify-center rounded-lg border border-slate-200 disabled:opacity-40 hover:bg-slate-50 shrink-0 text-slate-600"
-            >
-              ›
-            </button>
-          </div>
         </div>
       </div>
 
-      {/* Custom Delete Confirmation Modal */}
       {billToDelete && (
         <div className="fixed inset-0 z-[999] flex items-center justify-center bg-slate-900/40 backdrop-blur-sm print-hide p-4 transition-opacity">
           <div className="bg-white rounded-xl p-6 max-w-sm w-full shadow-2xl border border-slate-100 animate-in fade-in zoom-in-95 duration-200">
@@ -700,9 +714,6 @@ export default function BillGeneration() {
   );
 }
 
-// -------------------------------------------------------------
-// The Official Annexure IV & Attendance Layout
-// -------------------------------------------------------------
 function BillPreview({ bill, onDownload, billPage, setBillPage }) {
   const items = bill.items || [];
 
@@ -889,7 +900,6 @@ function BillPreview({ bill, onDownload, billPage, setBillPage }) {
 
               <div className="mb-4 text-center text-[12px]">
                 
-                {/* NEW: Wrap the Heading and Paragraph together so they NEVER split! */}
                 <div style={{ pageBreakInside: 'avoid', breakInside: 'avoid' }}>
                   <p className="mb-1 font-bold underline text-[15px]">UNDERTAKING</p>
                   <p className="text-justify mb-4 font-medium leading-relaxed">
@@ -897,7 +907,6 @@ function BillPreview({ bill, onDownload, billPage, setBillPage }) {
                   </p>
                 </div>
                 
-                {/* Kept pageBreakInside here so the signatures/bank details never split in half */}
                 <div className="flex justify-between mt-4" style={{ pageBreakInside: 'avoid', breakInside: 'avoid' }}>
                         
                   {/* LEFT COLUMN: Bank Details & Payment Info */}
@@ -917,7 +926,7 @@ function BillPreview({ bill, onDownload, billPage, setBillPage }) {
                     </div>
                   </div>
 
-                  {/* RIGHT COLUMN: All Signatures Perfectly Aligned */}
+                  {/* RIGHT COLUMN: Signatures */}
                   <div className="flex flex-col justify-between items-center font-bold text-[12px] gap-8">
                     <div className="text-center mt-2">
                       <p>_____________________________________</p>

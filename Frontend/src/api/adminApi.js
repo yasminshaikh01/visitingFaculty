@@ -30,6 +30,8 @@ const adminApi = {
   // --- Subject Allocation ---
   getSubjectAllocations: () => api.get("/admin/subjectAllocations").then((r) => r.data),
   allocateSubject: (data) => api.post("/admin/allocateSubject", data).then((r) => r.data),
+  updateAllocation: (id, data) => api.put(`/admin/allocations/${id}`, data).then((r) => r.data),
+
 
   // --- Attendance ---
   // GET /api/attendance/admin?facultyId=&month=&year=&status=

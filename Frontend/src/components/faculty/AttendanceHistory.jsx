@@ -3,6 +3,8 @@ import { Download, Calendar, Clock, IndianRupee, ChevronDown, Filter, ChevronLef
 import PageHeader from "./shared/PageHeader";
 import api from "../../api/axiosInstance"; // Adjust the ../ as needed based on folder depth
 
+const MONTHS = ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"];
+
 const typeStyles = {
   Theory: "bg-brand-100 text-brand-700",
   Practical: "bg-brand-50 text-brand-600",
@@ -39,11 +41,16 @@ export default function AttendanceHistory() {
   const [bulkDeleteError, setBulkDeleteError] = useState("");
   const [isBulkDeleting, setIsBulkDeleting] = useState(false);
   
-  // Filtering & Sorting State
+  
+ // Filtering & Sorting State
   const [selectedSubject, setSelectedSubject] = useState("All");
-  const [selectedTimeRange, setSelectedTimeRange] = useState("This Month");
+  const [selectedTimeRange, setSelectedTimeRange] = useState("Select Month"); // UPDATED DEFAULT
   const [sortOrder, setSortOrder] = useState("desc"); // 'desc' = Newest First, 'asc' = Oldest First
   
+// NEW: Specific Month/Year State (Defaults to current month/year)
+  const [selectedSpecificMonth, setSelectedSpecificMonth] = useState(MONTHS[new Date().getMonth()]);
+  const [selectedSpecificYear, setSelectedSpecificYear] = useState(new Date().getFullYear());
+
   // Dropdown UI State
   const [activeDropdown, setActiveDropdown] = useState(null); // 'subject' | 'time' | null
   
@@ -154,6 +161,9 @@ export default function AttendanceHistory() {
         url += `?attendance_date=${dStr}`;
       } else if (selectedTimeRange === "This Week") {
         url += `?attendance_period=weekly`;
+      } else if (selectedTimeRange === "Select Month") {
+        // NEW: Ensure bulk delete targets the specific month they are currently viewing
+        url += `?month=${selectedSpecificMonth}&year=${selectedSpecificYear}`;
       }
 
       const response = await api.delete(url, {
@@ -176,7 +186,7 @@ export default function AttendanceHistory() {
     }
   };
 
-  // --- FILTERING & SORTING LOGIC ---
+// --- FILTERING & SORTING LOGIC ---
   const processedRecords = useMemo(() => {
     let result = [...history];
 
@@ -196,23 +206,22 @@ export default function AttendanceHistory() {
       lastWeek.setDate(lastWeek.getDate() - 7);
       result = result.filter(r => new Date(r.attendance_date) >= lastWeek);
     } 
-    else if (selectedTimeRange === "This Month") {
-      const currentMonth = today.getMonth();
-      const currentYear = today.getFullYear();
+    else if (selectedTimeRange === "Select Month") {
+      const targetMonthIndex = MONTHS.indexOf(selectedSpecificMonth);
       result = result.filter(r => {
         const d = new Date(r.attendance_date);
-        return d.getMonth() === currentMonth && d.getFullYear() === currentYear;
+        return d.getMonth() === targetMonthIndex && d.getFullYear() === selectedSpecificYear;
       });
     }
 
     result.sort((a, b) => {
-      const dateA = new Date(`${a.attendance_date}T${a.start_time}`);
-      const dateB = new Date(`${b.attendance_date}T${b.start_time}`);
+      const dateA = new Date(`${a.attendance_date}T${a.start_time}`).getTime();
+      const dateB = new Date(`${b.attendance_date}T${b.start_time}`).getTime();
       return sortOrder === 'desc' ? dateB - dateA : dateA - dateB;
     });
 
     return result;
-  }, [history, selectedSubject, selectedTimeRange, sortOrder]);
+  }, [history, selectedSubject, selectedTimeRange, sortOrder, selectedSpecificMonth, selectedSpecificYear]);
 
   // --- UPDATED: SUMMARY CALCULATION (Respects is_billable) ---
   const summary = useMemo(() => {
@@ -354,7 +363,7 @@ export default function AttendanceHistory() {
               <div className="relative">
                 <button 
                   onClick={() => setActiveDropdown(activeDropdown === 'subject' ? null : 'subject')}
-                  className={`flex items-center gap-2 rounded-lg border px-3.5 py-2 text-sm transition-colors ${
+                  className={`flex h-[38px] items-center gap-2 rounded-lg border px-3.5 py-2 text-sm transition-colors ${
                     activeDropdown === 'subject' || selectedSubject !== 'All' 
                       ? 'border-brand-300 bg-brand-50 text-brand-700' 
                       : 'border-slate-300 text-slate-600 hover:bg-slate-50'
@@ -394,7 +403,7 @@ export default function AttendanceHistory() {
               <div className="relative">
                 <button 
                   onClick={() => setActiveDropdown(activeDropdown === 'time' ? null : 'time')}
-                  className={`flex items-center gap-2 rounded-lg border px-3.5 py-2 text-sm transition-colors ${
+                  className={`flex h-[38px] items-center gap-2 rounded-lg border px-3.5 py-2 text-sm transition-colors ${
                     activeDropdown === 'time' || selectedTimeRange !== 'All Time' 
                       ? 'border-brand-300 bg-brand-50 text-brand-700' 
                       : 'border-slate-300 text-slate-600 hover:bg-slate-50'
@@ -405,7 +414,7 @@ export default function AttendanceHistory() {
                 
                 {activeDropdown === 'time' && (
                   <div className="absolute top-full left-0 mt-1.5 w-40 rounded-xl border border-slate-100 bg-white p-1.5 shadow-xl z-10">
-                    {['All Time', 'Today', 'This Week', 'This Month'].map((range) => (
+                    {['All Time', 'Today', 'This Week', 'Select Month'].map((range) => (
                       <button 
                         key={range}
                         onClick={() => handleFilterChange('time', range)}
@@ -418,6 +427,34 @@ export default function AttendanceHistory() {
                   </div>
                 )}
               </div>
+              
+              {/* UPDATED UI: Native Selects styled to look identical to custom buttons */}
+              {selectedTimeRange === "Select Month" && (
+                <div className="flex flex-wrap items-center gap-2 animate-in fade-in slide-in-from-left-2 duration-200">
+                  <div className="relative">
+                    <select
+                      value={selectedSpecificMonth}
+                      onChange={(e) => { setSelectedSpecificMonth(e.target.value); setCurrentPage(1); }}
+                      className="appearance-none flex h-[38px] w-full items-center rounded-lg border border-slate-300 pl-3.5 pr-9 py-2 text-sm text-slate-600 bg-white hover:bg-slate-50 focus:outline-none focus:border-brand-300 focus:ring-1 focus:ring-brand-300 transition-colors cursor-pointer"
+                    >
+                      {MONTHS.map(m => <option key={m} value={m}>{m}</option>)}
+                    </select>
+                    <ChevronDown className="absolute right-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-slate-400 pointer-events-none" />
+                  </div>
+                  
+                  <div className="relative">
+                    <select
+                      value={selectedSpecificYear}
+                      onChange={(e) => { setSelectedSpecificYear(Number(e.target.value)); setCurrentPage(1); }}
+                      className="appearance-none flex h-[38px] w-full items-center rounded-lg border border-slate-300 pl-3.5 pr-9 py-2 text-sm text-slate-600 bg-white hover:bg-slate-50 focus:outline-none focus:border-brand-300 focus:ring-1 focus:ring-brand-300 transition-colors cursor-pointer"
+                    >
+                      {[2024, 2025, 2026, 2027, 2028].map(y => <option key={y} value={y}>{y}</option>)}
+                    </select>
+                    <ChevronDown className="absolute right-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-slate-400 pointer-events-none" />
+                  </div>
+                </div>
+              )}
+
             </div>
 
             {/* Sort & Bulk Delete Controls */}
@@ -430,13 +467,14 @@ export default function AttendanceHistory() {
                 {sortOrder === 'desc' ? 'Newest First' : 'Oldest First'}
               </button>
 
-              {history.length > 0 && selectedTimeRange !== "This Month" && (
+              {/* ONLY show the Bulk Clear button if the "Today" filter is selected to prevent massive accidental data loss */}
+              {history.length > 0 && selectedTimeRange === "Today" && (
                 <button
                   onClick={promptBulkDelete}
                   className="flex items-center gap-2 rounded-lg border border-red-200 bg-white px-3 py-2 text-sm font-medium text-red-600 hover:bg-red-50 transition-colors shadow-sm"
                 >
                   <Trash2 className="h-4 w-4" />
-                  Clear {selectedTimeRange === "All Time" ? "All" : selectedTimeRange}
+                  Clear Today
                 </button>
               )}
             </div>
@@ -452,9 +490,9 @@ export default function AttendanceHistory() {
             <div className="py-20 flex flex-col items-center justify-center text-slate-500">
               <Filter className="w-8 h-8 text-slate-300 mb-3" />
               <p>No records found matching your filters.</p>
-              {(selectedSubject !== 'All' || selectedTimeRange !== 'This Month') && (
+              {(selectedSubject !== 'All' || selectedTimeRange !== 'Select Month') && (
                 <button 
-                  onClick={() => { setSelectedSubject('All'); setSelectedTimeRange('This Month'); }}
+                  onClick={() => { setSelectedSubject('All'); setSelectedTimeRange('Select Month'); }}
                   className="mt-2 text-brand-600 text-sm font-medium hover:underline"
                 >
                   Clear all filters

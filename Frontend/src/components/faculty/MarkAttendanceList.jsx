@@ -27,17 +27,18 @@ export default function MarkAttendanceList() {
     details: null
   });
 
-  // --- PREVIOUS MONTH OPEN LOGIC ---
+  // --- PREVIOUS 2 MONTHS OPEN LOGIC ---
   const now = new Date();
   const currentYear = now.getFullYear();
   const currentMonth = now.getMonth(); // 0-indexed
   const currentDateNum = now.getDate();
 
   let minYear = currentYear;
-  let minMonth = currentMonth - 1;
+  let minMonth = currentMonth - 2; // Changed from -1 to -2
 
+  // Handle year wrap-around for Jan/Feb
   if (minMonth < 0) {
-    minMonth = 11;
+    minMonth += 12; // -1 becomes 11 (Dec), -2 becomes 10 (Nov)
     minYear -= 1;
   }
 
@@ -186,18 +187,17 @@ export default function MarkAttendanceList() {
     selectedDateObj.setHours(0, 0, 0, 0);
     const todayObj = new Date(now);
     todayObj.setHours(0, 0, 0, 0);
+    
+    // Validate bounds using our calculated minDate
+    const minAllowedDateObj = new Date(minDate);
+    minAllowedDateObj.setHours(0, 0, 0, 0);
 
     if (selectedDateObj > todayObj) {
       return showModal("error", "Invalid Date", "You cannot mark attendance for future dates.");
     }
 
-    const isCurrentMonthRec = selectedDateObj.getMonth() === now.getMonth() && selectedDateObj.getFullYear() === now.getFullYear();
-    const isPreviousMonthRec = 
-      (selectedDateObj.getFullYear() === now.getFullYear() && selectedDateObj.getMonth() === now.getMonth() - 1) ||
-      (selectedDateObj.getFullYear() === now.getFullYear() - 1 && selectedDateObj.getMonth() === 11 && now.getMonth() === 0);
-
-    if (!isCurrentMonthRec && !isPreviousMonthRec) {
-        return showModal("error", "Action Not Allowed", "You can only mark attendance for the current and previous month.");
+    if (selectedDateObj < minAllowedDateObj) {
+      return showModal("error", "Action Not Allowed", "You can only mark attendance for the current and previous two months.");
     }
 
     const MAX_MONTHLY_PAY = 30000; 

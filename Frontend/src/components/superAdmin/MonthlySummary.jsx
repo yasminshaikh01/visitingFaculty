@@ -150,24 +150,24 @@ export default function MonthlySummary({ onMenuClick }) {
     fetchSummary(selectedMonth, selectedYear, selectedCourseId);
   };
 
-  // ── Auto-load on mount with current month/year ───────────
+ // ── Auto-load on mount with current month/year ───────────
   useEffect(() => {
     handleApplyFilters();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  // ── NEW: Global Auto-Refresh ─────────────────────────────
+  // ── Global Auto-Refresh Listener ─────────────────────────
   useEffect(() => {
     const handleRefresh = () => {
-      if (hasApplied) {
-        fetchAllCourses(selectedMonth, selectedYear);
-        fetchSummary(selectedMonth, selectedYear, selectedCourseId);
-      }
+      // Whenever 'refresh-dashboard' is fired (e.g. a new bill is generated),
+      // automatically fetch the newest data using the currently selected filters!
+      fetchAllCourses(selectedMonth, selectedYear);
+      fetchSummary(selectedMonth, selectedYear, selectedCourseId);
     };
     
     window.addEventListener('refresh-dashboard', handleRefresh);
     return () => window.removeEventListener('refresh-dashboard', handleRefresh);
-  }, [selectedMonth, selectedYear, selectedCourseId, hasApplied]);
+  }, [selectedMonth, selectedYear, selectedCourseId]);
 
   const handleCourseSelect = (courseId) => {
     setSelectedCourseId(courseId);
@@ -245,14 +245,22 @@ export default function MonthlySummary({ onMenuClick }) {
       setIsTriggering(false);
     }
   };
-
   // ── Month picker handler ─────────────────────────────────
   const handleMonthInputChange = (e) => {
     const val = e.target.value; // "2026-07"
     if (!val) return;
     const [y, m] = val.split("-");
-    setSelectedYear(parseInt(y, 10));
-    setSelectedMonth(MONTHS[parseInt(m, 10) - 1]);
+    const newYear = parseInt(y, 10);
+    const newMonth = MONTHS[parseInt(m, 10) - 1];
+    
+    // Update the state so the document text changes instantly
+    setSelectedYear(newYear);
+    setSelectedMonth(newMonth);
+    setHasApplied(true); // Tells the UI we are actively viewing a report
+    
+    // NEW: Instantly fetch the new data from the backend!
+    fetchAllCourses(newMonth, newYear);
+    fetchSummary(newMonth, newYear, selectedCourseId);
   };
 
   // ── Derive month input value ─────────────────────────────
