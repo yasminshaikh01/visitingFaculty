@@ -33,6 +33,7 @@ const navItems = [
   { id: "subject-allocation", label: "Subject Allocation", icon: BookOpen },
   { id: "attendance-records", label: "Attendance Records", icon: ClipboardCheck },
   { id: "bill-generation", label: "Bill Generation", icon: FileText },
+  { id: "monthly-summary", label: "Monthly Summary", icon: Landmark },
 ];
 
 // --- INLINE ADMIN PROFILE MODAL (BALANCED RATIO VERSION) ---
@@ -386,7 +387,7 @@ function AdminProfileModal({ isOpen, onClose, userId, token }) {
                       </div>
                     </div>
 
-                    {/* NEW: LIVE PASSWORD REQUIREMENTS UI */}
+                    {/* LIVE PASSWORD REQUIREMENTS UI */}
                     <div className="bg-[#F8F9FA] p-4 rounded-xl mt-4">
                       <p className="text-[11px] font-bold uppercase tracking-wider text-slate-800 mb-3">Password Requirements</p>
                       <ul className="space-y-2.5">

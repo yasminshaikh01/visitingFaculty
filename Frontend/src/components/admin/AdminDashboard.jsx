@@ -13,6 +13,8 @@ import FacultyManagement from "./FacultyManagement";
 import SubjectAllocation from "./SubjectAllocation";
 import AttendanceRecords from "./AttendanceRecords";
 import BillGeneration from "./BillGeneration";
+// NEW: Import the MonthlySummary component from the superAdmin folder
+import MonthlySummary from "../superAdmin/MonthlySummary"; 
 
 const SESSION = "2026-27";
 
@@ -223,6 +225,9 @@ export default function AdminDashboard({ onSignOut }) {
         return <AttendanceRecords />;
       case 'bill-generation': 
         return <BillGeneration />;
+      case 'monthly-summary':
+        // NEW: Add the Monthly Summary case here
+        return <MonthlySummary onMenuClick={() => setIsMobileMenuOpen(true)} />;
       case 'dashboard':
       default:
         return (
