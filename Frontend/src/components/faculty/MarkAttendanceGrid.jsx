@@ -54,16 +54,19 @@ export default function MarkAttendanceGrid() {
   const actualMonth = actualCurrentDate.getMonth();
   const actualDay = actualCurrentDate.getDate();
 
-  const isCurrentMonth = year === actualYear && monthIndex === actualMonth;
-  const isPreviousMonth = (year === actualYear && monthIndex === actualMonth - 1) || 
-                          (year === actualYear - 1 && monthIndex === 11 && actualMonth === 0);
+  // --- PREVIOUS 2 MONTHS OPEN LOGIC ---
+  // Convert year/month to an absolute month count to easily find the difference
+  const absoluteMonthDiff = (actualYear * 12 + actualMonth) - (year * 12 + monthIndex);
+
+  const isCurrentMonth = absoluteMonthDiff === 0;
+  const isPreviousTwoMonths = absoluteMonthDiff === 1 || absoluteMonthDiff === 2;
   
-  const canEditMonth = isCurrentMonth || isPreviousMonth;
+  const canEditMonth = isCurrentMonth || isPreviousTwoMonths;
 
   const isDayAllowed = (day) => {
     if (!day) return false;
     if (isCurrentMonth) return day <= actualDay; 
-    if (isPreviousMonth) return true; 
+    if (isPreviousTwoMonths) return true; 
     return false; 
   };
 
@@ -190,7 +193,7 @@ export default function MarkAttendanceGrid() {
   };
 
   const handleSubmit = async () => {
-    if (!canEditMonth) return showModal("error", "Action Not Allowed", "This month is locked. You can only mark attendance for the current and previous month.");
+    if (!canEditMonth) return showModal("error", "Action Not Allowed", "This month is locked. You can only mark attendance for the current and previous two months.");
     if (!isDayAllowed(selectedDay)) return showModal("error", "Invalid Date", "You cannot mark attendance for future or locked dates.");
     if (!selectedAllocationId) return showModal("error", "Missing Information", "Please select a subject before submitting.");
     
@@ -407,7 +410,7 @@ export default function MarkAttendanceGrid() {
               <AlertCircle className="h-4 w-4 shrink-0" />
               {isCurrentMonth && selectedDay > actualDay 
                 ? "You cannot mark attendance for future dates." 
-                : "This date is from a locked past month. Only the current and previous months are editable."}
+                : "This date is from a locked past month. Only the current and previous two months are editable."}
             </div>
           )}
 
@@ -495,7 +498,7 @@ export default function MarkAttendanceGrid() {
                   </div>
                 </div>
               </div>
-
+              
               {/* NEW: 30-Minute Checkbox for Grid */}
               <div className="col-span-2 flex items-center gap-2 mt-1">
                 <input
