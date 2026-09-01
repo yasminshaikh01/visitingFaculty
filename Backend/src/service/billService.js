@@ -67,6 +67,8 @@ const generateBill = async (facultyId, month, year, extraDetails = {}) => {
             throw new Error("Bill already generated for this month.");
         }
 
+        const { Op } = require("sequelize");
+
         // ==========================
         // Fetch Attendance
         // ==========================
@@ -74,8 +76,14 @@ const generateBill = async (facultyId, month, year, extraDetails = {}) => {
 
             where: {
                 user_id: numericUserId,
-                month,
-                year
+                [Op.and]: [
+                    sequelize.where(
+                        sequelize.fn('LOWER', sequelize.col('Attendance.month')),
+                        String(month).trim().toLowerCase()
+                    ),
+                    { year: Number(year) },
+                    { status: { [Op.ne]: "Cancelled" } }
+                ]
             },
 
             include: [
@@ -338,6 +346,7 @@ const getBillDetails = async (billId) => {
 const getBillHistory = async (facultyId) => {
 
     const numericUserId = await resolveUserId(facultyId);
+    const { Op } = require("sequelize");
 
     const bills = await Bill.findAll({
         where: {
@@ -362,6 +371,56 @@ const getBillHistory = async (facultyId) => {
             ["generated_at", "DESC"]
         ]
     });
+
+    // Dynamic sync of bill total and hours with live attendance records
+    for (const b of bills) {
+        try {
+            const attendanceRecords = await Attendance.findAll({
+                where: {
+                    user_id: b.user_id,
+                    [Op.and]: [
+                        sequelize.where(
+                            sequelize.fn('LOWER', sequelize.col('Attendance.month')),
+                            String(b.month).trim().toLowerCase()
+                        ),
+                        { year: Number(b.year) },
+                        { status: { [Op.ne]: "Cancelled" } }
+                    ]
+                },
+                include: [{ model: Allocation, attributes: ["rate_per_hour"] }]
+            });
+
+            if (attendanceRecords.length > 0) {
+                let liveTotal = 0;
+                let liveHours = 0;
+                const BILL_CAP = 30000;
+
+                for (const att of attendanceRecords) {
+                    const hours = Number(att.hours || 0);
+                    const rate = att.Allocation?.rate_per_hour ? Number(att.Allocation.rate_per_hour) : 0;
+                    const isBillable = att.is_billable !== false;
+                    const amount = isBillable ? Number((hours * rate).toFixed(2)) : 0;
+
+                    if (liveTotal + amount <= BILL_CAP) {
+                        liveTotal += amount;
+                        liveHours += hours;
+                    }
+                }
+
+                liveTotal = Number(liveTotal.toFixed(2));
+                liveHours = Number(liveHours.toFixed(2));
+
+                if (Number(b.total_amount) !== liveTotal || Number(b.total_hours) !== liveHours) {
+                    await b.update({ total_amount: liveTotal, total_hours: liveHours });
+                    b.total_amount = liveTotal;
+                    b.total_hours = liveHours;
+                }
+            }
+        } catch (syncErr) {
+            console.error(`[getBillHistory] sync error for bill ${b.bill_id}:`, syncErr.message);
+        }
+    }
+
     return bills;
 };
 
@@ -481,6 +540,7 @@ const regenerateBillPDF = async (billId) => {
 // Get All Bills (admin view)
 // ==========================================================
 const getAllBills = async () => {
+    const { Op } = require("sequelize");
     const bills = await Bill.findAll({
         include: [
             {
@@ -496,6 +556,56 @@ const getAllBills = async () => {
             ["generated_at", "DESC"]
         ]
     });
+
+    // Dynamic sync of bill total and hours with live attendance records
+    for (const b of bills) {
+        try {
+            const attendanceRecords = await Attendance.findAll({
+                where: {
+                    user_id: b.user_id,
+                    [Op.and]: [
+                        sequelize.where(
+                            sequelize.fn('LOWER', sequelize.col('Attendance.month')),
+                            String(b.month).trim().toLowerCase()
+                        ),
+                        { year: Number(b.year) },
+                        { status: { [Op.ne]: "Cancelled" } }
+                    ]
+                },
+                include: [{ model: Allocation, attributes: ["rate_per_hour"] }]
+            });
+
+            if (attendanceRecords.length > 0) {
+                let liveTotal = 0;
+                let liveHours = 0;
+                const BILL_CAP = 30000;
+
+                for (const att of attendanceRecords) {
+                    const hours = Number(att.hours || 0);
+                    const rate = att.Allocation?.rate_per_hour ? Number(att.Allocation.rate_per_hour) : 0;
+                    const isBillable = att.is_billable !== false;
+                    const amount = isBillable ? Number((hours * rate).toFixed(2)) : 0;
+
+                    if (liveTotal + amount <= BILL_CAP) {
+                        liveTotal += amount;
+                        liveHours += hours;
+                    }
+                }
+
+                liveTotal = Number(liveTotal.toFixed(2));
+                liveHours = Number(liveHours.toFixed(2));
+
+                if (Number(b.total_amount) !== liveTotal || Number(b.total_hours) !== liveHours) {
+                    await b.update({ total_amount: liveTotal, total_hours: liveHours });
+                    b.total_amount = liveTotal;
+                    b.total_hours = liveHours;
+                }
+            }
+        } catch (syncErr) {
+            console.error(`[getAllBills] sync error for bill ${b.bill_id}:`, syncErr.message);
+        }
+    }
+
     return bills;
 };
 
