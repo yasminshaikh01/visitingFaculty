@@ -163,16 +163,11 @@ export default function MonthlySummary({ onMenuClick }) {
   // ── Fetch all-courses grouped data ───────────────────────
   const fetchAllCourses = async (month, year) => {
     try {
-      const { data } = await api.get(`${API_BASE}/all`, {
-        params: { month, year },
-      });
+      const { data } = await api.get(`${API_BASE}/all`, { params: { month, year } });
       if (data.success) {
         setAllCoursesData(data.data);
         if (data.data.courses) {
           setCourses(data.data.courses);
-          if (isAdmin && data.data.courses.length > 0 && !selectedCourseId) {
-            handleCourseSelect(data.data.courses[0].courseId || data.data.courses[0].course_id);
-          }
         }
       }
     } catch (err) {
@@ -235,7 +230,7 @@ export default function MonthlySummary({ onMenuClick }) {
 
   // ── Download single-course PDF ───────────────────────────
   const handleDownloadPDF = async () => {
-    if (!selectedCourseId && !isAdmin) {
+    if (!selectedCourseId) {
       handleDownloadInstitutePDF();
       return;
     }
@@ -465,21 +460,19 @@ export default function MonthlySummary({ onMenuClick }) {
             <span className="truncate">Export PDF</span>
           </button>
 
-          {/* Share / Institute PDF - HIDDEN FOR ADMINS */}
-          {!isAdmin && (
-            <button
-              onClick={handleDownloadInstitutePDF}
-              disabled={isDownloadingInstitute || !hasApplied}
-              className="w-full xl:w-auto flex items-center justify-center gap-2 px-5 py-2.5 rounded-xl bg-gradient-to-r from-purple-600 to-indigo-600 text-white text-sm font-semibold hover:from-purple-700 hover:to-indigo-700 transition-all shadow-md hover:shadow-lg disabled:opacity-50"
-            >
-              {isDownloadingInstitute ? (
-                <Loader2 className="w-4 h-4 animate-spin shrink-0" />
-              ) : (
-                <Share2 className="w-4 h-4 shrink-0" />
-              )}
-              <span className="truncate">Share Report</span>
-            </button>
-          )}
+          {/* Share / Institute PDF */}
+          <button
+            onClick={handleDownloadInstitutePDF}
+            disabled={isDownloadingInstitute || !hasApplied}
+            className={`w-full xl:w-auto flex items-center justify-center gap-2 px-5 py-2.5 rounded-xl bg-[#004DD2] text-white text-sm font-semibold hover:bg-blue-800 transition-all shadow-sm hover:shadow-md disabled:opacity-50`}
+          >
+            {isDownloadingInstitute ? (
+              <Loader2 className="w-4 h-4 animate-spin shrink-0" />
+            ) : (
+              <Share2 className="w-4 h-4 shrink-0" />
+            )}
+            <span className="truncate">Share Report</span>
+          </button>
         </div>
       </div>
 
@@ -523,9 +516,9 @@ export default function MonthlySummary({ onMenuClick }) {
               {/* Suggestions Dropdown */}
               {showSuggestions && searchQuery.trim() && (suggestedPrograms.length > 0 || suggestedFaculties.length > 0) && (
                 <div className={`absolute top-full left-0 right-0 mt-2 bg-white border rounded-xl shadow-xl z-50 max-h-80 overflow-y-auto animate-fade-in divide-y ${theme.cardBorder} divide-gray-100`}>
-                  {!isAdmin && suggestedPrograms.length > 0 && (
-                    <div className="py-2">
-                      <div className="px-4 py-1 text-xs font-bold text-gray-400 uppercase tracking-wider">Programs</div>
+                  {suggestedPrograms.length > 0 && (
+                  <div className="py-2">
+                    <div className="px-4 py-1 text-xs font-bold text-slate-400 uppercase tracking-wider">Programs</div>
                       {suggestedPrograms.map((p) => (
                         <button
                           key={p.id}
@@ -733,8 +726,8 @@ export default function MonthlySummary({ onMenuClick }) {
               </div>
             </div>
 
-            {/* ── All Courses Grand Totals (HIDDEN FOR ADMINS) */}
-            {!selectedCourseId && !isAdmin && allCoursesData && allCoursesData.courses && allCoursesData.courses.length > 0 && (
+            {/* ── All Courses Grand Totals ── */}
+{!selectedCourseId && allCoursesData && allCoursesData.courses && allCoursesData.courses.length > 0 && (
               <div className="px-4 md:px-10 pb-8">
                 <div className={`border-t-2 pt-6 ${theme.cardBorder}`}>
                   <h3 className={`text-base font-bold mb-4 flex items-center gap-2 ${theme.textNormal}`}>

@@ -211,19 +211,22 @@ export default function SubjectAllocation({ prefilledFaculty }) {
     }
 
     const isDuplicate = allocations.find((a) => {
+      // NEW: Now we also check if the specific user is already assigned
+      const matchUser = String(a.user_id) === String(form.user_id);
+      
       const matchCourse = String(a.course_id) === String(form.course_id);
       const matchSemester = String(a.semester_id) === String(form.semester_id);
       const matchSubject = String(a.subject_id) === String(form.subject_id);
       const matchSection = String(a.section_id || "") === String(form.section_id || "");
       const matchType = String(a.session_type).toLowerCase() === String(form.session_type).toLowerCase();
       
-      return matchCourse && matchSemester && matchSubject && matchSection && matchType;
+      // Require ALL conditions to be true (including matchUser) to trigger the block
+      return matchUser && matchCourse && matchSemester && matchSubject && matchSection && matchType;
     });
 
     if (isDuplicate) {
-      const assignedTo = isDuplicate.User?.full_name || "another faculty member";
       setErrorModal(
-        `This ${form.session_type} subject is already allocated to ${assignedTo} for this specific section. Please remove the existing allocation first if you need to reassign it.`
+        `This faculty member is already allocated to this ${form.session_type} subject for this specific section.`
       );
       return; 
     }
