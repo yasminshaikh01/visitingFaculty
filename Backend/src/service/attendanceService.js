@@ -201,32 +201,40 @@ const findAllocation = async (numericUserId, { allocation_id, course_id, semeste
     // ── Fast path: allocation_id provided directly from the frontend ────────────
     if (allocation_id) {
         const allocation = await Allocation.findOne({
-            where: { allocation_id, user_id: numericUserId, is_active: true },
+            where: { allocation_id, is_active: true },
             include: includeBlock
         });
         if (!allocation) {
             throw new Error(
-                `No active allocation found with allocation_id=${allocation_id} for this faculty.`
+                `No active allocation found with allocation_id=${allocation_id}.`
             );
         }
         return allocation;
     }
 
     // ── Lookup path: match by course / semester / section / subject ─────────────
-    const whereClause = { user_id: numericUserId, is_active: true };
+    const whereClause = { is_active: true };
     if (course_id) whereClause.course_id = course_id;
     if (semester_id) whereClause.semester_id = semester_id;
     if (section_id) whereClause.section_id = section_id;  // Figma: Section A / B toggle
     if (subject_id) whereClause.subject_id = subject_id;
 
-    const allocation = await Allocation.findOne({
-        where: whereClause,
+    // Prefer allocation belonging to this faculty if exists, otherwise find any active matching allocation
+    let allocation = await Allocation.findOne({
+        where: { ...whereClause, user_id: numericUserId },
         include: includeBlock
     });
 
     if (!allocation) {
+        allocation = await Allocation.findOne({
+            where: whereClause,
+            include: includeBlock
+        });
+    }
+
+    if (!allocation) {
         throw new Error(
-            "No active allocation found for this faculty with the given course, semester, section, and subject."
+            "No active allocation found with the given course, semester, section, and subject."
         );
     }
 
@@ -326,16 +334,6 @@ const _insertAttendanceRow = async ({
     const finalHours = (hours !== undefined && hours !== null && hours !== '')
         ? parseFloat(hours)
         : calcHours(start_time, end_time);
-
-    // Duplicate check: same allocation + date + start_time
-    const existing = await Attendance.findOne({
-        where: { allocation_id: allocation.allocation_id, attendance_date, start_time }
-    });
-    if (existing) {
-        throw new Error(
-            `Attendance already submitted for this subject at ${start_time} on ${attendance_date}.`
-        );
-    }
 
     // Default status per period:
     //   'Marked'  → faculty confirmed the class happened   (calendar toggle)
