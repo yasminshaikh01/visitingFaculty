@@ -327,18 +327,24 @@ export default function MonthlySummary({ onMenuClick }) {
         const key = entry.faculty_id || entry.uvfin || entry.faculty_name;
         if (facultyMap.has(key)) {
           facultyMap.get(key).totalAmount += Number(entry.total_amount || entry.totalAmount || entry.amount || 0);
+          facultyMap.get(key).totalHours += Number(entry.total_hours || entry.totalHours || entry.hours || 0);
         } else {
           facultyMap.set(key, {
             uvfin: entry.uvfin || "",
             name: entry.faculty_name || entry.name || entry.facultyName || "",
             totalAmount: Number(entry.total_amount || entry.totalAmount || entry.amount || 0),
+            totalHours: Number(entry.total_hours || entry.totalHours || entry.hours || 0),
           });
         }
       });
     });
 
     const rows = [];
-    facultyMap.forEach((val) => rows.push(val));
+    facultyMap.forEach((val) => {
+      val.tdsAmount = val.totalAmount * 0.10;
+      val.netAmount = val.totalAmount - val.tdsAmount;
+      rows.push(val);
+    });
     return rows;
   };
 
@@ -384,7 +390,9 @@ export default function MonthlySummary({ onMenuClick }) {
   };
 
   const { programs: suggestedPrograms, faculties: suggestedFaculties } = getSuggestions();
-  const grandTotal = summaryData?.grandTotal ?? summaryData?.grand_total ?? facultyRows.reduce((s, r) => s + r.totalAmount, 0);
+  const grandTotal = facultyRows.reduce((s, r) => s + (r.totalAmount || 0), 0);
+  const grandTotalTds = facultyRows.reduce((s, r) => s + (r.tdsAmount || 0), 0);
+  const grandTotalNet = facultyRows.reduce((s, r) => s + (r.netAmount || 0), 0);
 
   const selectedCourseName = selectedCourseId
     ? courses.find((c) => c.courseId === selectedCourseId || c.course_id === selectedCourseId)?.courseName ||
@@ -638,17 +646,32 @@ export default function MonthlySummary({ onMenuClick }) {
                   <table className="w-full text-sm min-w-[500px]">
                     <thead>
                       <tr className={`border-b ${theme.tableHead}`}>
-                        <th className="text-left px-4 md:px-6 py-4 font-bold text-xs uppercase tracking-wider w-16 whitespace-nowrap">
-                          S. No.
-                        </th>
-                        <th className="text-left px-4 md:px-6 py-4 font-bold text-xs uppercase tracking-wider w-28 whitespace-nowrap">
-                          UVFIN
+                        <th className="text-left px-4 md:px-6 py-4 font-bold text-xs uppercase tracking-wider whitespace-nowrap">
+                          S.No.
                         </th>
                         <th className="text-left px-4 md:px-6 py-4 font-bold text-xs uppercase tracking-wider whitespace-nowrap">
                           Name of Faculty
                         </th>
-                        <th className="text-right px-4 md:px-6 py-4 font-bold text-xs uppercase tracking-wider w-40 whitespace-nowrap">
-                          Total Amount
+                        <th className="text-left px-4 md:px-6 py-4 font-bold text-xs uppercase tracking-wider whitespace-nowrap">
+                          Month & Year
+                        </th>
+                        <th className="text-center px-4 md:px-6 py-4 font-bold text-xs uppercase tracking-wider whitespace-nowrap">
+                          Hours
+                        </th>
+                        <th className="text-right px-4 md:px-6 py-4 font-bold text-xs uppercase tracking-wider whitespace-nowrap">
+                          Amount (in Rs.)
+                        </th>
+                        <th className="text-right px-4 md:px-6 py-4 font-bold text-xs uppercase tracking-wider whitespace-nowrap">
+                          TDS (10.00 %)
+                        </th>
+                        <th className="text-right px-4 md:px-6 py-4 font-bold text-xs uppercase tracking-wider whitespace-nowrap">
+                          Net Amount
+                        </th>
+                        <th className="text-left px-4 md:px-6 py-4 font-bold text-xs uppercase tracking-wider whitespace-nowrap">
+                          Cheque No. / Date
+                        </th>
+                        <th className="text-left px-4 md:px-6 py-4 font-bold text-xs uppercase tracking-wider whitespace-nowrap">
+                          Signature
                         </th>
                       </tr>
                     </thead>
@@ -660,23 +683,35 @@ export default function MonthlySummary({ onMenuClick }) {
                             className={`border-b transition-colors ${theme.tableRow}`}
                           >
                             <td className={`px-4 md:px-6 py-4 font-medium whitespace-nowrap ${theme.textMuted}`}>
-                              {idx + 1}.
-                            </td>
-                            <td className={`px-4 md:px-6 py-4 font-mono text-xs whitespace-nowrap ${theme.textMuted}`}>
-                              {row.uvfin || "—"}
+                              {idx + 1}
                             </td>
                             <td className={`px-4 md:px-6 py-4 font-medium whitespace-nowrap ${theme.textNormal}`}>
                               {row.name}
+                              <div className="text-xs text-gray-400 font-mono mt-0.5">{row.uvfin}</div>
+                            </td>
+                            <td className={`px-4 md:px-6 py-4 whitespace-nowrap ${theme.textMuted}`}>
+                              {selectedMonth}-{selectedYear}
+                            </td>
+                            <td className={`px-4 md:px-6 py-4 text-center tabular-nums whitespace-nowrap ${theme.textNormal}`}>
+                              {row.totalHours ? Number(row.totalHours).toFixed(2) : "—"}
                             </td>
                             <td className={`px-4 md:px-6 py-4 text-right font-semibold tabular-nums whitespace-nowrap ${theme.textNormal}`}>
                               {formatCurrency(row.totalAmount)}
                             </td>
+                            <td className={`px-4 md:px-6 py-4 text-right font-semibold tabular-nums whitespace-nowrap text-red-600`}>
+                              {formatCurrency(row.tdsAmount)}
+                            </td>
+                            <td className={`px-4 md:px-6 py-4 text-right font-bold tabular-nums whitespace-nowrap text-emerald-600`}>
+                              {formatCurrency(row.netAmount)}
+                            </td>
+                            <td className={`px-4 md:px-6 py-4 whitespace-nowrap ${theme.textNormal}`}></td>
+                            <td className={`px-4 md:px-6 py-4 whitespace-nowrap ${theme.textNormal}`}></td>
                           </tr>
                         ))
                       ) : (
                         <tr>
                           <td
-                            colSpan={4}
+                            colSpan={9}
                             className={`px-6 py-12 text-center font-medium ${theme.textMuted}`}
                           >
                             <FileText className="w-8 h-8 mx-auto mb-2 opacity-50" />
@@ -689,14 +724,21 @@ export default function MonthlySummary({ onMenuClick }) {
                       {facultyRows.length > 0 && (
                         <tr className={`border-t-2 ${theme.tableHead}`}>
                           <td
-                            colSpan={3}
+                            colSpan={4}
                             className={`px-4 md:px-6 py-4 text-right font-bold uppercase tracking-wide text-sm whitespace-nowrap ${theme.textDark}`}
                           >
                             Grand Total
                           </td>
-                          <td className={`px-4 md:px-6 py-4 text-right font-bold text-lg tabular-nums whitespace-nowrap ${theme.textHighlight}`}>
+                          <td className={`px-4 md:px-6 py-4 text-right font-bold text-sm md:text-base tabular-nums whitespace-nowrap ${theme.textHighlight}`}>
                             {formatCurrency(grandTotal)}
                           </td>
+                          <td className={`px-4 md:px-6 py-4 text-right font-bold text-sm md:text-base tabular-nums whitespace-nowrap text-red-600`}>
+                            {formatCurrency(grandTotalTds)}
+                          </td>
+                          <td className={`px-4 md:px-6 py-4 text-right font-bold text-sm md:text-base tabular-nums whitespace-nowrap text-emerald-600`}>
+                            {formatCurrency(grandTotalNet)}
+                          </td>
+                          <td colSpan={2}></td>
                         </tr>
                       )}
                     </tbody>
@@ -742,13 +784,23 @@ export default function MonthlySummary({ onMenuClick }) {
                             <th className="text-left px-4 md:px-6 py-3 font-bold text-xs uppercase tracking-wider whitespace-nowrap">
                               Course
                             </th>
-                            <th className="text-right px-4 md:px-6 py-3 font-bold text-xs uppercase tracking-wider w-40 whitespace-nowrap">
-                              Grand Total
+                            <th className="text-right px-4 md:px-6 py-3 font-bold text-xs uppercase tracking-wider whitespace-nowrap">
+                              Amount
+                            </th>
+                            <th className="text-right px-4 md:px-6 py-3 font-bold text-xs uppercase tracking-wider whitespace-nowrap">
+                              TDS (10%)
+                            </th>
+                            <th className="text-right px-4 md:px-6 py-3 font-bold text-xs uppercase tracking-wider whitespace-nowrap">
+                              Net Amount
                             </th>
                           </tr>
                         </thead>
                         <tbody>
-                          {allCoursesData.courses.map((c) => (
+                          {allCoursesData.courses.map((c) => {
+                            const amt = c.grandTotal || c.grand_total || 0;
+                            const tds = amt * 0.10;
+                            const net = amt - tds;
+                            return (
                             <tr
                               key={c.courseId || c.course_id}
                               className={`border-b transition-colors cursor-pointer ${theme.tableRow}`}
@@ -758,18 +810,28 @@ export default function MonthlySummary({ onMenuClick }) {
                                 {c.courseName || c.course_name}
                               </td>
                               <td className={`px-4 md:px-6 py-3 text-right font-semibold tabular-nums whitespace-nowrap ${theme.textNormal}`}>
-                                {formatCurrency(c.grandTotal || c.grand_total)}
+                                {formatCurrency(amt)}
+                              </td>
+                              <td className={`px-4 md:px-6 py-3 text-right font-semibold tabular-nums whitespace-nowrap text-red-600`}>
+                                {formatCurrency(tds)}
+                              </td>
+                              <td className={`px-4 md:px-6 py-3 text-right font-bold tabular-nums whitespace-nowrap text-emerald-600`}>
+                                {formatCurrency(net)}
                               </td>
                             </tr>
-                          ))}
+                          )})}
                           <tr className={`border-t-2 ${theme.tableHead}`}>
                             <td className={`px-4 md:px-6 py-3 font-bold uppercase text-xs md:text-sm whitespace-nowrap ${theme.textDark}`}>
                               Institute Grand Total
                             </td>
                             <td className={`px-4 md:px-6 py-3 text-right font-bold text-sm md:text-base tabular-nums whitespace-nowrap ${theme.textHighlight}`}>
-                              {formatCurrency(
-                                allCoursesData.grandTotal || allCoursesData.grand_total
-                              )}
+                              {formatCurrency(allCoursesData.grandTotal || allCoursesData.grand_total)}
+                            </td>
+                            <td className={`px-4 md:px-6 py-3 text-right font-bold text-sm md:text-base tabular-nums whitespace-nowrap text-red-600`}>
+                              {formatCurrency((allCoursesData.grandTotal || allCoursesData.grand_total || 0) * 0.10)}
+                            </td>
+                            <td className={`px-4 md:px-6 py-3 text-right font-bold text-sm md:text-base tabular-nums whitespace-nowrap text-emerald-600`}>
+                              {formatCurrency((allCoursesData.grandTotal || allCoursesData.grand_total || 0) * 0.90)}
                             </td>
                           </tr>
                         </tbody>
