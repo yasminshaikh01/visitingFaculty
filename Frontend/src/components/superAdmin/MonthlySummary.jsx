@@ -667,12 +667,6 @@ export default function MonthlySummary({ onMenuClick }) {
                         <th className="text-right px-4 md:px-6 py-4 font-bold text-xs uppercase tracking-wider whitespace-nowrap">
                           Net Amount
                         </th>
-                        <th className="text-left px-4 md:px-6 py-4 font-bold text-xs uppercase tracking-wider whitespace-nowrap">
-                          Cheque No. / Date
-                        </th>
-                        <th className="text-left px-4 md:px-6 py-4 font-bold text-xs uppercase tracking-wider whitespace-nowrap">
-                          Signature
-                        </th>
                       </tr>
                     </thead>
                     <tbody>
@@ -704,14 +698,12 @@ export default function MonthlySummary({ onMenuClick }) {
                             <td className={`px-4 md:px-6 py-4 text-right font-bold tabular-nums whitespace-nowrap text-emerald-600`}>
                               {formatCurrency(row.netAmount)}
                             </td>
-                            <td className={`px-4 md:px-6 py-4 whitespace-nowrap ${theme.textNormal}`}></td>
-                            <td className={`px-4 md:px-6 py-4 whitespace-nowrap ${theme.textNormal}`}></td>
                           </tr>
                         ))
                       ) : (
                         <tr>
                           <td
-                            colSpan={9}
+                            colSpan={7}
                             className={`px-6 py-12 text-center font-medium ${theme.textMuted}`}
                           >
                             <FileText className="w-8 h-8 mx-auto mb-2 opacity-50" />
@@ -738,7 +730,6 @@ export default function MonthlySummary({ onMenuClick }) {
                           <td className={`px-4 md:px-6 py-4 text-right font-bold text-sm md:text-base tabular-nums whitespace-nowrap text-emerald-600`}>
                             {formatCurrency(grandTotalNet)}
                           </td>
-                          <td colSpan={2}></td>
                         </tr>
                       )}
                     </tbody>
