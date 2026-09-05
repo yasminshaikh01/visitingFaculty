@@ -522,6 +522,10 @@ const verifyAttendanceController = async (req, res) => {
 
         const updated = await verifyAttendance(attendanceId, status, remarks);
 
+        if (updated && updated.user_id && updated.month && updated.year) {
+            triggerBillGeneration(updated.user_id, updated.month, updated.year);
+        }
+
         return res.status(200).json({
             success: true,
             message: "Attendance status updated successfully.",
@@ -668,6 +672,10 @@ const deleteAttendanceByFacultyController = async (req, res) => {
 
         const result = await deleteAttendanceByFaculty(facultyId, filters);
 
+        if (result.user_id && filters.month && filters.year) {
+            triggerBillGeneration(result.user_id, filters.month, filters.year);
+        }
+
         return res.status(200).json({
             success:      true,
             message:      result.deletedCount > 0
@@ -715,6 +723,10 @@ const deleteAttendanceByIdController = async (req, res) => {
         }
 
         const deleted = await deleteAttendanceById(Number(attendanceId));
+
+        if (deleted && deleted.user_id && deleted.month && deleted.year) {
+            triggerBillGeneration(deleted.user_id, deleted.month, deleted.year);
+        }
 
         return res.status(200).json({
             success: true,

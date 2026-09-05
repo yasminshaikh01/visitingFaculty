@@ -6,6 +6,7 @@ import {
   Trash2,
   Check,
   AlertTriangle,
+  Edit,
 } from "lucide-react";
 import LoadingSpinner from "./LoadingSpinner";
 import api from "../../api/axiosInstance";
@@ -49,6 +50,7 @@ export default function SubjectAllocation({ prefilledFaculty }) {
   const [errorModal, setErrorModal] = useState("");
   const [deleteConfirmId, setDeleteConfirmId] = useState(null);
   const [deleting, setDeleting] = useState(false);
+  const [editingAllocation, setEditingAllocation] = useState(null);
 
   const dropdownRef = useRef(null);
 
@@ -209,19 +211,22 @@ export default function SubjectAllocation({ prefilledFaculty }) {
     }
 
     const isDuplicate = allocations.find((a) => {
+      // NEW: Now we also check if the specific user is already assigned
+      const matchUser = String(a.user_id) === String(form.user_id);
+      
       const matchCourse = String(a.course_id) === String(form.course_id);
       const matchSemester = String(a.semester_id) === String(form.semester_id);
       const matchSubject = String(a.subject_id) === String(form.subject_id);
       const matchSection = String(a.section_id || "") === String(form.section_id || "");
       const matchType = String(a.session_type).toLowerCase() === String(form.session_type).toLowerCase();
       
-      return matchCourse && matchSemester && matchSubject && matchSection && matchType;
+      // Require ALL conditions to be true (including matchUser) to trigger the block
+      return matchUser && matchCourse && matchSemester && matchSubject && matchSection && matchType;
     });
 
     if (isDuplicate) {
-      const assignedTo = isDuplicate.User?.full_name || "another faculty member";
       setErrorModal(
-        `This ${form.session_type} subject is already allocated to ${assignedTo} for this specific section. Please remove the existing allocation first if you need to reassign it.`
+        `This faculty member is already allocated to this ${form.session_type} subject for this specific section.`
       );
       return; 
     }
@@ -627,14 +632,24 @@ export default function SubjectAllocation({ prefilledFaculty }) {
                           </span>
                         </div>
                       </td>
-                      <td className="px-5 py-3 text-right whitespace-nowrap">
-                        <button
-                          onClick={() => confirmDelete(a.allocation_id)}
-                          className="p-1.5 text-red-400 hover:bg-red-50 hover:text-red-600 rounded-md transition-colors"
-                          title="Revoke Allocation"
-                        >
-                          <Trash2 size={16} />
-                        </button>
+                      <td className="px-5 py-3 whitespace-nowrap">
+                        <div className="flex items-center justify-end">
+                          <button
+                            onClick={() => setEditingAllocation(a)}
+                            className="flex items-center gap-1.5 px-2.5 py-1.5 text-blue-600 hover:bg-blue-50 rounded-md transition-colors mr-2 text-xs font-medium"
+                            title="Edit Allocation"
+                          >
+                            <Edit size={14} />
+                            Edit Allocation
+                          </button>
+                          <button
+                            onClick={() => confirmDelete(a.allocation_id)}
+                            className="p-1.5 text-red-400 hover:bg-red-50 hover:text-red-600 rounded-md transition-colors"
+                            title="Revoke Allocation"
+                          >
+                            <Trash2 size={16} />
+                          </button>
+                        </div>
                       </td>
                     </tr>
                   ))}
@@ -771,6 +786,21 @@ export default function SubjectAllocation({ prefilledFaculty }) {
           </div>
         </div>
       )}
+
+      {/* Edit Modal */}
+      {editingAllocation && (
+        <EditAllocationModal
+          allocation={editingAllocation}
+          courses={courses}
+          onClose={() => setEditingAllocation(null)}
+          onSuccess={() => {
+            setEditingAllocation(null);
+            fetchAllocations();
+            window.dispatchEvent(new Event('refresh-dashboard'));
+            // Optional: you can show a success toast or modal here
+          }}
+        />
+      )}
     </main>
   );
 }
@@ -782,6 +812,298 @@ function Field({ label, children }) {
         {label}
       </label>
       {children}
+    </div>
+  );
+}
+
+function EditAllocationModal({ allocation, courses, onClose, onSuccess }) {
+  const [form, setForm] = useState({
+    user_id: allocation.user_id || "",
+    course_id: allocation.course_id || "",
+    section_id: allocation.section_id || "",
+    semester_id: allocation.semester_id || "",
+    subject_id: allocation.subject_id || "",
+    session_type: allocation.session_type || "",
+    rate_per_hour: allocation.rate_per_hour || "",
+    academic_year: allocation.academic_year || "2026-27",
+  });
+
+  const [sections, setSections] = useState([]);
+  const [semesters, setSemesters] = useState([]);
+  const [subjects, setSubjects] = useState([]);
+  const [submitting, setSubmitting] = useState(false);
+  const [formError, setFormError] = useState("");
+  const [facultySearch, setFacultySearch] = useState(
+    allocation.User ? `${allocation.User.full_name} (${allocation.User.email})` : ""
+  );
+  const [showFacultyDropdown, setShowFacultyDropdown] = useState(false);
+  const [facultyOptions, setFacultyOptions] = useState([]);
+
+  const dropdownRef = useRef(null);
+
+  useEffect(() => {
+    const handleClickOutside = (event) => {
+      if (dropdownRef.current && !dropdownRef.current.contains(event.target)) {
+        setShowFacultyDropdown(false);
+      }
+    };
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => document.removeEventListener("mousedown", handleClickOutside);
+  }, []);
+
+  useEffect(() => {
+    if (form.course_id) {
+      api.get(`/admin/courses/${form.course_id}/sections`)
+        .then((res) => setSections(res.data.data || []))
+        .catch(() => setSections([]));
+      api.get(`/admin/courses/${form.course_id}/semesters`)
+        .then((res) => setSemesters(res.data.data || []))
+        .catch(() => setSemesters([]));
+    } else {
+      setSections([]);
+      setSemesters([]);
+    }
+  }, [form.course_id]);
+
+  useEffect(() => {
+    if (form.course_id && form.semester_id) {
+      api.get(`/admin/courses/${form.course_id}/semesters/${form.semester_id}/subjects`)
+        .then((res) => setSubjects(res.data.data || []))
+        .catch(() => setSubjects([]));
+    } else {
+      setSubjects([]);
+    }
+  }, [form.semester_id, form.course_id]);
+
+  useEffect(() => {
+    const delayDebounceFn = setTimeout(async () => {
+      if (!facultySearch.trim() || facultySearch.includes("(")) {
+        setFacultyOptions([]);
+        return;
+      }
+      try {
+        const res = await api.get(`/admin/search-faculty?q=${facultySearch}`);
+        setFacultyOptions(res.data.data || []);
+      } catch (err) {
+        setFacultyOptions([]);
+      }
+    }, 400);
+    return () => clearTimeout(delayDebounceFn);
+  }, [facultySearch]);
+
+  const handleChange = (field) => (e) => {
+    setForm((f) => ({ ...f, [field]: e.target.value }));
+    if (field === "course_id") {
+      setForm((f) => ({ ...f, section_id: "", semester_id: "", subject_id: "" }));
+    }
+    if (field === "semester_id") {
+      setForm((f) => ({ ...f, subject_id: "" }));
+    }
+  };
+
+  const handleSubmit = async (e) => {
+    e.preventDefault();
+    setFormError("");
+
+    const payload = {};
+    Object.keys(form).forEach(key => {
+      if (String(form[key]) !== String(allocation[key] || "")) {
+        payload[key] = form[key];
+      }
+    });
+
+    if (Object.keys(payload).length === 0) {
+      onClose();
+      return;
+    }
+
+    setSubmitting(true);
+    try {
+      if (payload.section_id === "") payload.section_id = null;
+      await api.put(`/admin/allocations/${allocation.allocation_id}`, payload);
+      onSuccess();
+    } catch (err) {
+      setFormError(err?.response?.data?.message || "Failed to update allocation.");
+      setSubmitting(false);
+    }
+  };
+
+  return (
+    <div className="fixed inset-0 z-[60] flex items-center justify-center bg-slate-900/50 backdrop-blur-sm p-4 overflow-y-auto">
+      <div className="bg-white rounded-xl shadow-xl w-full max-w-2xl overflow-hidden mt-10 mb-10 animate-in zoom-in-95 duration-200">
+        <div className="p-6 border-b border-slate-100 flex justify-between items-center bg-slate-50">
+          <h3 className="text-xl font-bold text-slate-800">Edit Subject Allocation</h3>
+          <button onClick={onClose} className="text-slate-400 hover:text-slate-600">✕</button>
+        </div>
+        <div className="p-6">
+          <form onSubmit={handleSubmit} className="space-y-4">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div ref={dropdownRef} className="md:col-span-2">
+                <Field label="Select Faculty (Name or ID)">
+                  <div className="relative">
+                    <input
+                      type="text"
+                      value={facultySearch}
+                      onChange={(e) => {
+                        setFacultySearch(e.target.value);
+                        setShowFacultyDropdown(true);
+                        setForm((prev) => ({ ...prev, user_id: "" }));
+                      }}
+                      onFocus={() => setShowFacultyDropdown(true)}
+                      placeholder="Select..."
+                      className="w-full px-3 py-2.5 rounded-lg border border-slate-200 text-sm focus:outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500 transition-all"
+                    />
+                    {showFacultyDropdown && facultyOptions.length > 0 && (
+                      <ul className="absolute z-10 w-full mt-1 bg-white border border-slate-200 rounded-lg shadow-lg max-h-48 overflow-y-auto">
+                        {facultyOptions.map((f) => (
+                          <li
+                            key={f.user_id}
+                            onClick={() => {
+                              setForm((prev) => ({ ...prev, user_id: f.user_id }));
+                              setFacultySearch(`${f.full_name} (${f.email})`);
+                              setShowFacultyDropdown(false);
+                            }}
+                            className="px-4 py-2.5 text-sm text-slate-700 hover:bg-slate-50 cursor-pointer border-b border-slate-50 last:border-0"
+                          >
+                            {f.full_name} ({f.email})
+                          </li>
+                        ))}
+                      </ul>
+                    )}
+                  </div>
+                </Field>
+              </div>
+
+              <div className="md:col-span-2">
+                <Field label="Program Name">
+                  <select
+                    value={form.course_id}
+                    onChange={handleChange("course_id")}
+                    className="w-full px-3 py-2.5 rounded-lg border border-slate-200 text-sm bg-white focus:outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500 transition-all"
+                  >
+                    <option value="">Select Program</option>
+                    {courses.map((c) => (
+                      <option key={c.course_id} value={c.course_id}>{c.course_name}</option>
+                    ))}
+                  </select>
+                </Field>
+              </div>
+
+              <Field label="Semester">
+                <select
+                  value={form.semester_id}
+                  onChange={handleChange("semester_id")}
+                  disabled={!form.course_id || semesters.length === 0}
+                  className="w-full px-3 py-2.5 rounded-lg border border-slate-200 text-sm bg-white disabled:bg-slate-50 disabled:text-slate-400 focus:outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500 transition-all"
+                >
+                  <option value="">Select Sem</option>
+                  {semesters.map((s) => (
+                    <option key={s.semester_id} value={s.semester_id}>Semester {s.semester_number}</option>
+                  ))}
+                </select>
+              </Field>
+
+              <Field label="Section">
+                <select
+                  value={form.section_id}
+                  onChange={handleChange("section_id")}
+                  disabled={!form.course_id || sections.length === 0}
+                  className="w-full px-3 py-2.5 rounded-lg border border-slate-200 text-sm bg-white disabled:bg-slate-50 disabled:text-slate-400 focus:outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500 transition-all"
+                >
+                  <option value="">{sections.length === 0 ? "N/A" : "Select Section"}</option>
+                  {sections.map((sec) => (
+                    <option key={sec.section_id} value={sec.section_id}>Section {sec.section_name}</option>
+                  ))}
+                </select>
+              </Field>
+
+              <Field label="Subject Name">
+                <select
+                  value={form.subject_id}
+                  onChange={handleChange("subject_id")}
+                  disabled={!form.semester_id || subjects.length === 0}
+                  className="w-full px-3 py-2.5 rounded-lg border border-slate-200 text-sm bg-white disabled:bg-slate-50 focus:outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500 transition-all"
+                >
+                  <option value="">Select Subject</option>
+                  {subjects.map((sub) => (
+                    <option key={`edit-name-${sub.subject_id}`} value={sub.subject_id}>{sub.subject_name}</option>
+                  ))}
+                </select>
+              </Field>
+
+              <Field label="Academic Session">
+                <select
+                  value={form.academic_year}
+                  onChange={handleChange("academic_year")}
+                  className="w-full px-3 py-2.5 rounded-lg border border-slate-200 text-sm bg-white focus:outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500 transition-all"
+                >
+                  <option value="2026-27">2026-27</option>
+                  <option value="2025-26">2025-26</option>
+                  <option value="2024-25">2024-25</option>
+                </select>
+              </Field>
+
+              <Field label="Type">
+                <select
+                  value={form.session_type}
+                  onChange={handleChange("session_type")}
+                  className="w-full px-3 py-2.5 rounded-lg border border-slate-200 text-sm bg-white focus:outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500 transition-all"
+                >
+                  <option value="">Select...</option>
+                  {["Theory", "Practical"].map((t) => (
+                    <option key={t} value={t}>{t}</option>
+                  ))}
+                </select>
+              </Field>
+
+              <Field label="Per Hour Rate (₹)">
+                <select
+                  value={form.rate_per_hour}
+                  onChange={handleChange("rate_per_hour")}
+                  className="w-full px-3 py-2.5 rounded-lg border border-slate-200 text-sm bg-white focus:outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500 transition-all"
+                >
+                  <option value="">Select Rate...</option>
+                  {["200", "400", "800"].map((r) => (
+                    <option key={r} value={r}>₹ {r}</option>
+                  ))}
+                </select>
+              </Field>
+            </div>
+            
+            {formError && (
+              <p className="text-sm text-red-500 bg-red-50 p-2 rounded">
+                {formError}
+              </p>
+            )}
+
+            <div className="flex justify-end gap-3 mt-6 pt-4 border-t border-slate-100">
+              <button
+                type="button"
+                onClick={onClose}
+                disabled={submitting}
+                className="px-5 py-2.5 bg-white border border-slate-200 text-slate-700 text-sm font-medium rounded-lg hover:bg-slate-50 transition-colors disabled:opacity-50"
+              >
+                Cancel
+              </button>
+              <button
+                type="submit"
+                disabled={submitting}
+                className="px-5 py-2.5 bg-[#0b57d0] text-white text-sm font-medium rounded-lg hover:bg-blue-700 transition-colors disabled:opacity-50 flex items-center justify-center gap-2 min-w-[150px]"
+              >
+                {submitting ? (
+                  <>
+                    <svg className="animate-spin -ml-1 mr-2 h-4 w-4 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                      <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                      <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                    </svg>
+                    Updating...
+                  </>
+                ) : "Update Allocation"}
+              </button>
+            </div>
+          </form>
+        </div>
+      </div>
     </div>
   );
 }

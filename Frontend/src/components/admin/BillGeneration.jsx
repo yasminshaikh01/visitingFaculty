@@ -640,7 +640,9 @@ export default function BillGeneration() {
                     <td className="px-4 sm:px-6 py-4 text-slate-500 whitespace-nowrap">
                       {typeof b.month === "number" ? MONTHS[b.month - 1] : b.month} {b.year}
                     </td>
-                    <td className="px-4 sm:px-6 py-4 font-semibold text-blue-600 whitespace-nowrap">₹{b.amount || b.total_amount}</td>
+                    <td className="px-4 sm:px-6 py-4 font-semibold text-blue-600 whitespace-nowrap">
+                      ₹{Number(b.total_amount ?? b.amount ?? 0).toLocaleString("en-IN", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                    </td>
                     <td className="px-4 sm:px-6 py-4 whitespace-nowrap">
                       <span className="px-2.5 py-1 rounded-full text-xs font-semibold uppercase tracking-wider border border-green-500/30 bg-green-50 text-green-600 inline-block">
                         Generated
