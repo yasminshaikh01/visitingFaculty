@@ -25,6 +25,12 @@ const Subject = sequelize.define('Subject', {
         allowNull: false,
         references: { model: 'semesters', key: 'semester_id' }
     },
+    group_id: {
+        type: DataTypes.INTEGER,
+        allowNull: true,
+        references: { model: 'subject_groups', key: 'group_id' }
+    },
+
     is_active: {
         type: DataTypes.BOOLEAN,
         defaultValue: true

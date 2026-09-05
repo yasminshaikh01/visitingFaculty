@@ -1,4 +1,4 @@
-const { User, Course, Semester, Section, Subject, Allocation } = require('../Schema');
+const { User, Course, Semester, Section, Subject, Allocation, SubjectGroup } = require('../Schema');
 const { Op } = require('sequelize');
 
 class AllocationService {
@@ -58,9 +58,25 @@ class AllocationService {
                 semester_id: semesterId,
                 is_active: true
             },
+            include: [{
+                model: SubjectGroup,
+                attributes: ['group_id', 'group_name', 'combined_code'],
+                required: false    // LEFT JOIN — subjects without groups still returned
+            }],
             order: [['subject_code', 'ASC']]
         });
-        return subjects;
+        
+        // Flatten group info into subject object for frontend convenience
+        return subjects.map(s => {
+            const plain = s.toJSON();
+            return {
+                ...plain,
+                group_id: plain.SubjectGroup?.group_id || null,
+                group_name: plain.SubjectGroup?.group_name || null,
+                combined_code: plain.SubjectGroup?.combined_code || null,
+                SubjectGroup: undefined   // remove nested object
+            };
+        });
     }
 
     // 6. Create Subject Allocation
@@ -112,7 +128,15 @@ class AllocationService {
                 { model: Course, attributes: ['course_id', 'course_code', 'course_name'] },
                 { model: Semester, attributes: ['semester_id', 'semester_number'] },
                 { model: Section, attributes: ['section_id', 'section_name'] },
-                { model: Subject, attributes: ['subject_id', 'subject_code', 'subject_name'] }
+                {
+                    model: Subject,
+                    attributes: ['subject_id', 'subject_code', 'subject_name', 'group_id'],
+                    include: [{
+                        model: SubjectGroup,
+                        attributes: ['combined_code', 'group_name'],
+                        required: false
+                    }]
+                }
             ],
             order: [['allocation_id', 'DESC']]
         });

@@ -12,6 +12,7 @@ const Allocation = require('./allocationSchema');
 const Attendance = require('./attendanceSchema');
 const Bill = require('./billSchema');
 const BillDetail = require('./billDetailsSchema');  // ✅ Add this - missing
+const SubjectGroup = require('./subjectGroupSchema');
 
 // ============================================
 // 1. USER ASSOCIATIONS
@@ -46,6 +47,10 @@ Subject.belongsTo(Course, { foreignKey: 'course_id' });
 // Semester → Subject
 Semester.hasMany(Subject, { foreignKey: 'semester_id' });
 Subject.belongsTo(Semester, { foreignKey: 'semester_id' });
+
+// SubjectGroup → Subject
+SubjectGroup.hasMany(Subject, { foreignKey: 'group_id' });
+Subject.belongsTo(SubjectGroup, { foreignKey: 'group_id' });
 
 // ============================================
 // 3. ALLOCATION ASSOCIATIONS
@@ -114,6 +119,7 @@ module.exports = {
     Subject,
     Allocation,
     Attendance,
+    SubjectGroup,
     Bill,
     BillDetail  // ✅ Export this
 };

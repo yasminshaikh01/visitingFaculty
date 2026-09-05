@@ -1,4 +1,4 @@
-const { Course, Section, Subject, Semester } = require('../Schema');
+const { Course, Section, Subject, Semester, SubjectGroup } = require('../Schema');
 
 async function showDashboard() {
     try{
@@ -105,9 +105,24 @@ async function semesterSubjectShow(course_id, semester_number) {
                 semester_id: semester.semester_id,
                 is_active: true
             },
+            include: [{
+                model: SubjectGroup,
+                attributes: ['group_id', 'group_name', 'combined_code'],
+                required: false
+            }],
             order: [['subject_code', 'ASC']]
         });
-        return subjects;
+        
+        // Flatten for frontend
+        return subjects.map(s => {
+            const plain = s.toJSON();
+            return {
+                ...plain,
+                combined_code: plain.SubjectGroup?.combined_code || null,
+                group_id: plain.SubjectGroup?.group_id || null,
+                SubjectGroup: undefined
+            };
+        });
     } catch (error) {
         console.log(error);
         throw new Error('not able to fetch subjects for the given course and semester');
